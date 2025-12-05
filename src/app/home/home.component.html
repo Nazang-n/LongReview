@@ -1,0 +1,86 @@
+<header class="navbar">
+    <div class="container-nav">
+      <div class="logo-section" routerLink="/" style="cursor: pointer;">
+        <div class="logo-icon">L</div>
+        <span class="brand-name">LongReview</span>
+      </div>
+  
+      <nav class="nav-links">
+        <a routerLink="/news" routerLinkActive="active">ข่าวสาร</a>
+        <a routerLink="/games" routerLinkActive="active">เกมส์</a>
+        <a routerLink="/favorites" routerLinkActive="active">รายการโปรด</a>
+      </nav>
+  
+      <div class="user-actions">
+        <div class="search-box">
+          <input type="text" placeholder="ค้นหา">
+          <span class="search-icon">🔍</span>
+        </div>
+        <div class="profile-icon">👤</div>
+      </div>
+    </div>
+  </header>
+  
+  <main class="main-content">
+    
+    <section class="section">
+      <h2 class="section-title">มาใหม่</h2>
+      <div class="hero-slider">
+        <button class="nav-btn prev" (click)="prevSlide()">❮</button>
+        
+        <div class="slide-content" 
+             *ngIf="newArrivals.length > 0" 
+             [routerLink]="['/game', newArrivals[currentSlide].id]"
+             style="cursor: pointer;"> <img [src]="newArrivals[currentSlide].image" class="hero-img" alt="New Game">
+          <div class="hero-overlay">
+              <h3>{{newArrivals[currentSlide].title}}</h3>
+          </div>
+        </div>
+  
+        <button class="nav-btn next" (click)="nextSlide()">❯</button>
+      </div>
+    </section>
+  
+    <section class="section">
+      <h2 class="section-title">เกมที่ได้คะแนนรีวิวสูง</h2>
+      <div class="scroll-container-wrapper">
+        <button class="nav-btn prev" (click)="scrollList(-300)">❮</button>
+        
+        <div class="card-list" #cardList>
+          <div class="game-card" 
+               *ngFor="let game of highRatedGames"
+               [routerLink]="['/game', game.id]"
+               style="cursor: pointer;"> <div class="card-img-wrapper">
+              <img [src]="game.image" alt="{{game.title}}">
+            </div>
+            <div class="card-body">
+              <h3>{{game.title}}</h3>
+              <div class="rating-row">
+                  <span class="platform">PC/Console</span>
+                  <span class="rating">{{game.rating}}</span>
+              </div>
+              <div class="tags">
+                <span *ngFor="let tag of game.tags" class="tag">{{tag}}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+  
+        <button class="nav-btn next" (click)="scrollList(300)">❯</button>
+      </div>
+    </section>
+  
+  </main>
+  
+  <footer class="footer">
+    <div class="container-footer">
+      <div class="logo-section">
+        <div class="logo-icon-sm">L</div>
+        <span class="brand-name">LongReview</span>
+      </div>
+      <div class="footer-links">
+        <p>About us | Privacy Policy | Terms of Service</p>
+        <p class="copyright">© 2024 LongReview. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
