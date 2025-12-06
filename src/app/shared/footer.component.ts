@@ -19,6 +19,6 @@ import { CommonModule } from '@angular/common';
       </div>
     </footer>
   `,
-  styleUrls: ['../home/home.component.css']
+  // styles are global (in src/styles.css)
 })
 export class FooterComponent {}

@@ -24,3 +24,72 @@ app-root {
 
 /* Remove default spacing for common elements */
 h1,h2,h3,h4,p { margin: 0; }
+
+/* Ensure main page containers align content to top (avoid vertical centering) */
+.main-content,
+.page-container,
+.detail-page,
+.layout .content,
+.page-fill {
+	display: block;
+	box-sizing: border-box;
+}
+
+/* When a container intentionally uses flex, ensure it starts at top */
+.page-fill[style],
+.main-content[style] {
+	align-items: flex-start;
+	justify-content: flex-start;
+}
+
+/* Header (global) - moved from home.component.css */
+.navbar {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: var(--header-height);
+	background-color: #2b2b2b;
+	color: white;
+	z-index: 1000;
+	box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+	display: flex;
+	align-items: center;
+}
+.container-nav {
+	width: 90%;
+	max-width: 1200px;
+	margin: 0 auto;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+.logo-section { display: flex; align-items: center; gap: 12px; }
+.brand-name { font-size: 1.4rem; font-weight: bold; letter-spacing: 0.5px; }
+.logo-icon, .logo-icon-sm {
+	width: 36px; height: 36px; background: linear-gradient(135deg, #6a1b9a, #ffca28);
+	display:flex; align-items:center; justify-content:center; border-radius:6px; transform:rotate(45deg); margin:5px;
+}
+.logo-icon::before, .logo-icon-sm::before { content: 'L'; transform: rotate(-45deg); color: white; font-weight: bold; font-size: 1.2rem; }
+.nav-links a { color: #ccc; text-decoration: none; margin: 0 20px; font-size: 1rem; transition: color 0.3s; }
+.nav-links a:hover { color: #fff; }
+.user-actions { display: flex; gap: 20px; align-items: center; }
+.search-box { background: #444; border-radius: 20px; padding: 5px 15px; display:flex; align-items:center; }
+.search-box input { background: transparent; border: none; color: white; outline: none; width: 150px; }
+.search-icon { cursor: pointer; }
+.profile-icon { width: 35px; height: 35px; background: #555; border-radius: 50%; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+
+/* Footer (global) - moved from home.component.css */
+.footer {
+	background: #222;
+	color: #ccc;
+	padding: 50px 0;
+	border-top: 5px solid #333;
+}
+.container-footer {
+	width: 90%; max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; align-items: flex-start;
+}
+.logo-icon-sm { width: 30px; height: 30px; }
+.logo-icon-sm::before { font-size: 1rem; }
+.footer-links { margin-top: 20px; font-size: 0.9rem; line-height: 1.6; }
+.copyright { color: #666; margin-top: 10px; font-size: 0.8rem; }

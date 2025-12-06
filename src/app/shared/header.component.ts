@@ -30,6 +30,6 @@ import { RouterModule } from '@angular/router';
     </div>
   </header>
   `,
-  styleUrls: ['../home/home.component.css']
+  // styles are global (in src/styles.css)
 })
 export class HeaderComponent {}
