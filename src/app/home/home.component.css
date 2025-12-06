@@ -104,11 +104,14 @@
 
 /* --- Main Content Layout --- */
 .main-content {
-    padding-top: 100px; /* ดันเนื้อหาลงมา ไม่ให้โดน Header บัง */
+    margin-top: var(--header-height); /* align content under fixed header with no inner gap */
+    padding-top: 0;
     padding-bottom: 50px;
     width: 90%;
     max-width: 1200px;
-    margin: 0 auto;
+    margin-left: auto;
+    margin-right: auto;
+    min-height: calc(100vh - var(--header-height));
 }
 
 .section { margin-bottom: 60px; }

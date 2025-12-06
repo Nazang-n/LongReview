@@ -32,7 +32,7 @@ import { FooterComponent } from '../shared/footer.component';
     <app-footer></app-footer>
   `,
   styles: [`
-    .detail-page { padding-top: 70px; }
+    .detail-page { margin-top: var(--header-height); min-height: calc(100vh - var(--header-height)); }
     .banner { height: 300px; background: #333; color: white; display: flex; align-items: flex-end; padding: 30px; }
     .banner h1 { margin: 0; font-size: 3rem; }
     .container { display: flex; gap: 40px; max-width: 1000px; margin: 30px auto; padding: 0 20px; }

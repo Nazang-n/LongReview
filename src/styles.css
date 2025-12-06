@@ -1,1 +1,26 @@
-/* You can add global styles to this file, and also import other style files */
+/* Global reset and layout variables */
+html, body {
+	height: 100%;
+	margin: 0;
+	padding: 0;
+}
+
+:root {
+	--header-height: 70px;
+	--footer-height: 0px; /* adjust if footer is fixed; footer here is static */
+}
+
+/* Ensure app-root fills viewport */
+app-root {
+	display: block;
+	min-height: 100vh;
+}
+
+/* Utility: content area that should fill remaining viewport under header */
+.page-fill {
+	min-height: calc(100vh - var(--header-height));
+	box-sizing: border-box;
+}
+
+/* Remove default spacing for common elements */
+h1,h2,h3,h4,p { margin: 0; }

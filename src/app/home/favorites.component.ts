@@ -22,7 +22,7 @@ import { FooterComponent } from '../shared/footer.component';
     <app-footer></app-footer>
   `,
   styles: [`
-    .page-container { padding: 100px 10% 20px; }
+    .page-container { margin-top: var(--header-height); padding: 20px 10% 20px; min-height: calc(100vh - var(--header-height)); }
     .fav-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; }
     .fav-card { background: white; padding: 10px; border-radius: 8px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
     .fav-img { height: 150px; background: #333; margin-bottom: 10px; border-radius: 4px; }

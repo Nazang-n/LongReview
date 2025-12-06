@@ -44,7 +44,7 @@ import { FooterComponent } from '../shared/footer.component';
     <app-footer></app-footer>
   `,
   styles: [`
-    .layout { display: flex; padding-top: 70px; min-height: 100vh; }
+    .layout { display: flex; margin-top: var(--header-height); min-height: calc(100vh - var(--header-height)); }
     
     /* Sidebar Styles */
     .sidebar { width: 250px; background: #f4f4f4; padding: 20px; border-right: 1px solid #ddd; transition: 0.3s; overflow: hidden; white-space: nowrap;}
