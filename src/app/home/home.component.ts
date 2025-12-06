@@ -1,6 +1,8 @@
 import { Component, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { HeaderComponent } from '../shared/header.component';
+import { FooterComponent } from '../shared/footer.component';
 
 // Interface สำหรับข้อมูลเกม (ปกติควรแยกไฟล์ แต่รวมไว้ที่นี่เพื่อความสะดวก)
 interface Game {
@@ -15,7 +17,9 @@ interface Game {
   selector: 'app-home',
   standalone: true, // ถ้าโปรเจคไม่ใช่ Standalone ให้ลบ Line นี้และ import CommonModule ใน Module หลัก
   imports: [CommonModule,
-            RouterLink
+            RouterLink,
+            HeaderComponent,
+            FooterComponent
           ],
   templateUrl: './home.component.html',
   styleUrls: ['./home.component.css']

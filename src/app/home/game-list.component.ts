@@ -1,12 +1,15 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { HeaderComponent } from '../shared/header.component';
+import { FooterComponent } from '../shared/footer.component';
 
 @Component({
   selector: 'app-game-list',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, HeaderComponent, FooterComponent],
   template: `
+    <app-header></app-header>
     <div class="layout">
       <aside class="sidebar" [class.closed]="!isFilterOpen">
         <div class="sidebar-header">
@@ -38,6 +41,7 @@ import { RouterModule } from '@angular/router';
         </div>
       </main>
     </div>
+    <app-footer></app-footer>
   `,
   styles: [`
     .layout { display: flex; padding-top: 70px; min-height: 100vh; }

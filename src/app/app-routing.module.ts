@@ -11,9 +11,8 @@ import { GameDetailComponent } from './home/game-detail.component';
 
 const routes: Routes = [
   // หน้าแรก (Home)
-  { path: '', component: HomeComponent }, // ปิดปีกกาตรงนี้ให้เรียบร้อย
+  { path: '', component: HomeComponent }, 
   
-  // หน้าอื่นๆ (เป็นพี่น้องกับหน้า Home ไม่ใช่ลูก)
   { path: 'news', component: NewsComponent },
   { path: 'favorites', component: FavoritesComponent },
   { path: 'games', component: GameListComponent },
@@ -26,8 +25,6 @@ const routes: Routes = [
 @NgModule({
   imports: [
     RouterModule.forRoot(routes) 
-    // ไม่ต้องใส่ Component ในนี้ (แม้จะเป็น Standalone) 
-    // เพราะเราใช้มันแค่ในตัวแปร routes ด้านบน
   ],
   exports: [RouterModule]
 })

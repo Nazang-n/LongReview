@@ -1,11 +1,14 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HeaderComponent } from '../shared/header.component';
+import { FooterComponent } from '../shared/footer.component';
 
 @Component({
   selector: 'app-favorites',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, HeaderComponent, FooterComponent],
   template: `
+    <app-header></app-header>
     <div class="page-container">
       <h1>❤️ รายการโปรดของคุณ</h1>
       <div class="fav-grid">
@@ -16,6 +19,7 @@ import { CommonModule } from '@angular/common';
         </div>
       </div>
     </div>
+    <app-footer></app-footer>
   `,
   styles: [`
     .page-container { padding: 100px 10% 20px; }

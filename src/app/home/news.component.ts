@@ -1,11 +1,14 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HeaderComponent } from "../shared/header.component";
+import { FooterComponent } from "../shared/footer.component";
 
 @Component({
   selector: 'app-news',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, HeaderComponent, FooterComponent],
   template: `
+  <app-header></app-header>
     <div class="page-container">
       <h1 class="page-title">ข่าวสารวงการเกม</h1>
       
@@ -21,6 +24,7 @@ import { CommonModule } from '@angular/common';
         </div>
       </div>
     </div>
+    <app-footer></app-footer>
   `,
   styles: [`
     .page-container {

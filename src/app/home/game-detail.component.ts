@@ -1,12 +1,15 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
+import { HeaderComponent } from '../shared/header.component';
+import { FooterComponent } from '../shared/footer.component';
 
 @Component({
   selector: 'app-game-detail',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, HeaderComponent, FooterComponent],
   template: `
+    <app-header></app-header>
     <div class="detail-page">
       <div class="banner">
         <h1>ชื่อเกม (ID: {{ gameId }})</h1>
@@ -26,6 +29,7 @@ import { ActivatedRoute } from '@angular/router';
         </div>
       </div>
     </div>
+    <app-footer></app-footer>
   `,
   styles: [`
     .detail-page { padding-top: 70px; }
