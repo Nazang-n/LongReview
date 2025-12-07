@@ -9,6 +9,8 @@ import { FavoritesComponent } from './home/favorites.component';
 import { GameListComponent } from './home/game-list.component';
 import { GameDetailComponent } from './home/game-detail.component';
 import { ProfileComponent } from './home/profile.component';
+import { LoginComponent } from './auth/login.component';
+import { RegisterComponent } from './auth/register.component';
 
 const routes: Routes = [
   // หน้าแรก (Home)
@@ -19,6 +21,8 @@ const routes: Routes = [
   { path: 'games', component: GameListComponent },
   { path: 'game/:id', component: GameDetailComponent },
   { path: 'profile', component: ProfileComponent },
+  { path: 'login', component: LoginComponent },
+  { path: 'register', component: RegisterComponent },
   
   // (Optional) กรณีพิมพ์ URL ผิดให้กลับไปหน้าแรก
   { path: '**', redirectTo: '' }

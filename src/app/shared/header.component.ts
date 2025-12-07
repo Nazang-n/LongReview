@@ -25,7 +25,7 @@ import { RouterModule } from '@angular/router';
           <input type="text" placeholder="ค้นหา">
           <span class="search-icon">🔍</span>
         </div>
-        <a class="profile-icon" routerLink="/profile" title="Profile">👤</a>
+        <a class="profile-icon" routerLink="/login" title="Profile">👤</a>
       </div>
     </div>
   </header>
