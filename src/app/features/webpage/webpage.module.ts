@@ -1,8 +1,10 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
-
-
+import { HomepageComponent } from './homepage/homepage.component';
+import { NewspageComponent } from './newspage/newspage.component';
+import { GamepageComponent } from './gamepage/gamepage.component';
+import { WebpageRoutingModule } from './webpage.routing.module';
 
 import { providePrimeNG } from 'primeng/config';
 
@@ -20,10 +22,13 @@ import { ToastModule } from 'primeng/toast';
 
 @NgModule({
   declarations: [
-
+    HomepageComponent,
+    NewspageComponent,
+    GamepageComponent
   ],
   imports: [
     CommonModule,
+    WebpageRoutingModule,
     CheckboxModule,
     ConfirmDialogModule,
     TableModule,
@@ -36,7 +41,7 @@ import { ToastModule } from 'primeng/toast';
       theme: {
         preset: aura,
         options: {
-          darkModeSelector: '[data-theme=dark]'  
+          darkModeSelector: '[data-theme=dark]'
         }
       },
     }),
