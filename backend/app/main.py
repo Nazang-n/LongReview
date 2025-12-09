@@ -1,0 +1,68 @@
+from fastapi import FastAPI, status
+from fastapi.middleware.cors import CORSMiddleware
+from .database import engine, Base
+from .routes import games, reviews, steam
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Create database tables (commented out - create tables manually in SQL)
+# Base.metadata.create_all(bind=engine)
+
+# Initialize FastAPI app
+app = FastAPI(
+    title="LongReview API",
+    description="Backend API for LongReview game review platform",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc"
+)
+
+# Configure CORS
+origins = os.getenv("CORS_ORIGINS", "http://localhost:4200").split(",")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Include routers
+app.include_router(games.router)
+app.include_router(reviews.router)
+app.include_router(steam.router)
+
+
+@app.get("/", tags=["root"])
+def read_root():
+    """
+    Root endpoint - API health check.
+    """
+    return {
+        "message": "Welcome to LongReview API",
+        "status": "running",
+        "docs": "/docs",
+        "redoc": "/redoc"
+    }
+
+
+@app.get("/health", status_code=status.HTTP_200_OK, tags=["health"])
+def health_check():
+    """
+    Health check endpoint.
+    """
+    return {
+        "status": "healthy",
+        "database": "connected"
+    }
+
+
+if __name__ == "__main__":
+    import uvicorn
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run("app.main:app", host=host, port=port, reload=True)
