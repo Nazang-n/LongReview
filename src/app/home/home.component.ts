@@ -4,6 +4,9 @@ import { RouterLink } from '@angular/router';
 import { HeaderComponent } from '../shared/header.component';
 import { FooterComponent } from '../shared/footer.component';
 
+// Import PrimeNG modules
+import { ButtonModule } from 'primeng/button';
+
 // Interface สำหรับข้อมูลเกม (ปกติควรแยกไฟล์ แต่รวมไว้ที่นี่เพื่อความสะดวก)
 interface Game {
   id: number;
@@ -17,22 +20,23 @@ interface Game {
   selector: 'app-home',
   standalone: true, // ถ้าโปรเจคไม่ใช่ Standalone ให้ลบ Line นี้และ import CommonModule ใน Module หลัก
   imports: [CommonModule,
-            RouterLink,
-            HeaderComponent,
-            FooterComponent
-          ],
+    RouterLink,
+    HeaderComponent,
+    FooterComponent,
+    ButtonModule  // PrimeNG Button
+  ],
   templateUrl: './home.component.html',
   styleUrls: ['./home.component.css']
 })
 export class HomeComponent {
-  
+
   // --- Data ส่วน Hero (มาใหม่) ---
   currentSlide = 0;
   newArrivals: Game[] = [
     {
       id: 1,
       title: 'Naraka: Bladepoint',
-      image: 'https://cdn.akamai.steamstatic.com/steam/apps/1203220/header.jpg', 
+      image: 'https://cdn.akamai.steamstatic.com/steam/apps/1203220/header.jpg',
       rating: 4.5,
       tags: ['Action', 'Battle Royale']
     },
@@ -97,7 +101,7 @@ export class HomeComponent {
   prevSlide() {
     this.currentSlide = (this.currentSlide === 0) ? this.newArrivals.length - 1 : this.currentSlide - 1;
   }
-  
+
   nextSlide() {
     this.currentSlide = (this.currentSlide === this.newArrivals.length - 1) ? 0 : this.currentSlide + 1;
   }

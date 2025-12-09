@@ -1,54 +1,57 @@
 <app-header></app-header>
-  
-  <main class="main-content">
-    
-    <section class="section">
-      <h2 class="section-title">มาใหม่</h2>
-      <div class="hero-slider">
-        <button class="nav-btn prev" (click)="prevSlide()">❮</button>
-        
-        <div class="slide-content" 
-             *ngIf="newArrivals.length > 0" 
-             [routerLink]="['/game', newArrivals[currentSlide].id]"
-             style="cursor: pointer;"> <img [src]="newArrivals[currentSlide].image" class="hero-img" alt="New Game">
-          <div class="hero-overlay">
-              <h3>{{newArrivals[currentSlide].title}}</h3>
+
+<main class="main-content">
+
+  <section class="section">
+    <div class="flex justify-between items-center mb-5">
+      <h2 class="section-title mb-0">มาใหม่</h2>
+      <p-button label="ดูทั้งหมด" icon="pi pi-arrow-right" iconPos="right" styleClass="p-button-outlined"
+        class="!bg-purple-600 hover:!bg-purple-700 !text-white !border-purple-600 hover:!border-purple-700 !px-6 !py-2 !rounded-lg !transition-all !duration-300 !shadow-md hover:!shadow-lg"
+        [routerLink]="['/games']">
+      </p-button>
+    </div>
+    <div class="hero-slider">
+      <button class="nav-btn prev" (click)="prevSlide()">❮</button>
+
+      <div class="slide-content" *ngIf="newArrivals.length > 0" [routerLink]="['/game', newArrivals[currentSlide].id]"
+        style="cursor: pointer;"> <img [src]="newArrivals[currentSlide].image" class="hero-img" alt="New Game">
+        <div class="hero-overlay">
+          <h3>{{newArrivals[currentSlide].title}}</h3>
+        </div>
+      </div>
+
+      <button class="nav-btn next" (click)="nextSlide()">❯</button>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2 class="section-title">เกมที่ได้คะแนนรีวิวสูง</h2>
+    <div class="scroll-container-wrapper">
+      <button class="nav-btn prev" (click)="scrollList(-300)">❮</button>
+
+      <div class="card-list" #cardList>
+        <div class="game-card" *ngFor="let game of highRatedGames" [routerLink]="['/game', game.id]"
+          style="cursor: pointer;">
+          <div class="card-img-wrapper">
+            <img [src]="game.image" alt="{{game.title}}">
+          </div>
+          <div class="card-body">
+            <h3>{{game.title}}</h3>
+            <div class="rating-row">
+              <span class="platform">PC/Console</span>
+              <span class="rating">{{game.rating}}</span>
+            </div>
+            <div class="tags">
+              <span *ngFor="let tag of game.tags" class="tag">{{tag}}</span>
+            </div>
           </div>
         </div>
-  
-        <button class="nav-btn next" (click)="nextSlide()">❯</button>
       </div>
-    </section>
-  
-    <section class="section">
-      <h2 class="section-title">เกมที่ได้คะแนนรีวิวสูง</h2>
-      <div class="scroll-container-wrapper">
-        <button class="nav-btn prev" (click)="scrollList(-300)">❮</button>
-        
-        <div class="card-list" #cardList>
-          <div class="game-card" 
-               *ngFor="let game of highRatedGames"
-               [routerLink]="['/game', game.id]"
-               style="cursor: pointer;"> <div class="card-img-wrapper">
-              <img [src]="game.image" alt="{{game.title}}">
-            </div>
-            <div class="card-body">
-              <h3>{{game.title}}</h3>
-              <div class="rating-row">
-                  <span class="platform">PC/Console</span>
-                  <span class="rating">{{game.rating}}</span>
-              </div>
-              <div class="tags">
-                <span *ngFor="let tag of game.tags" class="tag">{{tag}}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-  
-        <button class="nav-btn next" (click)="scrollList(300)">❯</button>
-      </div>
-    </section>
-  
-  </main>
-  
+
+      <button class="nav-btn next" (click)="scrollList(300)">❯</button>
+    </div>
+  </section>
+
+</main>
+
 <app-footer></app-footer>
