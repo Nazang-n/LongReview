@@ -1,0 +1,5 @@
+.profile-page {
+    margin-top: var(--header-height);
+    padding: 20px;
+    min-height: calc(100vh - var(--header-height));
+}

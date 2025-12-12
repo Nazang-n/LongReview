@@ -1,0 +1,50 @@
+<app-header></app-header>
+<div class="page-container">
+
+    <!-- Top Section: Featured & Side List -->
+    <section class="top-section">
+        <!-- Main Featured News -->
+        <div class="featured-news">
+            <div class="featured-header">
+                <h1>{{ featuredNews.title }}</h1>
+            </div>
+            <div class="featured-img" [style.backgroundImage]="'url(' + featuredNews.image + ')'"></div>
+            <div class="featured-content">
+                <h2>เพิ่มระบบใหม่ และแก้ไขให้สมดุล</h2>
+                <p>{{ featuredNews.description }} <a href="#" class="read-more-link">อ่านต่อ</a></p>
+            </div>
+        </div>
+
+        <!-- Side News List -->
+        <div class="side-news-list">
+            <div class="side-item" *ngFor="let item of sideNews">
+                <div class="side-content">
+                    <h3>{{ item.title }}</h3>
+                    <p>{{ item.description }}</p>
+                </div>
+                <div class="side-img" [style.backgroundImage]="'url(' + item.image + ')'"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Latest News Section -->
+    <section class="latest-section">
+        <h2 class="section-title">ใหม่ล่าสุด</h2>
+        <div class="divider"></div>
+
+        <div class="latest-list">
+            <div class="latest-item" *ngFor="let item of latestNews">
+                <div class="latest-content">
+                    <h3>{{ item.title }}</h3>
+                    <p>{{ item.description }}</p>
+                    <a href="#" class="read-more-link">อ่านต่อ</a>
+                </div>
+                <div class="latest-img" [style.backgroundImage]="'url(' + item.image + ')'"></div>
+            </div>
+        </div>
+
+        <button class="load-more-btn">ดูเพิ่มเติม</button>
+    </section>
+
+</div>
+<app-footer></app-footer>

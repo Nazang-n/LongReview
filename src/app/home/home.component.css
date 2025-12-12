@@ -1,7 +1,8 @@
 /* --- Global Reset & Fonts --- */
 :host {
     display: block;
-    font-family: 'Sarabun', sans-serif; /* แนะนำให้ import font Sarabun ใน styles.css หลัก */
+    font-family: 'Sarabun', sans-serif;
+    /* แนะนำให้ import font Sarabun ใน styles.css หลัก */
     background-color: #f9f9f9;
     color: #333;
     min-height: 100vh;
@@ -11,7 +12,8 @@
 
 /* --- Main Content Layout --- */
 .main-content {
-    margin-top: var(--header-height); /* align content under fixed header with no inner gap */
+    margin-top: var(--header-height);
+    /* align content under fixed header with no inner gap */
     padding-top: 0;
     padding-bottom: 50px;
     width: 90%;
@@ -21,7 +23,10 @@
     min-height: calc(100vh - var(--header-height));
 }
 
-.section { margin-bottom: 60px; }
+.section {
+    margin-bottom: 60px;
+}
+
 .section-title {
     font-size: 1.8rem;
     margin-bottom: 20px;
@@ -38,10 +43,14 @@
     background: #000;
     border-radius: 10px;
     overflow: hidden;
-    box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
 }
 
-.slide-content { width: 100%; height: 100%; position: relative;}
+.slide-content {
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
 
 .hero-img {
     width: 100%;
@@ -55,11 +64,16 @@
     bottom: 0;
     left: 0;
     width: 100%;
-    background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
     padding: 40px 20px 20px;
     color: white;
 }
-.hero-overlay h3 { font-size: 2rem; margin: 0; text-shadow: 2px 2px 4px black; }
+
+.hero-overlay h3 {
+    font-size: 2rem;
+    margin: 0;
+    text-shadow: 2px 2px 4px black;
+}
 
 .nav-btn {
     position: absolute;
@@ -74,9 +88,18 @@
     z-index: 10;
     transition: background 0.3s;
 }
-.nav-btn:hover { background: rgba(0,0,0,0.8); }
-.nav-btn.prev { left: 0; }
-.nav-btn.next { right: 0; }
+
+.nav-btn:hover {
+    background: rgba(0, 0, 0, 0.8);
+}
+
+.nav-btn.prev {
+    left: 0;
+}
+
+.nav-btn.next {
+    right: 0;
+}
 
 /* --- 3. High Rated (Card List) Styles --- */
 .scroll-container-wrapper {
@@ -88,12 +111,18 @@
 .card-list {
     display: flex;
     gap: 25px;
-    overflow-x: auto; /* Scroll แนวนอน */
+    overflow-x: auto;
+    /* Scroll แนวนอน */
     scroll-behavior: smooth;
     padding: 10px 5px;
-    scrollbar-width: none; /* Firefox hide scrollbar */
+    scrollbar-width: none;
+    /* Firefox hide scrollbar */
 }
-.card-list::-webkit-scrollbar { display: none; /* Chrome/Safari hide scrollbar */ }
+
+.card-list::-webkit-scrollbar {
+    display: none;
+    /* Chrome/Safari hide scrollbar */
+}
 
 .game-card {
     min-width: 220px;
@@ -102,28 +131,53 @@
     transition: transform 0.3s;
     cursor: pointer;
 }
-.game-card:hover { transform: translateY(-8px); }
+
+.game-card:hover {
+    transform: translateY(-8px);
+}
 
 .card-img-wrapper {
     height: 300px;
     border-radius: 10px;
     overflow: hidden;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
 }
+
 .card-img-wrapper img {
     width: 100%;
     height: 100%;
     object-fit: cover;
 }
 
-.card-body { padding: 10px 0; }
-.card-body h3 { font-size: 1rem; margin: 10px 0 5px; font-weight: bold; }
-.rating-row {
-    display: flex; justify-content: space-between; font-size: 0.85rem; color: #666; margin-bottom: 5px;
+.card-body {
+    padding: 10px 0;
 }
-.rating { color: #8e24aa; font-weight: bold; }
 
-.tags { display: flex; gap: 5px; flex-wrap: wrap; }
+.card-body h3 {
+    font-size: 1rem;
+    margin: 10px 0 5px;
+    font-weight: bold;
+}
+
+.rating-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    color: #666;
+    margin-bottom: 5px;
+}
+
+.rating {
+    color: #8e24aa;
+    font-weight: bold;
+}
+
+.tags {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+
 .tag {
     background: #e0e0e0;
     color: #333;
@@ -137,8 +191,21 @@
 
 /* --- Responsive (Optional) --- */
 @media (max-width: 768px) {
-    .nav-links { display: none; } /* ซ่อนเมนูบนมือถือเพื่อความง่าย */
-    .hero-slider { height: 250px; }
-    .card-img-wrapper { height: 220px; }
-    .game-card { min-width: 160px; max-width: 160px; }
+    .nav-links {
+        display: none;
+    }
+
+    /* ซ่อนเมนูบนมือถือเพื่อความง่าย */
+    .hero-slider {
+        height: 250px;
+    }
+
+    .card-img-wrapper {
+        height: 220px;
+    }
+
+    .game-card {
+        min-width: 160px;
+        max-width: 160px;
+    }
 }

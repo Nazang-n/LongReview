@@ -1,0 +1,12 @@
+<app-header></app-header>
+<div class="page-container">
+    <h1>❤️ รายการโปรดของคุณ</h1>
+    <div class="fav-grid">
+        <div class="fav-card" *ngFor="let game of ['Elden Ring', 'GTA V', 'Valorant']">
+            <div class="fav-img"></div>
+            <h3>{{ game }}</h3>
+            <button class="remove-btn">ลบออก</button>
+        </div>
+    </div>
+</div>
+<app-footer></app-footer>

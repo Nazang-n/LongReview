@@ -1,0 +1,33 @@
+<app-header></app-header>
+<div class="layout">
+    <aside class="sidebar" [class.closed]="!isFilterOpen">
+        <div class="sidebar-header">
+            <h3>ตัวกรอง (Filter)</h3>
+            <button (click)="toggleFilter()" class="close-icon">✕</button>
+        </div>
+        <div class="filter-group">
+            <label>หมวดหมู่</label>
+            <div><input type="checkbox"> Action</div>
+            <div><input type="checkbox"> RPG</div>
+            <div><input type="checkbox"> Strategy</div>
+        </div>
+    </aside>
+
+    <main class="content">
+        <button *ngIf="!isFilterOpen" (click)="toggleFilter()" class="open-filter-btn">
+            📂 เปิดตัวกรอง
+        </button>
+
+        <h1>รายการเกมทั้งหมด</h1>
+        <div class="game-grid">
+            <div class="game-card" *ngFor="let i of [1,2,3,4,5,6]" [routerLink]="['/game', i]">
+                <div class="game-img">IMG</div>
+                <div class="card-info">
+                    <h3>Game Title {{i}}</h3>
+                    <span>⭐⭐⭐⭐</span>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+<app-footer></app-footer>
