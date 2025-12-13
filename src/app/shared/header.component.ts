@@ -10,7 +10,7 @@ import { RouterModule } from '@angular/router';
   <header class="navbar">
     <div class="container-nav">
       <div class="logo-section" routerLink="/" style="cursor: pointer;">
-        <div class="logo-icon">L</div>
+        <div class="logo-icon"><img src="/Logo.png" alt="Logo"></div>
         <span class="brand-name">LongReview</span>
       </div>
 
@@ -32,4 +32,4 @@ import { RouterModule } from '@angular/router';
   `,
   // styles are global (in src/styles.css)
 })
-export class HeaderComponent {}
+export class HeaderComponent { }

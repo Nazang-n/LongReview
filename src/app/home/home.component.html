@@ -3,15 +3,16 @@
 <main class="main-content">
 
   <section class="section">
-    <div class="flex justify-between items-center mb-5">
-      <h2 class="section-title mb-0">มาใหม่</h2>
-      <p-button label="ดูทั้งหมด" icon="pi pi-arrow-right" iconPos="right" styleClass="p-button-outlined"
-        class="!bg-purple-600 hover:!bg-purple-700 !text-white !border-purple-600 hover:!border-purple-700 !px-6 !py-2 !rounded-lg !transition-all !duration-300 !shadow-md hover:!shadow-lg"
-        [routerLink]="['/games']">
-      </p-button>
+    <!-- Section Title Area -->
+    <div class="mt-20 mb-5">
+      <h2 class="section-title">มาใหม่</h2>
     </div>
     <div class="hero-slider">
-      <button class="nav-btn prev" (click)="prevSlide()">❮</button>
+      <button
+        class="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/20 hover:bg-white/40 backdrop-blur-md border border-white/30 text-white rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 z-50 group"
+        (click)="prevSlide()">
+        <i class="pi pi-chevron-left text-xl group-hover:-translate-x-0.5 transition-transform"></i>
+      </button>
 
       <div class="slide-content" *ngIf="newArrivals.length > 0" [routerLink]="['/game', newArrivals[currentSlide].id]"
         style="cursor: pointer;"> <img [src]="newArrivals[currentSlide].image" class="hero-img" alt="New Game">
@@ -20,14 +21,22 @@
         </div>
       </div>
 
-      <button class="nav-btn next" (click)="nextSlide()">❯</button>
+      <button
+        class="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/20 hover:bg-white/40 backdrop-blur-md border border-white/30 text-white rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 z-50 group"
+        (click)="manualNext()">
+        <i class="pi pi-chevron-right text-xl group-hover:translate-x-0.5 transition-transform"></i>
+      </button>
     </div>
   </section>
 
   <section class="section">
     <h2 class="section-title">เกมที่ได้คะแนนรีวิวสูง</h2>
     <div class="scroll-container-wrapper">
-      <button class="nav-btn prev" (click)="scrollList(-300)">❮</button>
+      <button
+        class="absolute left-0 top-1/2 -translate-y-1/2 -ml-5 w-10 h-10 bg-white hover:bg-gray-50 text-gray-800 shadow-lg rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 z-10 border border-gray-100"
+        (click)="scrollList(-300)">
+        <i class="pi pi-chevron-left"></i>
+      </button>
 
       <div class="card-list" #cardList>
         <div class="game-card" *ngFor="let game of highRatedGames" [routerLink]="['/game', game.id]"
@@ -48,7 +57,11 @@
         </div>
       </div>
 
-      <button class="nav-btn next" (click)="scrollList(300)">❯</button>
+      <button
+        class="absolute right-0 top-1/2 -translate-y-1/2 -mr-5 w-10 h-10 bg-white hover:bg-gray-50 text-gray-800 shadow-lg rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 z-10 border border-gray-100"
+        (click)="scrollList(300)">
+        <i class="pi pi-chevron-right"></i>
+      </button>
     </div>
   </section>
 
