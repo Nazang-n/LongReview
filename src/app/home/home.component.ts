@@ -1,5 +1,5 @@
-import { Component, ElementRef, ViewChild, OnInit, OnDestroy } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, ElementRef, ViewChild, OnInit, OnDestroy, Inject, PLATFORM_ID } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { HeaderComponent } from '../shared/header.component';
 import { FooterComponent } from '../shared/footer.component';
@@ -61,7 +61,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       image: 'https://cdn.akamai.steamstatic.com/steam/apps/2933620/header.jpg',
       rating: 4.2,
       tags: ['FPS', 'Action']
-    }
+    },
   ];
 
   // --- Data ส่วนคะแนนรีวิวสูง ---
@@ -105,6 +105,8 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   @ViewChild('cardList') cardList!: ElementRef;
 
+  constructor(@Inject(PLATFORM_ID) private platformId: Object) { }
+
   ngOnInit() {
     this.startAutoSlide();
   }
@@ -114,9 +116,11 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   startAutoSlide() {
-    this.autoSlideInterval = setInterval(() => {
-      this.nextSlide();
-    }, 5000);
+    if (isPlatformBrowser(this.platformId)) {
+      this.autoSlideInterval = setInterval(() => {
+        this.nextSlide();
+      }, 5000);
+    }
   }
 
   stopAutoSlide() {
