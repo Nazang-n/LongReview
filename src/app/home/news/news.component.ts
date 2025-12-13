@@ -2,6 +2,10 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HeaderComponent } from '../../shared/header.component';
 import { FooterComponent } from '../../shared/footer.component';
+import { ButtonModule } from 'primeng/button';
+import { CardModule } from 'primeng/card';
+import { TagModule } from 'primeng/tag';
+import { DividerModule } from 'primeng/divider';
 
 interface NewsItem {
     id: number;
@@ -15,7 +19,7 @@ interface NewsItem {
 @Component({
     selector: 'app-news',
     standalone: true,
-    imports: [CommonModule, HeaderComponent, FooterComponent],
+    imports: [CommonModule, HeaderComponent, FooterComponent, ButtonModule, CardModule, TagModule, DividerModule],
     templateUrl: './news.component.html',
     styleUrls: ['./news.component.css']
 })

@@ -1,16 +1,18 @@
-/* Global reset and layout variables */
 @import "tailwindcss";
 
 html,
 body {
-	height: 100%;
 	margin: 0;
 	padding: 0;
+	width: 100%;
+	height: 100%;
 }
 
 :root {
 	--header-height: 70px;
 	--footer-height: 0px;
+	--surface-0: #ffffff;
+	--text-color: #333333;
 	/* adjust if footer is fixed; footer here is static */
 }
 
@@ -18,6 +20,13 @@ body {
 app-root {
 	display: block;
 	min-height: 100vh;
+	background-color: var(--surface-0);
+	color: var(--text-color);
+}
+
+body {
+	background-color: var(--surface-0);
+	color: var(--text-color);
 }
 
 /* Utility: content area that should fill remaining viewport under header */
