@@ -1,33 +1,208 @@
 <app-header></app-header>
-<div class="layout">
-    <aside class="sidebar" [class.closed]="!isFilterOpen">
-        <div class="sidebar-header">
-            <h3>ตัวกรอง (Filter)</h3>
-            <button (click)="toggleFilter()" class="close-icon">✕</button>
-        </div>
-        <div class="filter-group">
-            <label>หมวดหมู่</label>
-            <div><input type="checkbox"> Action</div>
-            <div><input type="checkbox"> RPG</div>
-            <div><input type="checkbox"> Strategy</div>
-        </div>
-    </aside>
+<div class="page-container bg-gray-50 min-h-screen">
+    <!-- Main Layout with Sidebar and Content -->
+    <div class="flex gap-6 px-4 md:px-8 max-w-7xl mx-auto pb-12"
+        style="padding-top: calc(var(--header-height) + 20px);">
 
-    <main class="content">
-        <button *ngIf="!isFilterOpen" (click)="toggleFilter()" class="open-filter-btn">
-            📂 เปิดตัวกรอง
-        </button>
+        <!-- Left Sidebar (Always Open) -->
+        <aside class="sidebar w-64 flex-shrink-0">
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                <!-- Sidebar Header -->
+                <div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                    <h3 class="font-bold text-gray-800">เกมส์ทั้งหมด</h3>
+                </div>
 
-        <h1>รายการเกมทั้งหมด</h1>
-        <div class="game-grid">
-            <div class="game-card" *ngFor="let i of [1,2,3,4,5,6]" [routerLink]="['/game', i]">
-                <div class="game-img">IMG</div>
-                <div class="card-info">
-                    <h3>Game Title {{i}}</h3>
-                    <span>⭐⭐⭐⭐</span>
+                <!-- Filter Categories -->
+                <div class="p-4 space-y-1">
+
+                    <!-- Platform Section (Expanded) -->
+                    <div class="filter-section">
+                        <div
+                            class="filter-item py-2 px-3 bg-purple-50 border-l-2 border-purple-500 rounded cursor-pointer">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-900 font-semibold">แพลตฟอร์ม</span>
+                                <i class="pi pi-chevron-down text-purple-500 text-xs"></i>
+                            </div>
+                        </div>
+                        <div class="pl-4 mt-1 space-y-1">
+                            <div
+                                class="filter-item py-2 px-3 hover:bg-gray-50 rounded cursor-pointer transition-colors">
+                                <span class="text-xs text-gray-600">PC</span>
+                            </div>
+                            <div
+                                class="filter-item py-2 px-3 hover:bg-gray-50 rounded cursor-pointer transition-colors">
+                                <span class="text-xs text-gray-600">PlayStation 4</span>
+                            </div>
+                            <div
+                                class="filter-item py-2 px-3 hover:bg-gray-50 rounded cursor-pointer transition-colors">
+                                <span class="text-xs text-gray-600">PlayStation 5</span>
+                            </div>
+                            <div
+                                class="filter-item py-2 px-3 hover:bg-gray-50 rounded cursor-pointer transition-colors">
+                                <span class="text-xs text-gray-600">Xbox</span>
+                            </div>
+                            <div
+                                class="filter-item py-2 px-3 hover:bg-gray-50 rounded cursor-pointer transition-colors">
+                                <span class="text-xs text-gray-600">All Platform</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="filter-section">
+                        <div
+                            class="filter-item py-2 px-3 bg-purple-50 border-l-2 border-purple-500 rounded cursor-pointer">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-900 font-semibold">ผู้เล่น</span>
+                                <i class="pi pi-chevron-down text-purple-500 text-xs"></i>
+                            </div>
+                        </div>
+                        <div class="pl-4 mt-1 space-y-1">
+                            <div
+                                class="filter-item py-2 px-3 hover:bg-gray-50 rounded cursor-pointer transition-colors">
+                                <span class="text-xs text-gray-600">ผู้เล่นคนเดียว</span>
+                            </div>
+                            <div
+                                class="filter-item py-2 px-3 hover:bg-gray-50 rounded cursor-pointer transition-colors">
+                                <span class="text-xs text-gray-600">ผู้เล่นหลายคน</span>
+                            </div>
+                            <div
+                                class="filter-item py-2 px-3 hover:bg-gray-50 rounded cursor-pointer transition-colors">
+                                <span class="text-xs text-gray-600">ร่วมมือกัน</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="filter-section">
+                        <div
+                            class="filter-item py-2 px-3 bg-purple-50 border-l-2 border-purple-500 rounded cursor-pointer">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-900 font-semibold">ประเภท</span>
+                                <i class="pi pi-chevron-down text-purple-500 text-xs"></i>
+                            </div>
+                        </div>
+                        <div class="pl-4 mt-1 space-y-1">
+                            <div
+                                class="filter-item py-2 px-3 hover:bg-gray-50 rounded cursor-pointer transition-colors">
+                                <span class="text-xs text-gray-600">แอคชัน</span>
+                            </div>
+                            <div
+                                class="filter-item py-2 px-3 hover:bg-gray-50 rounded cursor-pointer transition-colors">
+                                <span class="text-xs text-gray-600">ผจญภัย</span>
+                            </div>
+                            <div
+                                class="filter-item py-2 px-3 hover:bg-gray-50 rounded cursor-pointer transition-colors">
+                                <span class="text-xs text-gray-600">อินดี้</span>
+                            </div>
+                            <div
+                                class="filter-item py-2 px-3 hover:bg-gray-50 rounded cursor-pointer transition-colors">
+                                <span class="text-xs text-gray-600">แข่งความเร็ว</span>
+                            </div>
+                            <div
+                                class="filter-item py-2 px-3 hover:bg-gray-50 rounded cursor-pointer transition-colors">
+                                <span class="text-xs text-gray-600">เกมสวมบทบาท</span>
+                            </div>
+                            <div
+                                class="filter-item py-2 px-3 hover:bg-gray-50 rounded cursor-pointer transition-colors">
+                                <span class="text-xs text-gray-600">จำลองสถานการณ์</span>
+                            </div>
+                            <div
+                                class="filter-item py-2 px-3 hover:bg-gray-50 rounded cursor-pointer transition-colors">
+                                <span class="text-xs text-gray-600">กีฬา</span>
+                            </div>
+                            <div
+                                class="filter-item py-2 px-3 hover:bg-gray-50 rounded cursor-pointer transition-colors">
+                                <span class="text-xs text-gray-600">กลยุทธ์</span>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
-        </div>
-    </main>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="flex-1">
+            <!-- Game Grid (3 columns) -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div *ngFor="let game of games" [routerLink]="['/game', game.id]"
+                    class="game-card bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group border border-gray-100">
+
+                    <!-- Game Image -->
+                    <div class="relative h-64 overflow-hidden">
+                        <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
+                            [style.backgroundImage]="'url(' + game.image + ')'">
+                        </div>
+
+                        <!-- Gradient Overlay -->
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent">
+                        </div>
+
+                        <!-- Review Badge (Top Right) - Single badge based on review type -->
+                        <div class="absolute top-3 right-3">
+                            <!-- Positive Reviews Only -->
+                            <div *ngIf="game.reviewType === 'positive'"
+                                class="bg-green-500 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-lg">
+                                <i class="pi pi-thumbs-up text-base"></i>
+                            </div>
+
+                            <!-- Negative Reviews Only -->
+                            <div *ngIf="game.reviewType === 'negative'"
+                                class="bg-red-500 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-lg">
+                                <i class="pi pi-thumbs-down text-base"></i>
+                            </div>
+
+                            <!-- Mixed Reviews -->
+                            <div *ngIf="game.reviewType === 'mixed'"
+                                class="bg-yellow-500 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-lg">
+                                <i class="pi pi-sync text-base"></i>
+                            </div>
+                        </div>
+
+                        <!-- NEW Badge (Top Left) -->
+                        <span *ngIf="game.isNew"
+                            class="absolute top-3 left-3 bg-purple-600 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide shadow-lg">
+                            NEW
+                        </span>
+                    </div>
+
+                    <!-- Card Content -->
+                    <div class="p-4">
+                        <!-- Game Title -->
+                        <h3 class="text-lg font-bold text-gray-900 mb-2 group-hover:text-purple-600 transition-colors">
+                            {{ game.title }}
+                        </h3>
+
+                        <!-- Description -->
+                        <p class="text-sm text-gray-500 mb-3 line-clamp-2 leading-relaxed">
+                            {{ game.description }}
+                        </p>
+
+                        <!-- Footer: Date, Genres and Review Tags -->
+                        <div class="pt-3 border-t border-gray-100 space-y-2">
+                            <!-- Release Date -->
+                            <div class="flex items-center gap-1.5 text-gray-400 text-xs">
+                                <i class="pi pi-calendar"></i>
+                                <span>{{ game.releaseDate }}</span>
+                            </div>
+
+                            <!-- Genre and Review Tags Combined -->
+                            <div class="flex flex-wrap gap-1.5">
+                                <!-- Genre Tags (Purple) -->
+                                <span *ngFor="let genre of game.genres"
+                                    class="bg-purple-100 text-purple-700 text-xs px-2 py-1 rounded font-medium">
+                                    {{ genre }}
+                                </span>
+                                <!-- Review Tags (Blue) -->
+                                <span *ngFor="let tag of game.reviewTags"
+                                    class="bg-yellow-100 text-yellow-700 text-xs px-2 py-1 rounded font-medium">
+                                    {{ tag }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
 </div>
 <app-footer></app-footer>
