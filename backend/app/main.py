@@ -1,7 +1,7 @@
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from .database import engine, Base
-from .routes import games, reviews, steam
+from .routes import games, reviews, steam, auth
 import os
 from dotenv import load_dotenv
 
@@ -32,6 +32,7 @@ app.add_middleware(
 )
 
 # Include routers
+app.include_router(auth.router)
 app.include_router(games.router)
 app.include_router(reviews.router)
 app.include_router(steam.router)

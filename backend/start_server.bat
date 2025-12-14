@@ -4,7 +4,7 @@ echo Testing Backend Database Connection
 echo ========================================
 echo.
 
-cd /d "c:\Project GameWeb\backend"
+cd /d "%~dp0"
 
 echo [1/3] Activating virtual environment...
 call venv\Scripts\activate

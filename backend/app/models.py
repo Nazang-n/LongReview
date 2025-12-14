@@ -8,12 +8,11 @@ class User(Base):
     __tablename__ = "user"
     
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String(100), unique=True, nullable=False, index=True)
+    username = Column("user_name", String(100), unique=True, nullable=False, index=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
-    password_hash = Column(String(255), nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    is_active = Column(Boolean, default=True)
+    password_hash = Column("password", String(255), nullable=False)
+    user_role = Column(String(50), nullable=False, default="User")
+    created_at = Column("created_date", DateTime(timezone=True), server_default=func.now())
 
 
 class Game(Base):
