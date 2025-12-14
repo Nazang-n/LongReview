@@ -12,15 +12,17 @@ import { ProfileComponent } from './home/profile/profile.component';
 import { LoginComponent } from './auth/login.component';
 import { RegisterComponent } from './auth/register.component';
 
+import { AuthGuard } from './guards/auth.guard';
+
 const routes: Routes = [
   // หน้าแรก (Home)
   { path: '', component: HomeComponent },
 
   { path: 'news', component: NewsComponent },
-  { path: 'favorites', component: FavoritesComponent },
+  { path: 'favorites', component: FavoritesComponent, canActivate: [AuthGuard] },
   { path: 'games', component: GameListComponent },
   { path: 'game/:id', component: GameDetailComponent },
-  { path: 'profile', component: ProfileComponent },
+  { path: 'profile', component: ProfileComponent, canActivate: [AuthGuard] },
   { path: 'login', component: LoginComponent },
   { path: 'register', component: RegisterComponent },
 

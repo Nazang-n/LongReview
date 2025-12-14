@@ -29,12 +29,14 @@ export interface LoginRequest {
 })
 export class AuthService {
     private apiUrl = 'http://localhost:8000/api/auth';
-    private currentUser = new BehaviorSubject<User | null>(this.getUserFromStorage());
+    private currentUser: BehaviorSubject<User | null>;
 
     constructor(
         private http: HttpClient,
         @Inject(PLATFORM_ID) private platformId: Object
-    ) { }
+    ) {
+        this.currentUser = new BehaviorSubject<User | null>(this.getUserFromStorage());
+    }
 
     /**
      * Register a new user
