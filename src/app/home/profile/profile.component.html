@@ -1,6 +1,146 @@
 <app-header></app-header>
 <div class="profile-page">
-    <h1>โปรไฟล์ของฉัน</h1>
-    <p>ข้อมูลผู้ใช้และการตั้งค่าจะแสดงที่นี่</p>
+    <!-- Profile Header Section -->
+    <div class="profile-header">
+        <div class="profile-banner"></div>
+        <div class="profile-info-container">
+            <div class="profile-avatar-section">
+                <div class="avatar-wrapper">
+                    <img [src]="userProfile.avatar" [alt]="userProfile.username" class="profile-avatar">
+                    <button class="edit-avatar-btn" title="เปลี่ยนรูปโปรไฟล์">
+                        <i class="pi pi-camera"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="text-purple-500 mb-5">
+                <span class=" flex items-center space-x-5 gap-2">
+                    <span class="font-bold text-2xl">{{ userProfile.username }}</span>
+                    <i class="pi pi-calendar"></i>
+                    เข้าร่วมเมื่อ {{ userProfile.joinDate | date: 'dd MMM yyyy' }}
+                </span>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Stats Section -->
+    <div class="stats-section">
+        <div class="stat-card">
+            <div class="stat-icon comments">
+                <i class="pi pi-comment"></i>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-number">{{ userStats.totalComments }}</h3>
+                <p class="stat-label">คอมเมนต์ทั้งหมด</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon favorites">
+                <i class="pi pi-heart-fill"></i>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-number">{{ userStats.favorites }}</h3>
+                <p class="stat-label">เกมที่ชอบ</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs Section -->
+    <div class="profile-content">
+        <div class="tabs-header">
+            <button *ngFor="let tab of tabs" class="tab-btn" [class.active]="activeTab === tab.id"
+                (click)="setActiveTab(tab.id)">
+                <i [class]="tab.icon"></i>
+                {{ tab.label }}
+            </button>
+        </div>
+
+        <div class="tab-content">
+            <!-- Comments Tab -->
+            <div *ngIf="activeTab === 'comments'" class="comments-grid">
+                <div *ngFor="let comment of userComments" class="comment-card">
+                    <div class="comment-game-cover">
+                        <img [src]="comment.gameCover" [alt]="comment.gameTitle">
+                    </div>
+                    <div class="comment-content">
+                        <h3 class="comment-game-title">{{ comment.gameTitle }}</h3>
+                        <p class="comment-date">{{ comment.date | date: 'dd MMM yyyy' }}</p>
+                        <p class="comment-text">{{ comment.text }}</p>
+                        <div class="comment-footer">
+                            <div class="comment-likes">
+                                <i class="pi pi-heart"></i>
+                                <span>{{ comment.likes }} คนถูกใจ</span>
+                            </div>
+                            <div class="comment-actions">
+                                <button class="action-btn">
+                                    <i class="pi pi-pencil"></i> แก้ไข
+                                </button>
+                                <button class="action-btn delete">
+                                    <i class="pi pi-trash"></i> ลบ
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Tab -->
+            <div *ngIf="activeTab === 'settings'" class="settings-section">
+                <div class="grid grid-cols-1 lg:grid-cols-1 gap-5 mb-5">
+                    <!-- Account Info Box -->
+                    <div class="settings-group">
+                        <h2 class="settings-title">ข้อมูลบัญชี</h2>
+                        <div class="form-group">
+                            <label>ชื่อผู้ใช้</label>
+                            <input type="text" [(ngModel)]="userProfile.username" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label>อีเมล</label>
+                            <input type="email" [(ngModel)]="userProfile.email" class="form-input">
+                        </div>
+                    </div>
+
+                    <!-- Logout Box -->
+                    <div class="settings-group">
+                        <h2 class="settings-title">ออกจากระบบ</h2>
+                        <p class="text-gray-600 mb-4">ออกจากระบบบัญชีของคุณ</p>
+                        <button (click)="logout()"
+                            class="px-6 py-2.5 rounded-lg font-semibold bg-red-500 text-white shadow-md hover:bg-red-600 transition-all flex items-center gap-2">
+                            <i class="pi pi-sign-out"></i>
+                            ออกจากระบบ
+                        </button>
+                    </div>
+                </div>
+
+                <div class="settings-group">
+                    <h2 class="settings-title">เปลี่ยนรหัสผ่าน</h2>
+                    <div class="form-group">
+                        <label>รหัสผ่านปัจจุบัน</label>
+                        <input type="password" [(ngModel)]="passwordData.currentPassword" class="form-input"
+                            placeholder="กรอกรหัสผ่านปัจจุบัน">
+                    </div>
+                    <div class="form-group">
+                        <label>รหัสผ่านใหม่</label>
+                        <input type="password" [(ngModel)]="passwordData.newPassword" class="form-input"
+                            placeholder="กรอกรหัสผ่านใหม่">
+                    </div>
+                    <div class="form-group">
+                        <label>ยืนยันรหัสผ่านใหม่</label>
+                        <input type="password" [(ngModel)]="passwordData.confirmPassword" class="form-input"
+                            placeholder="กรอกรหัสผ่านใหม่อีกครั้ง">
+                    </div>
+                </div>
+
+                <div class="settings-actions">
+                    <button class="btn-primary">บันทึกการเปลี่ยนแปลง</button>
+                    <button class="btn-secondary">ยกเลิก</button>
+                </div>
+
+                <!-- Logout Section -->
+
+            </div>
+        </div>
+    </div>
 </div>
 <app-footer></app-footer>
