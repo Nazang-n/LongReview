@@ -1,4 +1,5 @@
-import { Injectable } from '@angular/core';
+import { Injectable, PLATFORM_ID, Inject } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Observable, BehaviorSubject } from 'rxjs';
 import { tap } from 'rxjs/operators';
@@ -30,7 +31,10 @@ export class AuthService {
     private apiUrl = 'http://localhost:8000/api/auth';
     private currentUser = new BehaviorSubject<User | null>(this.getUserFromStorage());
 
-    constructor(private http: HttpClient) { }
+    constructor(
+        private http: HttpClient,
+        @Inject(PLATFORM_ID) private platformId: Object
+    ) { }
 
     /**
      * Register a new user
@@ -79,7 +83,9 @@ export class AuthService {
      * Logout user
      */
     logout(): void {
-        localStorage.removeItem('currentUser');
+        if (isPlatformBrowser(this.platformId)) {
+            localStorage.removeItem('currentUser');
+        }
         this.currentUser.next(null);
     }
 
@@ -87,7 +93,9 @@ export class AuthService {
      * Set current user and store in localStorage
      */
     private setCurrentUser(user: User): void {
-        localStorage.setItem('currentUser', JSON.stringify(user));
+        if (isPlatformBrowser(this.platformId)) {
+            localStorage.setItem('currentUser', JSON.stringify(user));
+        }
         this.currentUser.next(user);
     }
 
@@ -95,8 +103,11 @@ export class AuthService {
      * Get user from localStorage
      */
     private getUserFromStorage(): User | null {
-        const user = localStorage.getItem('currentUser');
-        return user ? JSON.parse(user) : null;
+        if (isPlatformBrowser(this.platformId)) {
+            const user = localStorage.getItem('currentUser');
+            return user ? JSON.parse(user) : null;
+        }
+        return null;
     }
 
     /**
