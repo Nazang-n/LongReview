@@ -1,12 +1,113 @@
 <app-header></app-header>
-<div class="page-container">
-    <h1>❤️ รายการโปรดของคุณ</h1>
-    <div class="fav-grid">
-        <div class="fav-card" *ngFor="let game of ['Elden Ring', 'GTA V', 'Valorant']">
-            <div class="fav-img"></div>
-            <h3>{{ game }}</h3>
-            <button class="remove-btn">ลบออก</button>
+<div class="page-container bg-gray-50 min-h-screen">
+    <!-- Main Content without Sidebar -->
+    <div class="px-4 md:px-8 max-w-7xl mx-auto pb-12">
+
+        <!-- Page Title -->
+        <div class="mb-3">
+            <h1 class="text-3xl font-bold text-gray-900 flex items-center gap-3">
+                <i class="pi pi-heart-fill text-red-600"></i>
+                รายการโปรดของคุณ
+            </h1>
+            <p class="text-gray-600">{{ favoriteGames.length }} เกม</p>
+        </div>
+
+        <!-- Game Grid (3 columns, full width) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div *ngFor="let game of favoriteGames" [routerLink]="['/game', game.id]"
+                class="game-card bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group border border-gray-100">
+
+                <!-- Game Image -->
+                <div class="relative h-64 overflow-hidden">
+                    <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
+                        [style.backgroundImage]="'url(' + game.image + ')'">
+                    </div>
+
+                    <!-- Gradient Overlay -->
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent">
+                    </div>
+
+                    <!-- Review Badge (Top Right) -->
+                    <div class="absolute top-3 right-3">
+                        <!-- Positive Reviews -->
+                        <div *ngIf="game.reviewType === 'positive'"
+                            class="bg-green-500 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-lg">
+                            <i class="pi pi-thumbs-up text-base"></i>
+                        </div>
+
+                        <!-- Negative Reviews -->
+                        <div *ngIf="game.reviewType === 'negative'"
+                            class="bg-red-500 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-lg">
+                            <i class="pi pi-thumbs-down text-base"></i>
+                        </div>
+
+                        <!-- Mixed Reviews -->
+                        <div *ngIf="game.reviewType === 'mixed'"
+                            class="bg-yellow-500 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-lg">
+                            <i class="pi pi-sync text-base"></i>
+                        </div>
+                    </div>
+
+
+
+                    <!-- Remove from Favorites Button (Top Left) -->
+                    <button
+                        class="absolute top-3 left-3 w-8 h-8 bg-red-600 hover:bg-red-700 text-white rounded-full shadow-lg transition-colors z-10 flex items-center justify-center"
+                        (click)="$event.stopPropagation(); $event.preventDefault()">
+                        <i class="pi pi-heart-fill text-sm"></i>
+                    </button>
+                </div>
+
+                <!-- Card Content -->
+                <div class="p-4">
+                    <!-- Game Title -->
+                    <h3 class="text-lg font-bold text-gray-900 mb-2 group-hover:text-purple-600 transition-colors">
+                        {{ game.title }}
+                    </h3>
+
+                    <!-- Description -->
+                    <p class="text-sm text-gray-500 mb-3 line-clamp-2 leading-relaxed">
+                        {{ game.description }}
+                    </p>
+
+                    <!-- Footer: Date, Genres and Review Tags -->
+                    <div class="pt-3 border-t border-gray-100 space-y-2">
+                        <!-- Release Date -->
+                        <div class="flex items-center gap-1.5 text-gray-400 text-xs">
+                            <i class="pi pi-calendar"></i>
+                            <span>{{ game.releaseDate }}</span>
+                        </div>
+
+                        <!-- Genre and Review Tags Combined -->
+                        <div class="flex flex-wrap gap-1.5">
+                            <!-- Genre Tags (Purple) -->
+                            <span *ngFor="let genre of game.genres"
+                                class="bg-purple-100 text-purple-700 text-xs px-2 py-1 rounded font-medium">
+                                {{ genre }}
+                            </span>
+                            <!-- Review Tags (Yellow) -->
+                            <span *ngFor="let tag of game.reviewTags"
+                                class="bg-yellow-100 text-yellow-700 text-xs px-2 py-1 rounded font-medium">
+                                {{ tag }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Empty State -->
+        <div *ngIf="favoriteGames.length === 0" class="text-center py-20">
+            <i class="pi pi-heart text-6xl text-gray-300 mb-4"></i>
+            <h2 class="text-2xl font-bold text-gray-600 mb-2">ยังไม่มีเกมในรายการโปรด</h2>
+            <p class="text-gray-500 mb-6">เพิ่มเกมที่คุณชอบเข้ามาในรายการโปรดของคุณ</p>
+            <a routerLink="/games"
+                class="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-medium">
+                <i class="pi pi-search"></i>
+                <span>ค้นหาเกม</span>
+            </a>
         </div>
     </div>
 </div>
+
 <app-footer></app-footer>
