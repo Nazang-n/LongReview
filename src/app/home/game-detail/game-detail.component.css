@@ -46,3 +46,19 @@
     cursor: pointer;
     margin-top: 20px;
 }
+
+/* Custom Progress Bar Colors */
+::ng-deep .progress-positive .p-progressbar-value {
+    background-color: #16a34a !important;
+    /* Green for positive */
+}
+
+::ng-deep .progress-neutral .p-progressbar-value {
+    background-color: #eab308 !important;
+    /* Yellow for neutral */
+}
+
+::ng-deep .progress-negative .p-progressbar-value {
+    background-color: #dc2626 !important;
+    /* Red for negative */
+}
