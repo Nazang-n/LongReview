@@ -11,9 +11,15 @@ import { ButtonModule } from 'primeng/button';
 interface Game {
   id: number;
   title: string;
+  description: string;
+  releaseDate: string;
+  genres: string[];
+  reviewTags: string[];
   image: string;
   rating: number;
   tags: string[];
+  reviewType: 'positive' | 'negative' | 'mixed';
+  isNew?: boolean;
 }
 
 @Component({
@@ -39,28 +45,48 @@ export class HomeComponent implements OnInit, OnDestroy {
       title: 'Naraka: Bladepoint',
       image: 'https://cdn.akamai.steamstatic.com/steam/apps/1203220/header.jpg',
       rating: 4.5,
-      tags: ['Action', 'Battle Royale']
+      tags: ['Action', 'Battle Royale'],
+      description: '',
+      releaseDate: '',
+      genres: [],
+      reviewTags: [],
+      reviewType: 'positive'
     },
     {
       id: 2,
       title: 'Elden Ring',
       image: 'https://cdn.akamai.steamstatic.com/steam/apps/1245620/header.jpg',
       rating: 5.0,
-      tags: ['RPG', 'Open World']
+      tags: ['RPG', 'Open World'],
+      description: '',
+      releaseDate: '',
+      genres: [],
+      reviewTags: [],
+      reviewType: 'positive'
     },
     {
       id: 3,
       title: 'Black Myth: Wukong',
       image: 'https://cdn.akamai.steamstatic.com/steam/apps/2358720/header.jpg',
       rating: 4.8,
-      tags: ['Action', 'Adventure']
+      tags: ['Action', 'Adventure'],
+      description: '',
+      releaseDate: '',
+      genres: [],
+      reviewTags: [],
+      reviewType: 'positive'
     },
     {
       id: 4,
       title: 'Call of Duty: Black Ops 6',
       image: 'https://cdn.akamai.steamstatic.com/steam/apps/2933620/header.jpg',
       rating: 4.2,
-      tags: ['FPS', 'Action']
+      tags: ['FPS', 'Action'],
+      description: '',
+      releaseDate: '',
+      genres: [],
+      reviewTags: [],
+      reviewType: 'positive'
     },
   ];
 
@@ -69,37 +95,80 @@ export class HomeComponent implements OnInit, OnDestroy {
     {
       id: 101,
       title: 'Apex Legends',
-      image: 'https://cdn.akamai.steamstatic.com/steam/apps/1172470/library_600x900.jpg',
-      rating: 4.5, // Fixed rating to be realistic
-      tags: ['ยิงปืน', 'เกมไว']
+      description: 'เกมที่ผสมผสาน Battle Royale ที่มีตัวละครที่แตกต่างกันความสามารถของแต่ละตัวละครที่',
+      releaseDate: '4 ตุลาคม 2562',
+      genres: ['Battle Royale', 'FPS'],
+      reviewTags: ['ยิงปืน', 'เกมไว'],
+      image: 'https://cdn.cloudflare.steamstatic.com/steam/apps/1172470/header.jpg',
+      rating: 4.5,
+      tags: ['ยิงปืน', 'เกมไว'],
+      reviewType: 'positive',
+      isNew: false
     },
     {
       id: 102,
-      title: 'Fallout 4',
-      image: 'https://cdn.akamai.steamstatic.com/steam/apps/377160/library_600x900.jpg',
+      title: 'Elden Ring',
+      description: 'เกม Action RPG โอเพ่นเวิลด์จากทีมสร้าง Dark Souls ร่วมกับ George R.R. Martin',
+      releaseDate: '25 กุมภาพันธ์ 2565',
+      genres: ['Action RPG', 'โอเพ่นเวิลด์'],
+      reviewTags: ['ยาก', 'ท้าทาย'],
+      image: 'https://image.api.playstation.com/vulcan/ap/rnd/202110/2000/aGhopp3MHppi7kooGE2Dtt8C.png',
       rating: 5.0,
-      tags: ['RPG', 'Open World']
+      tags: ['RPG', 'Open World'],
+      reviewType: 'positive',
+      isNew: false
     },
     {
       id: 103,
-      title: 'Cyberpunk 2077',
-      image: 'https://cdn.akamai.steamstatic.com/steam/apps/1091500/library_600x900.jpg',
-      rating: 4.2,
-      tags: ['Open World', 'Sci-fi']
+      title: 'God of War Ragnarök',
+      description: 'ภาคต่อของ God of War 2018 ที่ชวนให้ไปสำรวจนอร์ดิก',
+      releaseDate: '9 พฤศจิกายน 2565',
+      genres: ['Action', 'ผจญภัย'],
+      reviewTags: ['เนื้อเรื่องดี', 'กราฟิกสวย'],
+      image: 'https://image.api.playstation.com/vulcan/ap/rnd/202207/1210/4xJ8XB3bi888QTLZYdl7Oi0s.png',
+      rating: 4.9,
+      tags: ['Action', 'Story Rich'],
+      reviewType: 'positive',
+      isNew: false
     },
     {
       id: 104,
-      title: 'God of War',
-      image: 'https://cdn.akamai.steamstatic.com/steam/apps/1593500/library_600x900.jpg',
-      rating: 4.9,
-      tags: ['Action', 'Story Rich']
+      title: 'Baldur\'s Gate 3',
+      description: 'เกม RPG แนว D&D ที่ให้เสรีภาพในการเล่นสูงมาก',
+      releaseDate: '3 สิงหาคม 2566',
+      genres: ['RPG', 'กลยุทธ์'],
+      reviewTags: ['เนื้อหาเยอะ', 'เล่นซ้ำได้'],
+      image: 'https://cdn.cloudflare.steamstatic.com/steam/apps/1086940/header.jpg',
+      rating: 4.8,
+      tags: ['RPG', 'Strategy'],
+      reviewType: 'positive',
+      isNew: true
     },
     {
       id: 105,
-      title: 'Stardew Valley',
-      image: 'https://cdn.akamai.steamstatic.com/steam/apps/413150/library_600x900.jpg',
+      title: 'Red Dead Redemption 2',
+      description: 'เกมคาวบอยโอเพ่นเวิลด์ที่มีรายละเอียดสูงมาก',
+      releaseDate: '26 ตุลาคม 2561',
+      genres: ['Action', 'โอเพ่นเวิลด์'],
+      reviewTags: ['เนื้อเรื่องดี', 'โลกกว้าง'],
+      image: 'https://cdn.cloudflare.steamstatic.com/steam/apps/1174180/header.jpg',
       rating: 4.8,
-      tags: ['Farming', 'Simulation']
+      tags: ['Action', 'Open World'],
+      reviewType: 'positive',
+      isNew: false
+    },
+    {
+      id: 106,
+      title: 'Spider-Man 2',
+      description: 'ภาคต่อของ Spider-Man ที่ให้คุณเล่นได้ทั้ง Peter Parker และ Miles Morales',
+      releaseDate: '20 ตุลาคม 2566',
+      genres: ['Action', 'ผจญภัย'],
+      reviewTags: ['สนุก', 'กราฟิกสวย'],
+      image: 'https://image.api.playstation.com/vulcan/ap/rnd/202306/1219/1c7b75d8ed9271516546560d219ad0b22ee0a263b4537bd8.png',
+      rating: 4.7,
+      tags: ['Action', 'Adventure'],
+      reviewType: 'positive',
+      isNew: true
     }
   ];
 

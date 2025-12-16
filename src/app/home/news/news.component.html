@@ -20,7 +20,8 @@
 
     <!-- Featured News (Hero Section) -->
     <!-- Mimicking the large banner from the screenshot but adapting for light theme/white bg -->
-    <div class="relative w-full h-[500px] mb-12 rounded-2xl overflow-hidden group shadow-md">
+    <div [routerLink]="['/news', featuredNews.id]"
+        class="relative w-full h-[500px] mb-12 rounded-2xl overflow-hidden group shadow-md cursor-pointer">
         <!-- Background Image with Overlay -->
         <div class="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
             [style.backgroundImage]="'url(' + featuredNews.image + ')'"></div>
@@ -62,8 +63,8 @@
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         <!-- Render from SideNews + LatestNews combined for the grid demo, or just use latestNews -->
         <ng-container *ngFor="let item of latestNews.concat(sideNews)">
-            <div
-                class="flex flex-col bg-white border border-gray-100 rounded-2xl overflow-hidden hover:shadow-xl transition-shadow duration-300 group h-full">
+            <div [routerLink]="['/news', item.id]"
+                class="flex flex-col bg-white border border-gray-100 rounded-2xl overflow-hidden hover:shadow-xl transition-shadow duration-300 group h-full cursor-pointer">
                 <!-- Image Container -->
                 <div class="relative h-56 overflow-hidden">
                     <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"

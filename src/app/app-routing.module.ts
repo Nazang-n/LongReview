@@ -11,6 +11,7 @@ import { GameDetailComponent } from './home/game-detail/game-detail.component';
 import { ProfileComponent } from './home/profile/profile.component';
 import { LoginComponent } from './auth/login.component';
 import { RegisterComponent } from './auth/register.component';
+import { NewsDetailComponent } from './home/news-detail/news-detail.component';
 
 import { AuthGuard } from './guards/auth.guard';
 
@@ -19,6 +20,7 @@ const routes: Routes = [
   { path: '', component: HomeComponent },
 
   { path: 'news', component: NewsComponent },
+  { path: 'news/:id', component: NewsDetailComponent },
   { path: 'favorites', component: FavoritesComponent, canActivate: [AuthGuard] },
   { path: 'games', component: GameListComponent },
   { path: 'game/:id', component: GameDetailComponent },

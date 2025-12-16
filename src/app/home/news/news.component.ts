@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
 import { HeaderComponent } from '../../shared/header.component';
 import { FooterComponent } from '../../shared/footer.component';
 import { ButtonModule } from 'primeng/button';
@@ -19,7 +20,7 @@ interface NewsItem {
 @Component({
     selector: 'app-news',
     standalone: true,
-    imports: [CommonModule, HeaderComponent, FooterComponent, ButtonModule, CardModule, TagModule, DividerModule],
+    imports: [CommonModule, RouterModule, HeaderComponent, FooterComponent, ButtonModule, CardModule, TagModule, DividerModule],
     templateUrl: './news.component.html',
     styleUrls: ['./news.component.css']
 })

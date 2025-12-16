@@ -1,0 +1,138 @@
+<app-header></app-header>
+
+<div class="news-detail-page bg-gray-50 min-h-screen" *ngIf="newsItem">
+    <!-- Hero Section with Banner Image -->
+    <div class="hero-banner relative h-96 overflow-hidden">
+        <div class="absolute inset-0 bg-cover bg-center" [style.backgroundImage]="'url(' + newsItem.image + ')'">
+        </div>
+        <!-- Dark Overlay -->
+        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
+
+        <!-- Back Button -->
+        <button (click)="goBack()"
+            class="absolute top-6 left-6 bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-all">
+            <i class="pi pi-arrow-left"></i>
+            <span>กลับ</span>
+        </button>
+
+        <!-- Category Badge -->
+        <div class="absolute top-6 right-6">
+            <span class="bg-purple-600 text-white px-4 py-2 rounded-full text-sm font-semibold">
+                {{ newsItem.category }}
+            </span>
+        </div>
+    </div>
+
+    <!-- Main Content (Same width as other pages) -->
+    <div class="max-w-7xl mx-auto px-4 md:px-8 -mt-20 relative z-10 pb-12">
+        <!-- Article Card -->
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+            <!-- Article Header -->
+            <div class="p-8 md:p-12">
+                <h1 class="text-3xl md:text-4xl font-bold text-gray-900 mb-6 leading-tight">
+                    {{ newsItem.title }}
+                </h1>
+
+                <!-- Metadata -->
+                <div class="flex flex-wrap items-center gap-4 text-gray-600 text-sm mb-8 pb-8 border-b border-gray-200">
+                    <div class="flex items-center gap-2">
+                        <i class="pi pi-user text-purple-600"></i>
+                        <span>{{ newsItem.author }}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <i class="pi pi-calendar text-purple-600"></i>
+                        <span>{{ newsItem.date }}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <i class="pi pi-clock text-purple-600"></i>
+                        <span>{{ newsItem.readTime }}</span>
+                    </div>
+                </div>
+
+                <!-- Article Content -->
+                <div class="prose prose-lg max-w-none" [innerHTML]="newsItem.content">
+                </div>
+
+                <!-- Tags -->
+                <div class="flex flex-wrap gap-2 mt-8 pt-8 border-t border-gray-200"
+                    *ngIf="newsItem.tags && newsItem.tags.length > 0">
+                    <span class="text-gray-600 font-medium">แท็ก:</span>
+                    <span *ngFor="let tag of newsItem.tags"
+                        class="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm font-medium">
+                        {{ tag }}
+                    </span>
+                </div>
+
+                <!-- Social Share -->
+                <div class="flex items-center gap-4 mt-8 pt-8 border-t border-gray-200">
+                    <span class="text-gray-600 font-medium">แชร์:</span>
+                    <button (click)="shareOnFacebook()"
+                        class="w-10 h-10 bg-blue-600 hover:bg-blue-700 text-white rounded-full flex items-center justify-center transition-colors">
+                        <i class="pi pi-facebook"></i>
+                    </button>
+                    <button (click)="shareOnTwitter()"
+                        class="w-10 h-10 bg-sky-500 hover:bg-sky-600 text-white rounded-full flex items-center justify-center transition-colors">
+                        <i class="pi pi-twitter"></i>
+                    </button>
+                    <button (click)="copyLink()"
+                        class="w-10 h-10 bg-gray-600 hover:bg-gray-700 text-white rounded-full flex items-center justify-center transition-colors">
+                        <i class="pi pi-link"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Related News Section -->
+        <div class="mt-12" *ngIf="relatedNews.length > 0">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">ข่าวที่เกี่ยวข้อง</h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div *ngFor="let news of relatedNews" [routerLink]="['/news', news.id]"
+                    class="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group border border-gray-100">
+
+                    <!-- News Image -->
+                    <div class="relative h-48 overflow-hidden">
+                        <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
+                            [style.backgroundImage]="'url(' + news.image + ')'">
+                        </div>
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent">
+                        </div>
+
+                        <!-- Category Badge -->
+                        <div class="absolute top-3 right-3">
+                            <span class="bg-purple-600 text-white px-3 py-1 rounded-full text-xs font-semibold">
+                                {{ news.category }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- News Content -->
+                    <div class="p-4">
+                        <h3
+                            class="text-base font-bold text-gray-900 mb-2 group-hover:text-purple-600 transition-colors line-clamp-2">
+                            {{ news.title }}
+                        </h3>
+                        <p class="text-xs text-gray-500 line-clamp-2 mb-3">
+                            {{ news.description }}
+                        </p>
+                        <div class="flex items-center gap-2 text-gray-400 text-xs">
+                            <i class="pi pi-calendar"></i>
+                            <span>{{ news.date }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Loading/Error State -->
+<div class="min-h-screen flex items-center justify-center" *ngIf="!newsItem">
+    <div class="text-center">
+        <i class="pi pi-spin pi-spinner text-4xl text-purple-600 mb-4"></i>
+        <p class="text-gray-600">กำลังโหลด...</p>
+    </div>
+</div>
+
+<app-footer></app-footer>
