@@ -1,0 +1,110 @@
+import { Injectable } from '@angular/core';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { Observable, throwError, of } from 'rxjs';
+import { catchError, map } from 'rxjs/operators';
+
+// Internal NewsItem interface
+export interface NewsItem {
+    id: string;
+    title: string;
+    description?: string;
+    image: string;
+    link: string;
+    date?: string;
+    author?: string;
+    category?: string;
+}
+
+export interface NewsResponse {
+    status: string;
+    news: NewsItem[];
+    nextPage?: string;
+    totalResults: number;
+}
+
+@Injectable({
+    providedIn: 'root'
+})
+export class NewsService {
+    private readonly API_URL = 'http://localhost:8000/news';
+
+    // Simple cache to avoid excessive API calls
+    private cache: Map<string, NewsResponse> = new Map();
+
+    constructor(private http: HttpClient) { }
+
+    /**
+     * Fetch news from backend API
+     * @param nextPage Optional pagination token
+     * @returns Observable of NewsResponse
+     */
+    getNews(nextPage?: string): Observable<NewsResponse> {
+        const cacheKey = nextPage || 'first-page';
+
+        // Check cache first
+        if (this.cache.has(cacheKey)) {
+            return of(this.cache.get(cacheKey)!);
+        }
+
+        // Build URL with parameters
+        let url = this.API_URL;
+
+        if (nextPage) {
+            url += `?page=${nextPage}`;
+        }
+
+        return this.http.get<NewsResponse>(url).pipe(
+            map(response => {
+                // Cache the response
+                this.cache.set(cacheKey, response);
+                return response;
+            }),
+            catchError(this.handleError)
+        );
+    }
+
+    /**
+     * Get featured news (first article from latest news)
+     */
+    getFeaturedNews(): Observable<NewsItem | null> {
+        return this.http.get<NewsItem>(`${this.API_URL}/featured`).pipe(
+            catchError(() => of(null))
+        );
+    }
+
+    /**
+     * Get latest news for home page
+     * @param limit Number of articles to return
+     */
+    getLatestNews(limit: number = 5): Observable<NewsItem[]> {
+        return this.getNews().pipe(
+            map(response => response.news.slice(0, limit)),
+            catchError(() => of([]))
+        );
+    }
+
+    /**
+     * Handle HTTP errors
+     */
+    private handleError(error: HttpErrorResponse) {
+        let errorMessage = 'เกิดข้อผิดพลาดในการโหลดข่าว';
+
+        if (error.error instanceof ErrorEvent) {
+            // Client-side error
+            errorMessage = `ข้อผิดพลาด: ${error.error.message}`;
+        } else {
+            // Server-side error
+            errorMessage = error.error?.detail || `เซิร์ฟเวอร์ตอบกลับด้วยรหัส ${error.status}`;
+        }
+
+        console.error('NewsService Error:', errorMessage, error);
+        return throwError(() => new Error(errorMessage));
+    }
+
+    /**
+     * Clear cache (useful for refresh)
+     */
+    clearCache(): void {
+        this.cache.clear();
+    }
+}

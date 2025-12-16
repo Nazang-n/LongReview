@@ -1,6 +1,27 @@
 <app-header></app-header>
 
-<div class="news-detail-page bg-gray-50 min-h-screen" *ngIf="newsItem">
+<!-- Loading State -->
+<div *ngIf="isLoading" class="min-h-screen flex items-center justify-center bg-gray-50">
+    <div class="text-center">
+        <i class="pi pi-spin pi-spinner text-5xl text-purple-600 mb-4"></i>
+        <p class="text-gray-600 text-lg">กำลังโหลดข่าว...</p>
+    </div>
+</div>
+
+<!-- Error State -->
+<div *ngIf="error && !isLoading" class="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div class="bg-red-50 border border-red-200 rounded-xl p-8 text-center max-w-md">
+        <i class="pi pi-exclamation-triangle text-4xl text-red-600 mb-4"></i>
+        <h3 class="text-xl font-bold text-red-900 mb-2">เกิดข้อผิดพลาด</h3>
+        <p class="text-red-700 mb-4">{{ error }}</p>
+        <button (click)="goBack()"
+            class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg font-semibold transition-colors">
+            กลับไปหน้าข่าว
+        </button>
+    </div>
+</div>
+
+<div class="news-detail-page bg-gray-50 min-h-screen" *ngIf="newsItem && !isLoading && !error">
     <!-- Hero Section with Banner Image -->
     <div class="hero-banner relative h-96 overflow-hidden">
         <div class="absolute inset-0 bg-cover bg-center" [style.backgroundImage]="'url(' + newsItem.image + ')'">
@@ -35,33 +56,48 @@
 
                 <!-- Metadata -->
                 <div class="flex flex-wrap items-center gap-4 text-gray-600 text-sm mb-8 pb-8 border-b border-gray-200">
-                    <div class="flex items-center gap-2">
+                    <div *ngIf="newsItem.author" class="flex items-center gap-2">
                         <i class="pi pi-user text-purple-600"></i>
                         <span>{{ newsItem.author }}</span>
                     </div>
-                    <div class="flex items-center gap-2">
+                    <div *ngIf="newsItem.date" class="flex items-center gap-2">
                         <i class="pi pi-calendar text-purple-600"></i>
                         <span>{{ newsItem.date }}</span>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <i class="pi pi-clock text-purple-600"></i>
-                        <span>{{ newsItem.readTime }}</span>
+                    <div *ngIf="newsItem.category" class="flex items-center gap-2">
+                        <i class="pi pi-tag text-purple-600"></i>
+                        <span>{{ newsItem.category }}</span>
                     </div>
                 </div>
 
-                <!-- Article Content -->
-                <div class="prose prose-lg max-w-none" [innerHTML]="newsItem.content">
+                <!-- Article Description -->
+                <div class="prose prose-lg max-w-none mb-8">
+                    <p class="text-gray-700 text-lg leading-relaxed">
+                        {{ newsItem.description }}
+                        <a [href]="newsItem.link" target="_blank" rel="noopener noreferrer"
+                            class="inline-flex items-center gap-2 text-purple-600 hover:text-purple-700 font-semibold mt-4 transition-colors">
+                            <!-- <i class="pi pi-external-link"></i> -->
+                            ไปที่บทความต้นฉบับ
+                        </a>
+                    </p>
                 </div>
 
-                <!-- Tags -->
-                <div class="flex flex-wrap gap-2 mt-8 pt-8 border-t border-gray-200"
-                    *ngIf="newsItem.tags && newsItem.tags.length > 0">
-                    <span class="text-gray-600 font-medium">แท็ก:</span>
-                    <span *ngFor="let tag of newsItem.tags"
-                        class="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm font-medium">
-                        {{ tag }}
-                    </span>
-                </div>
+                <!-- Read Original Article Button -->
+                <!-- <div class="bg-purple-50 border-2 border-purple-200 rounded-xl p-6 mb-8">
+                    <div class="flex items-start gap-4">
+                        <i class="pi pi-external-link text-purple-600 text-2xl mt-1"></i>
+                        <div class="flex-1">
+                            <h3 class="text-lg font-bold text-gray-900 mb-2">อ่านบทความฉบับเต็ม</h3>
+                            <p class="text-gray-600 text-sm mb-4">คลิกปุ่มด้านล่างเพื่ออ่านบทความฉบับเต็มจากแหล่งที่มา
+                            </p>
+                            <button (click)="openOriginalArticle()"
+                                class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors flex items-center gap-2">
+                                <i class="pi pi-arrow-right"></i>
+                                ไปที่บทความต้นฉบับ
+                            </button>
+                        </div>
+                    </div>
+                </div> -->
 
                 <!-- Social Share -->
                 <div class="flex items-center gap-4 mt-8 pt-8 border-t border-gray-200">
