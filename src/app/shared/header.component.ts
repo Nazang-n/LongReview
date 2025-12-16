@@ -28,7 +28,7 @@ import { isPlatformBrowser } from '@angular/common';
       <div class="user-actions">
         <div class="search-box">
           <input type="text" placeholder="ค้นหา">
-          <span class="search-icon">🔍</span>
+          <i class="pi pi-search"></i>
         </div>
         
         <ng-container *ngIf="currentUser$ | async as user; else loginLink">
