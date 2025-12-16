@@ -1,21 +1,313 @@
 <app-header></app-header>
-<div class="detail-page">
-    <div class="banner">
-        <h1>ชื่อเกม (ID: {{ gameId }})</h1>
-    </div>
-    <div class="container">
-        <div class="main-info">
-            <h2>รายละเอียด</h2>
-            <p>นี่คือเนื้อหาจำลองของเกม ID: {{ gameId }} ตัวเกมมีกราฟิกที่สวยงาม...</p>
-            <button class="buy-btn">ซื้อเกม ฿1,590</button>
+
+<div class="min-h-screen bg-gray-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Game Title -->
+        <h1 class="text-3xl font-bold text-gray-900 mb-6">{{ game.title }}</h1>
+
+        <!-- Main Content: Image + Info Sidebar -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 ">
+
+
+
+            <!-- Left: Game Image -->
+            <div class="lg:col-span-2 mt-2">
+                <div class="text-4xl font-bold mt-5 mr-5 mb-5">{{ game.title }}</div>
+                <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                    <img [src]="game.image" [alt]="game.title" class="w-full h-auto object-cover"
+                        onerror="this.src='/games/placeholder.jpg'">
+                </div>
+            </div>
+
+            <!-- Right: Game Info -->
+            <div class="lg:col-span-1 mt-22">
+                <div class="bg-white rounded-lg shadow-md p-6 space-y-4">
+                    <!-- Add to Favorites Button -->
+                    <p-button label="เพิ่มในรายการโปรด" icon="pi pi-heart" styleClass="p-button-danger w-full mb-4"
+                        size="large"></p-button>
+
+                    <!-- Release Date -->
+                    <div class="flex flex-row">
+                        <div class="pi pi-calendar">
+                        </div>
+                        <div class="flex flex-col ml-2">
+                            <div class="text-sm text-gray-600 mb-1 ">วางจำหน่าย:</div>
+                            <div class="font-medium text-gray-900">{{ game.releaseDate }}</div>
+                        </div>
+                    </div>
+
+                    <!-- Developer -->
+
+                    <div class="flex flex-row">
+                        <div class="pi pi-building">
+                        </div>
+                        <div class="flex flex-col ml-2">
+                            <div class="text-sm text-gray-600 mb-1 ">ผู้สร้าง:</div>
+                            <div class="font-medium text-gray-900">{{ game.developer }}</div>
+                        </div>
+                    </div>
+
+
+
+                    <div class="flex flex-row">
+                        <div class="pi pi-desktop">
+                        </div>
+                        <div class="flex flex-col ml-2">
+                            <div class="text-sm text-gray-600 mb-1 ">แพลตฟอร์ม:</div>
+                            <div class="font-medium text-gray-900">{{ game.platform }}</div>
+                        </div>
+                    </div>
+
+                    <!-- Genre -->
+                    <div class="flex flex-row">
+                        <div class="pi pi-tag">
+                        </div>
+                        <div class="flex flex-col ml-2">
+                            <div class="text-sm text-gray-600 mb-1 ">แนวเกม:</div>
+                            <div class="flex flex-wrap gap-2">
+                                <p-tag *ngFor="let tag of game.tags" [value]="tag" severity="danger"></p-tag>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="stats">
-            <h3>สเปคขั้นต่ำ</h3>
-            <ul>
-                <li>OS: Windows 10</li>
-                <li>RAM: 16 GB</li>
-            </ul>
+
+        <!-- Sentiment Analysis & Review Tags Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 mt-8">
+            <!-- Sentiment Analysis -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <i class="pi pi-chart-bar text-red-600"></i>
+                    การวิเคราะห์ความรู้สึก
+                </h3>
+
+                <div class="space-y-4">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm font-medium text-green-700 mt-5">
+                                <i class="pi pi-thumbs-up-fill"></i>
+                                แง่บวก (Positive)</span>
+                            <span class="text-sm font-bold text-green-700">{{ game.sentiment.positive }}%</span>
+                        </div>
+                        <p-progressBar [value]="game.sentiment.positive" [showValue]="false"
+                            styleClass="h-3 progress-positive" [style]="{'background': '#e5e7eb'}"></p-progressBar>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm font-medium text-yellow-600">
+                                <i class="pi pi-sync text-base"></i>
+                                ผสมกัน (Neutral)</span>
+                            <span class="text-sm font-bold text-yellow-600">{{ game.sentiment.neutral }}%</span>
+                        </div>
+                        <p-progressBar [value]="game.sentiment.neutral" [showValue]="false"
+                            styleClass="h-3 progress-neutral" [style]="{'background': '#e5e7eb'}"></p-progressBar>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm font-medium text-red-700">
+                                <i class="pi pi-thumbs-down-fill"></i>
+                                แง่ลบ (Negative)</span>
+                            <span class="text-sm font-bold text-red-700">{{ game.sentiment.negative }}%</span>
+                        </div>
+                        <p-progressBar [value]="game.sentiment.negative" [showValue]="false"
+                            styleClass="h-3 progress-negative" [style]="{'background': '#e5e7eb'}"></p-progressBar>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Review Tags -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <i class="pi pi-tags text-red-600"></i>
+                    แท็กจากการวิเคราะห์รีวิว
+                </h3>
+
+                <div class="flex flex-wrap gap-2 mt-5">
+                    <div *ngFor="let tag of game.reviewTags"
+                        class="inline-flex items-center mt-2 gap-2 px-4 py-2 rounded-full border-2 transition-all hover:shadow-md cursor-pointer"
+                        [ngClass]="{
+                             'border-yellow-500 bg-yellow-50 text-yellow-700': tag.severity === 'warning',
+                             'border-red-500 bg-red-50 text-red-700': tag.severity === 'danger',
+                             'border-green-500 bg-green-50 text-green-700': tag.severity === 'success',
+                             'border-blue-500 bg-blue-50 text-blue-700': tag.severity === 'info'
+                         }">
+                        <span class="font-semibold">{{ tag.label }}</span>
+                        <span class="text-xs opacity-75">({{ tag.count }})</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- About Section -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">เกี่ยวกับเกม</h2>
+            <p class="text-gray-700 leading-relaxed whitespace-pre-line">{{ game.description }}</p>
+        </div>
+
+
+        <!-- Reviews Carousel Section -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-bold text-gray-900">รีวิว</h2>
+                <div class="flex items-center gap-2">
+                    <button (click)="scrollReviews('left')"
+                        class="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors">
+                        <i class="pi pi-chevron-left text-gray-700"></i>
+                    </button>
+                    <button (click)="scrollReviews('right')"
+                        class="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors">
+                        <i class="pi pi-chevron-right text-gray-700"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div #reviewsContainer class="overflow-x-auto scrollbar-hide scroll-smooth"
+                style="scrollbar-width: none; -ms-overflow-style: none;">
+                <div class="inline-grid grid-rows-2 grid-flow-col gap-4 pb-2">
+                    <div *ngFor="let review of reviews" class="w-96 bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <!-- Review Header -->
+                        <div class="flex items-start justify-between mb-2">
+                            <div class="flex items-center gap-2">
+                                <i class="pi pi-user-circle text-xl text-gray-400"></i>
+                                <div>
+                                    <div class="font-bold text-gray-900 text-xs">{{ review.username }}</div>
+                                    <div class="text-xs text-gray-500">{{ review.date }}</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <i
+                                    [class]="'pi ' + getRatingIcon(review.rating) + ' ' + getRatingColor(review.rating) + ' text-xs'"></i>
+                            </div>
+                        </div>
+
+
+
+                        <!-- Review Content -->
+                        <p class="text-gray-700 text-xs leading-relaxed mb-2 line-clamp-3">{{ review.content }}</p>
+
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Comments/Reviews Section -->
+
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-bold text-gray-900">ความคิดเห็น</h2>
+                <!-- <a href="#" class="text-red-600 hover:text-red-700 font-medium text-sm">
+                    ดูทั้งหมด →
+                </a> -->
+            </div>
+
+            <!-- Write Review Form -->
+            <div class=" rounded-lg p-6 mb-6 border border-gray-200 mb-2">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">เขียนความคิดเห็นของคุณ</h3>
+
+                <!-- <textarea rows="5" cols="30" pTextarea [autoResize]="true">test</textarea> -->
+
+
+
+                <textarea
+                    class="w-full border border-gray-200  p-4 bg-gray-50 mt-5 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
+                    rows="4" placeholder="แสดงความคิดเห็นเกี่ยวกับเกมนี้..."></textarea>
+                <div class="flex items-center justify-end gap-3 mt-4">
+                    <button
+                        class="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-medium text-sm">
+                        <i class="pi pi-send"></i>
+                        <span>โพสต์ความคิดเห็น</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="space-y-4">
+
+                <div *ngFor="let review of reviews.slice(0, displayedReviewsCount)"
+                    class="border border-gray-200 rounded-lg p-5 hover:bg-gray-50 transition-colors">
+                    <!-- Review Header -->
+                    <div class="flex items-start justify-between mb-3">
+                        <div class="flex items-center gap-3">
+                            <i class="pi pi-user-circle text-3xl text-gray-400"></i>
+                            <div>
+                                <div class="font-bold text-gray-900">{{ review.username }}</div>
+                                <div class="text-sm text-gray-500">{{ review.date }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Review Content -->
+                    <p class="text-gray-700 leading-relaxed mb-4">{{ review.content }}</p>
+
+                    <!-- Review Footer -->
+                    <div class="flex items-center gap-4 text-sm">
+                        <button class="flex items-center gap-2 text-gray-600 hover:text-green-600 transition-colors">
+                            <i class="pi pi-thumbs-up"></i>
+                            <span class="font-semibold">{{ review.helpful }}</span>
+                        </button>
+                        <button class="flex items-center gap-2 text-gray-600 hover:text-red-600 transition-colors">
+                            <i class="pi pi-thumbs-down"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Load More Button -->
+            <div *ngIf="displayedReviewsCount < reviews.length" class="flex justify-center mt-6">
+                <button (click)="loadMoreReviews()"
+                    class="w-12 h-12 rounded-full bg-gray-100 hover:bg-purple-100 transition-all hover:shadow-md group flex items-center justify-center">
+                    <i
+                        class="pi pi-chevron-down text-gray-700 group-hover:text-purple-600 transition-colors text-lg"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Similar Games Section -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-bold text-gray-900">เกมที่คล้ายคลึงกัน</h2>
+                <!-- <a href="/games" class="text-red-600 hover:text-red-700 font-medium text-sm">
+                    ดูทั้งหมด →
+                </a> -->
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div *ngFor="let relatedGame of relatedGames" [routerLink]="['/games', relatedGame.id]"
+                    class="bg-white rounded-lg overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer group border border-gray-100">
+                    <div class="relative h-40 bg-gray-200 overflow-hidden">
+                        <img [src]="relatedGame.image" [alt]="relatedGame.title"
+                            class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                            onerror="this.src='/games/placeholder.jpg'">
+                    </div>
+                    <div class="p-3">
+                        <h3
+                            class="font-bold text-gray-900 text-sm mb-1 line-clamp-2 group-hover:text-purple-600 transition-colors">
+                            {{ relatedGame.title }}
+                        </h3>
+                        <div class="flex items-center gap-1.5 text-gray-400 text-xs mb-2">
+                            <i class="pi pi-calendar"></i>
+                            <span>{{ relatedGame.date }}</span>
+                        </div>
+                        <div class="flex flex-wrap gap-1">
+                            <!-- Genre Tags (Purple) -->
+                            <span *ngFor="let tag of relatedGame.tags"
+                                class="bg-purple-100 text-purple-700 text-xs px-2 py-1 rounded font-medium">
+                                {{ tag }}
+                            </span>
+                            <!-- Review Tags (Yellow) -->
+                            <span *ngFor="let tag of relatedGame.reviewTags"
+                                class="bg-yellow-100 text-yellow-700 text-xs px-2 py-1 rounded font-medium">
+                                {{ tag }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+
 <app-footer></app-footer>
