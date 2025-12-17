@@ -2,13 +2,18 @@
 News service
 Business logic for news-related operations
 """
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
+from datetime import datetime, timedelta
 import httpx
-from fastapi import HTTPException
+from fastapi import HTTPException, Depends
+from sqlalchemy.orm import Session
+from sqlalchemy import and_
 
 from app.config.settings import settings
 from app.utils.cache import cache
 from app.utils.mappers import map_news_item
+from app.database import get_db
+from app.models import News
 
 
 class NewsService:
@@ -17,13 +22,13 @@ class NewsService:
     @staticmethod
     def _is_sports_news(article: Dict[str, Any]) -> bool:
         """
-        Check if an article is sports-related news
+        Check if an article is sports-related news or non-gaming content
         
         Args:
             article: News article data
             
         Returns:
-            True if article is sports news, False otherwise
+            True if article is sports news or non-gaming content, False otherwise
         """
         # Primary sports keywords (strong indicators)
         primary_sports_keywords = [
@@ -38,7 +43,33 @@ class NewsService:
             "แข่งขัน", "การแข่งขัน", "เหรียญทอง", "เหรียญเงิน", "เหรียญทองแดง",
             "แชมป์", "แชมเปี้ยน", "ชิงแชมป์", "รอบชิงชนะเลิศ",
             "สนาม", "นัดชิง", "รอบคัดเลือก", "คัดเลือก",
-            "ทะยานชิง", "ชนะมือ", "คว้าแชมป์", "ป้องกันแชมป์"
+            "ทะยานชิง", "ชนะมือ", "คว้าแชมป์", "ป้องกันแชมป์",
+            "คู่ชิง", "ปะทะ", "ซุปตาร์", "ซูเปอร์สตาร์"
+        ]
+        
+        # Entertainment/Celebrity keywords (non-gaming content)
+        entertainment_keywords = [
+            "บิลบอร์ด", "คอนเสิร์ต", "แฟนมีต", "งานแถลงข่าว",
+            "เซเลบ", "ดารา", "นักร้อง", "นักแสดง"
+        ]
+        
+        # Non-gaming content keywords
+        non_gaming_keywords = [
+            "board game", "card game", "tabletop", "puzzle",
+            "tech gadget", "smartphone", "laptop", "tablet",
+            "politics", "election", "trump", "biden",
+            "plastic", "environment", "climate",
+            "holiday gift", "christmas", "shopping",
+            "performance review", "business", "stock market"
+        ]
+        
+        # Positive gaming indicators
+        gaming_keywords = [
+            "video game", "videogame", "pc game", "console", "playstation", "xbox", "nintendo",
+            "steam", "epic games", "game pass", "esports", "e-sports",
+            "rpg", "fps", "mmorpg", "moba", "battle royale",
+            "gameplay", "trailer", "dlc", "update", "patch",
+            "เกมคอม", "เกมมือถือ", "เกมคอนโซล", "เกมออนไลน์"
         ]
         
         # Combine title and description for checking
@@ -50,22 +81,32 @@ class NewsService:
         if any(keyword in content for keyword in primary_sports_keywords):
             return True
         
+        # Check for entertainment keywords (any one is enough)
+        if any(keyword in content for keyword in entertainment_keywords):
+            return True
+        
+        # Check for non-gaming keywords (filter out if found)
+        if any(keyword in content for keyword in non_gaming_keywords):
+            return True
+        
         # Check for secondary keywords (need at least 2)
         secondary_count = sum(1 for keyword in secondary_sports_keywords if keyword in content)
         if secondary_count >= 2:
             return True
         
+        # Don't require gaming keywords since our search query already targets gaming
+        # Just filter out obvious non-gaming content above
         return False
     
     @staticmethod
-    async def fetch_news(page: Optional[str] = None, min_results: int = 10) -> Dict[str, Any]:
+    async def fetch_news(page: Optional[str] = None, min_results: int = 15) -> Dict[str, Any]:
         """
         Fetch Thai gaming news from NewsData.io API with pagination
         Fetches multiple pages if needed to get enough gaming news after filtering
         
         Args:
             page: Optional pagination token for next page
-            min_results: Minimum number of gaming news articles to fetch (default: 10)
+            min_results: Minimum number of gaming news articles to fetch (default: 15)
             
         Returns:
             Dict containing news articles and pagination info
@@ -84,19 +125,29 @@ class NewsService:
             # Accumulate filtered articles across multiple pages
             all_filtered_articles = []
             current_page = page
-            max_pages = 5  # Limit to prevent excessive API calls
+            # Fetch more pages to maximize Thai gaming news coverage
+            max_pages = 4 if page else 6
             pages_fetched = 0
             next_page_token = None
             
             async with httpx.AsyncClient() as client:
-                while len(all_filtered_articles) < min_results and pages_fetched < max_pages:
+                # Initial load: target 20 articles, Load more: target 15 articles
+                target_results = 20 if not page else 15
+                
+                while len(all_filtered_articles) < target_results and pages_fetched < max_pages:
                     # Build API parameters
                     params = {
                         "apikey": settings.NEWSDATA_API_KEY,
-                        "country": settings.NEWSDATA_COUNTRY,
-                        "language": settings.NEWSDATA_LANGUAGE,
                         "q": settings.NEWSDATA_QUERY
                     }
+                    
+                    # Only add country filter if specified
+                    if settings.NEWSDATA_COUNTRY:
+                        params["country"] = settings.NEWSDATA_COUNTRY
+                    
+                    # Only add language filter if specified
+                    if settings.NEWSDATA_LANGUAGE:
+                        params["language"] = settings.NEWSDATA_LANGUAGE
                     
                     if current_page:
                         params["page"] = current_page
@@ -130,6 +181,12 @@ class NewsService:
                     
                     # Set current page for next iteration
                     current_page = next_page_token
+            
+            # Sort by publication date (newest first)
+            all_filtered_articles.sort(
+                key=lambda x: x.get("pubDate", ""), 
+                reverse=True
+            )
             
             # Map to internal format
             result = {
@@ -189,3 +246,194 @@ class NewsService:
         """
         cache.clear()
         return {"message": "News cache cleared successfully"}
+    
+    # ============ Database Operations ============
+    
+    @staticmethod
+    async def sync_news_from_api(db: Session, max_pages: int = 6) -> Dict[str, Any]:
+        """
+        Fetch news from NewsData.io API and save to database
+        
+        Args:
+            db: Database session
+            max_pages: Maximum pages to fetch
+            
+        Returns:
+            Sync statistics
+        """
+        try:
+            new_count = 0
+            updated_count = 0
+            current_page = None
+            pages_fetched = 0
+            
+            async with httpx.AsyncClient() as client:
+                while pages_fetched < max_pages:
+                    # Build API parameters
+                    params = {
+                        "apikey": settings.NEWSDATA_API_KEY,
+                        "q": settings.NEWSDATA_QUERY
+                    }
+                    
+                    if settings.NEWSDATA_COUNTRY:
+                        params["country"] = settings.NEWSDATA_COUNTRY
+                    
+                    if settings.NEWSDATA_LANGUAGE:
+                        params["language"] = settings.NEWSDATA_LANGUAGE
+                    
+                    if current_page:
+                        params["page"] = current_page
+                    
+                    # Call API
+                    response = await client.get(
+                        settings.NEWSDATA_API_URL,
+                        params=params,
+                        timeout=10.0
+                    )
+                    response.raise_for_status()
+                    data = response.json()
+                    
+                    # Process articles
+                    articles = data.get("results", [])
+                    for article in articles:
+                        # Filter out sports/non-gaming
+                        if NewsService._is_sports_news(article):
+                            continue
+                        
+                        # Save to database
+                        result = NewsService.save_article_to_db(db, article)
+                        if result == "new":
+                            new_count += 1
+                        elif result == "updated":
+                            updated_count += 1
+                    
+                    # Get next page
+                    current_page = data.get("nextPage")
+                    pages_fetched += 1
+                    
+                    if not current_page:
+                        break
+            
+            return {
+                "status": "success",
+                "new_articles": new_count,
+                "updated_articles": updated_count,
+                "pages_fetched": pages_fetched
+            }
+            
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to sync news: {str(e)}"
+            )
+    
+    @staticmethod
+    def save_article_to_db(db: Session, article: Dict[str, Any]) -> str:
+        """
+        Save or update a single article in database
+        
+        Args:
+            db: Database session
+            article: Article data from API
+            
+        Returns:
+            "new" if created, "updated" if existing article updated
+        """
+        article_id = article.get("article_id")
+        
+        # Check if article exists
+        existing = db.query(News).filter(News.article_id == article_id).first()
+        
+        # Parse publication date
+        pub_date_str = article.get("pubDate", "")
+        try:
+            pub_date = datetime.fromisoformat(pub_date_str.replace("Z", "+00:00"))
+        except:
+            pub_date = datetime.utcnow()
+        
+        if existing:
+            # Update last_seen_at
+            existing.last_seen_at = datetime.utcnow()
+            existing.is_active = True
+            db.commit()
+            return "updated"
+        else:
+            # Create new article
+            news_item = News(
+                article_id=article_id,
+                title=article.get("title", ""),
+                description=article.get("description", ""),
+                image_url=article.get("image_url"),
+                link=article.get("link", ""),
+                pub_date=pub_date,
+                source_name=article.get("source_name"),
+                category=article.get("category", ["news"])[0] if isinstance(article.get("category"), list) else article.get("category", "news")
+            )
+            db.add(news_item)
+            db.commit()
+            return "new"
+    
+    @staticmethod
+    def get_news_from_db(db: Session, skip: int = 0, limit: int = 20) -> List[Dict[str, Any]]:
+        """
+        Get news from database (newest first)
+        
+        Args:
+            db: Database session
+            skip: Number of records to skip (for pagination)
+            limit: Maximum number of records to return
+            
+        Returns:
+            List of news articles
+        """
+        news_items = db.query(News).filter(
+            News.is_active == True
+        ).order_by(
+            News.pub_date.desc()
+        ).offset(skip).limit(limit).all()
+        
+        # Convert to dict format
+        results = []
+        for item in news_items:
+            results.append({
+                "id": item.article_id,
+                "title": item.title,
+                "description": item.description or "ไม่มีคำอธิบาย",
+                "image": item.image_url or "https://via.placeholder.com/800x400?text=No+Image",
+                "link": item.link,
+                "date": item.pub_date.strftime("%d %B %Y") if item.pub_date else "",
+                "author": item.source_name,
+                "category": item.category or "ข่าวสาร"
+            })
+        
+        return results
+    
+    @staticmethod
+    def cleanup_deleted_news(db: Session, days: int = 7) -> int:
+        """
+        Mark articles as inactive if not seen in API for specified days
+        
+        Args:
+            db: Database session
+            days: Number of days threshold
+            
+        Returns:
+            Number of articles marked inactive
+        """
+        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        
+        result = db.query(News).filter(
+            and_(
+                News.last_seen_at < cutoff_date,
+                News.is_active == True
+            )
+        ).update({"is_active": False})
+        
+        db.commit()
+        return result
+    
+    @staticmethod
+    def get_total_active_news(db: Session) -> int:
+        """Get count of active news articles"""
+        return db.query(News).filter(News.is_active == True).count()
+

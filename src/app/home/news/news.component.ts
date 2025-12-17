@@ -69,13 +69,16 @@ export class NewsComponent implements OnInit {
         this.isLoadingMore = true;
         this.error = null;
 
-        this.newsService.getNews(this.nextPage).subscribe({
+        // Calculate skip based on current news count
+        const currentCount = this.latestNews.length + this.sideNews.length + 1; // +1 for featured
+
+        this.newsService.getNews(null, currentCount).subscribe({
             next: (response) => {
                 // Append new news to latest news
                 this.latestNews = [...this.latestNews, ...response.news];
 
-                // Update nextPage token
-                this.nextPage = response.nextPage || null;
+                // Update nextPage based on hasMore
+                this.nextPage = response.hasMore ? 'more' : null;
 
                 this.isLoadingMore = false;
             },

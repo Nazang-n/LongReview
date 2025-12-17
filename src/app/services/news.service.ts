@@ -20,6 +20,9 @@ export interface NewsResponse {
     news: NewsItem[];
     nextPage?: string;
     totalResults: number;
+    skip?: number;
+    limit?: number;
+    hasMore?: boolean;
 }
 
 @Injectable({
@@ -35,11 +38,13 @@ export class NewsService {
 
     /**
      * Fetch news from backend API
-     * @param nextPage Optional pagination token
+     * @param nextPage Optional pagination token (deprecated, use skip instead)
+     * @param skip Number of articles to skip for pagination
+     * @param limit Number of articles to return
      * @returns Observable of NewsResponse
      */
-    getNews(nextPage?: string): Observable<NewsResponse> {
-        const cacheKey = nextPage || 'first-page';
+    getNews(nextPage?: string | null, skip: number = 0, limit: number = 20): Observable<NewsResponse> {
+        const cacheKey = `skip-${skip}-limit-${limit}`;
 
         // Check cache first
         if (this.cache.has(cacheKey)) {
@@ -47,11 +52,7 @@ export class NewsService {
         }
 
         // Build URL with parameters
-        let url = this.API_URL;
-
-        if (nextPage) {
-            url += `?page=${nextPage}`;
-        }
+        let url = `${this.API_URL}?skip=${skip}&limit=${limit}`;
 
         return this.http.get<NewsResponse>(url).pipe(
             map(response => {

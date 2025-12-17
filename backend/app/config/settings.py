@@ -12,9 +12,9 @@ class Settings(BaseSettings):
     # NewsData.io API
     NEWSDATA_API_KEY: str = "pub_5f46a4d4133a4a3fb02a880318ce3cb9"
     NEWSDATA_API_URL: str = "https://newsdata.io/api/1/news"
-    NEWSDATA_COUNTRY: str = "th"
-    NEWSDATA_QUERY: str = "เกม OR game OR gaming OR เกมส์"
-    NEWSDATA_LANGUAGE: str = "th"
+    NEWSDATA_COUNTRY: str = ""  # Get Thai news from all countries
+    NEWSDATA_QUERY: str = "เกม OR gaming OR esports OR อีสปอร์ต OR PlayStation OR Xbox OR Nintendo"
+    NEWSDATA_LANGUAGE: str = "th"  # Thai language for Thai users
     
     # Steam API
     STEAM_API_KEY: Optional[str] = None
@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     
     # Cache Settings
-    CACHE_TTL: int = 3600  # 1 hour in seconds
+    CACHE_TTL: int = 600  # 10 minutes in seconds (reduced for fresher news)
     
     class Config:
         env_file = ".env"
