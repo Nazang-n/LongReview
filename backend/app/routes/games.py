@@ -10,6 +10,24 @@ router = APIRouter(
 )
 
 
+def serialize_game(game: models.Game) -> dict:
+    """Convert Game model to dict with proper date serialization"""
+    return {
+        "id": game.id,
+        "title": game.title,
+        "description": game.description,
+        "genre": game.genre,
+        "rating": game.rating,
+        "image_url": game.image_url,
+        "release_date": game.release_date.isoformat() if game.release_date else None,
+        "developer": game.developer,
+        "publisher": game.publisher,
+        "platform": game.platform,
+        "price": game.price,
+        "video": game.video
+    }
+
+
 @router.get("/", response_model=List[schemas.Game])
 def get_games(
     skip: int = 0,
@@ -23,7 +41,7 @@ def get_games(
     - **limit**: Maximum number of records to return (default: 100)
     """
     games = db.query(models.Game).offset(skip).limit(limit).all()
-    return games
+    return [serialize_game(game) for game in games]
 
 
 @router.get("/{game_id}", response_model=schemas.Game)
@@ -39,7 +57,7 @@ def get_game(game_id: int, db: Session = Depends(get_db)):
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Game with id {game_id} not found"
         )
-    return game
+    return serialize_game(game)
 
 
 @router.post("/", response_model=schemas.Game, status_code=status.HTTP_201_CREATED)

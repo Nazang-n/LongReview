@@ -122,8 +122,28 @@
 
         <!-- Main Content Area -->
         <main class="flex-1">
+            <!-- Loading State -->
+            <div *ngIf="isLoading" class="flex items-center justify-center py-20">
+                <div class="text-center">
+                    <i class="pi pi-spin pi-spinner text-4xl text-purple-500 mb-4"></i>
+                    <p class="text-gray-600">กำลังโหลดเกมจาก SteamSpy...</p>
+                </div>
+            </div>
+
+            <!-- Error State -->
+            <div *ngIf="error && !isLoading" class="bg-red-50 border border-red-200 rounded-lg p-6 mb-6">
+                <div class="flex items-start gap-3">
+                    <i class="pi pi-exclamation-triangle text-red-500 text-xl"></i>
+                    <div>
+                        <h3 class="font-bold text-red-800 mb-1">เกิดข้อผิดพลาด</h3>
+                        <p class="text-red-600 text-sm">{{ error }}</p>
+                        <p class="text-red-500 text-xs mt-2">กำลังแสดงเกมตัวอย่างแทน</p>
+                    </div>
+                </div>
+            </div>
+
             <!-- Game Grid (3 columns) -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div *ngIf="!isLoading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div *ngFor="let game of games" [routerLink]="['/game', game.id]"
                     class="game-card bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group border border-gray-100">
 

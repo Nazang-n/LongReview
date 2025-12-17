@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Float, DateTime, Boolean
+from sqlalchemy import Column, Integer, String, Text, Float, DateTime, Boolean, Date
 from sqlalchemy.sql import func
 from .database import Base
 
@@ -16,20 +16,28 @@ class User(Base):
 
 
 class Game(Base):
-    """Game model for storing game information"""
-    __tablename__ = "games"
+    """Game model - maps to existing 'game' table in database"""
+    __tablename__ = "game"  # Table name is 'game' not 'games'
     
     id = Column(Integer, primary_key=True, index=True)
-    title = Column(String(255), nullable=False, index=True)
-    description = Column(Text)
-    genre = Column(String(100))
-    rating = Column(Float)
-    image_url = Column(String(500))
-    release_date = Column(String(50))
-    developer = Column(String(255))
-    publisher = Column(String(255))
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Map to existing database columns
+    title = Column("name", String(255), nullable=False, index=True)  # DB column: name
+    description = Column("info", String(255))  # DB column: info
+    image_url = Column("picture", String(255))  # DB column: picture
+    
+    # Existing columns in database
+    platform = Column(String(255))  # Platform (windows, mac, linux)
+    price = Column(String(255))  # Price from Steam
+    video = Column(String(255))  # Video URL
+    release_date = Column(Date)  # Release date
+    admin_id = Column(Integer)  # Admin ID
+    
+    # Additional columns for Steam API data (add these to DB if needed)
+    genre = Column(String(100))  # Game genres
+    developer = Column(String(255))  # Developer name
+    publisher = Column(String(255))  # Publisher name
+    rating = Column(Float)  # Game rating (optional)
 
 
 class Review(Base):
