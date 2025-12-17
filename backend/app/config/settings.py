@@ -13,7 +13,8 @@ class Settings(BaseSettings):
     NEWSDATA_API_KEY: str = "pub_5f46a4d4133a4a3fb02a880318ce3cb9"
     NEWSDATA_API_URL: str = "https://newsdata.io/api/1/news"
     NEWSDATA_COUNTRY: str = "th"
-    NEWSDATA_QUERY: str = "เกม"
+    NEWSDATA_QUERY: str = "เกม OR game OR gaming OR เกมส์"
+    NEWSDATA_LANGUAGE: str = "th"
     
     # Steam API
     STEAM_API_KEY: Optional[str] = None
