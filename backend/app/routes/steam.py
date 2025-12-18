@@ -489,7 +489,8 @@ def import_games_batch_from_steamspy(
                         publisher=", ".join(steam_details_en.get('publishers', [])),
                         platform=platform_str,
                         price=price_str,
-                        video=video_url
+                        video=video_url,
+                        steam_app_id=str(app_id)  # Store Steam App ID
                     )
                 
                 db.add(new_game)
@@ -526,5 +527,79 @@ def import_games_batch_from_steamspy(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error during batch import: {str(e)}"
+        )
+
+
+@router.post("/steamspy/update-app-ids")
+def update_steam_app_ids(
+    limit: int = Query(100, description="Number of games to update", ge=1, le=500),
+    db: Session = Depends(get_db)
+):
+    """
+    Update steam_app_id for existing games by matching title with SteamSpy
+    
+    This is useful for games imported before steam_app_id column was added.
+    """
+    try:
+        # Get games without steam_app_id
+        games_without_appid = db.query(models.Game).filter(
+            models.Game.steam_app_id.is_(None)
+        ).limit(limit).all()
+        
+        if not games_without_appid:
+            return {
+                "success": True,
+                "message": "All games already have steam_app_id",
+                "updated": 0
+            }
+        
+        # Get all games from SteamSpy
+        print(f"📥 Fetching game list from SteamSpy...")
+        steamspy_data = SteamAPIClient.get_all_games_from_steamspy()
+        
+        if not steamspy_data:
+            return {
+                "success": False,
+                "message": "Failed to fetch data from SteamSpy",
+                "updated": 0
+            }
+        
+        # Create a mapping of game names to app_ids
+        name_to_appid = {}
+        for app_id, game_data in steamspy_data.items():
+            game_name = game_data.get('name', '').strip().lower()
+            if game_name:
+                name_to_appid[game_name] = app_id
+        
+        updated_count = 0
+        not_found_count = 0
+        
+        for game in games_without_appid:
+            game_name_lower = game.title.strip().lower()
+            
+            # Try exact match first
+            if game_name_lower in name_to_appid:
+                game.steam_app_id = name_to_appid[game_name_lower]
+                updated_count += 1
+                print(f"   ✓ Updated {game.title} -> App ID: {game.steam_app_id}")
+            else:
+                not_found_count += 1
+                print(f"   ✗ Not found: {game.title}")
+        
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": f"Updated {updated_count} games with steam_app_id",
+            "updated": updated_count,
+            "not_found": not_found_count,
+            "total_processed": updated_count + not_found_count
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error updating steam_app_ids: {str(e)}"
         )
 

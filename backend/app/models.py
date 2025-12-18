@@ -39,20 +39,29 @@ class Game(Base):
     publisher = Column(String(255))  # Publisher name
     rating = Column(Float)  # Game rating (optional)
     about_game_th = Column(Text)  # Thai translation of game details
+    steam_app_id = Column(String(50), unique=True, index=True)  # Steam App ID from SteamSpy
+
+
 
 
 class Review(Base):
-    """Review model for game reviews"""
-    __tablename__ = "reviews"
+    """Review model for Steam game reviews"""
+    __tablename__ = "review"
     
     id = Column(Integer, primary_key=True, index=True)
+    
+    # Existing columns in database
     game_id = Column(Integer, nullable=False, index=True)
-    user_id = Column(Integer, nullable=False, index=True)
-    title = Column(String(255))
+    admin_id = Column(Integer)
     content = Column(Text, nullable=False)
-    rating = Column(Float, nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    owner = Column(String(255))
+    
+    # New columns added for Steam reviews
+    steam_id = Column(String(255), unique=True, index=True)
+    voted_up = Column("voted_up", Boolean)  # Column has trailing space in DB
+    created_at = Column("created_at", DateTime(timezone=True))  # Column has trailing space in DB
+
+
 
 
 class News(Base):
