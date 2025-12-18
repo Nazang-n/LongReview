@@ -30,28 +30,85 @@
   </section>
 
   <section class="section">
-    <h2 class="section-title">เกมที่ได้คะแนนรีวิวสูง</h2>
+    <h2 class="section-title">เกมที่ได้รีวิวแง่บวก</h2>
     <div class="scroll-container-wrapper">
       <button
         class="absolute left-0 top-1/2 -translate-y-1/2 -ml-5 w-10 h-10 bg-white hover:bg-gray-50 text-gray-800 shadow-lg rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 z-10 border border-gray-100"
-        (click)="scrollList(-300)">
+        (click)="scrollList(-400)">
         <i class="pi pi-chevron-left"></i>
       </button>
 
       <div class="card-list" #cardList>
-        <div class="game-card" *ngFor="let game of highRatedGames" [routerLink]="['/game', game.id]"
-          style="cursor: pointer;">
-          <div class="card-img-wrapper">
-            <img [src]="game.image" alt="{{game.title}}">
-          </div>
-          <div class="card-body">
-            <h3>{{game.title}}</h3>
-            <div class="rating-row">
-              <span class="platform">PC/Console</span>
-              <span class="rating">{{game.rating}}</span>
+        <div *ngFor="let game of highRatedGames" [routerLink]="['/game', game.id]"
+          class="game-card bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group border border-gray-100"
+          style="min-width: 350px; max-width: 350px;">
+
+          <!-- Game Image -->
+          <div class="relative h-48 overflow-hidden">
+            <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
+              [style.backgroundImage]="'url(' + game.image + ')'">
             </div>
-            <div class="tags">
-              <span *ngFor="let tag of game.tags" class="tag">{{tag}}</span>
+
+            <!-- Gradient Overlay -->
+            <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent">
+            </div>
+
+            <!-- Review Badge (Top Right) -->
+            <div class="absolute top-3 right-3">
+              <!-- Positive Reviews -->
+              <div *ngIf="game.reviewType === 'positive'"
+                class="bg-green-500 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-lg">
+                <i class="pi pi-thumbs-up text-base"></i>
+              </div>
+
+              <!-- Negative Reviews -->
+              <div *ngIf="game.reviewType === 'negative'"
+                class="bg-red-500 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-lg">
+                <i class="pi pi-thumbs-down text-base"></i>
+              </div>
+
+              <!-- Mixed Reviews -->
+              <div *ngIf="game.reviewType === 'mixed'"
+                class="bg-yellow-500 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-lg">
+                <i class="pi pi-sync textbase"></i>
+              </div>-
+            </div>
+          </div>
+
+          <!-- Card Content -->
+          <div class="p-4">
+            <!-- Game Title -->
+            <h3
+              class="text-base font-bold text-gray-900 mb-2 group-hover:text-purple-600 transition-colors line-clamp-1">
+              {{ game.title }}
+            </h3>
+
+            <!-- Description
+            <p class="text-xs text-gray-500 mb-3 line-clamp-2 leading-relaxed">
+              {{ game.description }}
+            </p> -->
+
+            <!-- Footer: Date and Tags -->
+            <div class="space-y-2">
+              <!-- Release Date -->
+              <div class="flex items-center gap-1.5 text-gray-400 text-xs">
+                <i class="pi pi-calendar"></i>
+                <span>{{ game.releaseDate }}</span>
+              </div>
+
+              <!-- Genre and Review Tags -->
+              <div class="flex flex-wrap gap-1">
+                <!-- Genre Tags (Purple) - show max 2 -->
+                <span *ngFor="let genre of game.genres.slice(0, 2)"
+                  class="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded font-medium">
+                  {{ genre }}
+                </span>
+                <!-- Review Tags (Yellow) - show max 2 -->
+                <span *ngFor="let tag of game.reviewTags.slice(0, 2)"
+                  class="bg-yellow-100 text-yellow-700 text-xs px-2 py-0.5 rounded font-medium">
+                  {{ tag }}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -59,7 +116,7 @@
 
       <button
         class="absolute right-0 top-1/2 -translate-y-1/2 -mr-5 w-10 h-10 bg-white hover:bg-gray-50 text-gray-800 shadow-lg rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 z-10 border border-gray-100"
-        (click)="scrollList(300)">
+        (click)="scrollList(400)">
         <i class="pi pi-chevron-right"></i>
       </button>
     </div>

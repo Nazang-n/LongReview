@@ -1,15 +1,18 @@
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from .database import engine, Base
-from .routes import games, reviews, steam, auth
+from .routes import games, reviews, steam, auth, news
 import os
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
 
-# Create database tables (commented out - create tables manually in SQL)
-# Base.metadata.create_all(bind=engine)
+# Import models to register them with Base.metadata
+from app import models
+
+# Create database tables
+Base.metadata.create_all(bind=engine)
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -19,6 +22,17 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc"
 )
+
+# Start background tasks
+from app.services.news_sync import NewsSyncService
+
+@app.on_event("startup")
+async def startup_event():
+    NewsSyncService.start_scheduler()
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    NewsSyncService.stop_scheduler()
 
 # Configure CORS
 origins = os.getenv("CORS_ORIGINS", "http://localhost:4200").split(",")
@@ -36,6 +50,7 @@ app.include_router(auth.router)
 app.include_router(games.router)
 app.include_router(reviews.router)
 app.include_router(steam.router)
+app.include_router(news.router)
 
 
 @app.get("/", tags=["root"])

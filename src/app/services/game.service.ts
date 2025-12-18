@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 // import { environment } from '../../environments/environment';
 
 export interface Game {
@@ -17,11 +18,36 @@ export interface Game {
     updated_at?: string;
 }
 
+export interface SteamSpyGame {
+    appid: string;
+    name: string;
+    developer: string;
+    publisher: string;
+    owners: string;
+    genre: string;
+    positive?: number;
+    negative?: number;
+}
+
+export interface SteamGameDetails {
+    steam_appid: number;
+    name: string;
+    short_description: string;
+    header_image: string;
+    release_date: {
+        date: string;
+    };
+    developers: string[];
+    publishers: string[];
+    genres: Array<{ description: string }>;
+}
+
 @Injectable({
     providedIn: 'root'
 })
 export class GameService {
     private apiUrl = 'http://localhost:8000/api/games';
+    private steamApiUrl = 'http://localhost:8000/api/steam';
 
     constructor(private http: HttpClient) { }
 
@@ -73,4 +99,46 @@ export class GameService {
             .set('limit', limit.toString());
         return this.http.get<Game[]>(`${this.apiUrl}/search/`, { params });
     }
+
+    /**
+     * Get top games from SteamSpy
+     */
+    getTopGamesFromSteamSpy(limit: number = 50): Observable<any> {
+        const params = new HttpParams().set('limit', limit.toString());
+        return this.http.get<any>(`${this.steamApiUrl}/steamspy/top`, { params });
+    }
+
+    /**
+     * Get all games from SteamSpy
+     */
+    getAllGamesFromSteamSpy(limit?: number): Observable<any> {
+        let params = new HttpParams();
+        if (limit) {
+            params = params.set('limit', limit.toString());
+        }
+        return this.http.get<any>(`${this.steamApiUrl}/steamspy/all`, { params });
+    }
+
+    /**
+     * Get game details from Steam API
+     */
+    getSteamGameDetails(appId: number): Observable<any> {
+        return this.http.get<any>(`${this.steamApiUrl}/app/${appId}`);
+    }
+
+    /**
+     * Get game details from SteamSpy
+     */
+    getSteamSpyGameDetails(appId: number): Observable<any> {
+        return this.http.get<any>(`${this.steamApiUrl}/steamspy/game/${appId}`);
+    }
+
+    /**
+     * Import games from SteamSpy to database
+     */
+    importGamesFromSteamSpy(limit: number = 50): Observable<any> {
+        const params = new HttpParams().set('limit', limit.toString());
+        return this.http.post<any>(`${this.steamApiUrl}/steamspy/import/batch`, null, { params });
+    }
 }
+

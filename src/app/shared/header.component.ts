@@ -23,12 +23,13 @@ import { isPlatformBrowser } from '@angular/common';
         <a routerLink="/news" routerLinkActive="active">ข่าวสาร</a>
         <a routerLink="/games" routerLinkActive="active">เกมส์</a>
         <a routerLink="/favorites" routerLinkActive="active">รายการโปรด</a>
+        <a *ngIf="isAdmin()" routerLink="/admin" routerLinkActive="active" class="admin-link">Admin</a>
       </nav>
 
       <div class="user-actions">
         <div class="search-box">
           <input type="text" placeholder="ค้นหา">
-          <span class="search-icon">🔍</span>
+          <i class="pi pi-search"></i>
         </div>
         
         <ng-container *ngIf="currentUser$ | async as user; else loginLink">
@@ -42,6 +43,10 @@ import { isPlatformBrowser } from '@angular/common';
                  <a class="dropdown-item" (click)="navigateToProfile()">
                   <i class="pi pi-user"></i>
                    <span>โปรไฟล์ของฉัน</span>
+                 </a>
+                 <a *ngIf="isAdmin()" class="dropdown-item" (click)="navigateToAdmin()">
+                  <i class="pi pi-cog"></i>
+                   <span>Admin Panel</span>
                  </a>
                  <div class="dropdown-divider"></div>
                  <a class="dropdown-item" (click)="logout()">
@@ -159,9 +164,18 @@ export class HeaderComponent {
     this.isDropdownOpen = !this.isDropdownOpen;
   }
 
+  isAdmin(): boolean {
+    return this.authService.isAdmin();
+  }
+
   navigateToProfile() {
     this.isDropdownOpen = false;
     this.router.navigate(['/profile']);
+  }
+
+  navigateToAdmin() {
+    this.isDropdownOpen = false;
+    this.router.navigate(['/admin']);
   }
 
   logout() {

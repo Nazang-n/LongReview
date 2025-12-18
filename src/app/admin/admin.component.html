@@ -1,0 +1,44 @@
+<app-header></app-header>
+
+<div class="admin-container">
+    <div class="admin-content">
+        <p-card header="Admin Panel" subheader="Manage news synchronization">
+            <div class="sync-section">
+                <h3>News Synchronization</h3>
+                <p>Manually trigger news sync from the API to update the database with the latest articles.</p>
+
+                <button pButton type="button" label="Sync News" icon="pi pi-refresh" [loading]="isLoading"
+                    [disabled]="isLoading" (click)="syncNews()" class="sync-button">
+                </button>
+
+                <!-- Loading Spinner -->
+                <div *ngIf="isLoading" class="loading-container">
+                    <p-progressSpinner styleClass="custom-spinner" strokeWidth="4" animationDuration="1s">
+                    </p-progressSpinner>
+                    <p>Syncing news from API...</p>
+                </div>
+
+                <!-- Success Result -->
+                <div *ngIf="syncResult && !isLoading" class="result-container success">
+                    <p-message severity="success" text="News sync completed successfully!"></p-message>
+                    <div class="result-details">
+                        <h4>Sync Results:</h4>
+                        <ul>
+                            <li><strong>Articles Added:</strong> {{ syncResult.added || 0 }}</li>
+                            <li><strong>Articles Updated:</strong> {{ syncResult.updated || 0 }}</li>
+                            <li><strong>Articles Skipped:</strong> {{ syncResult.skipped || 0 }}</li>
+                            <li><strong>Total Processed:</strong> {{ syncResult.total_processed || 0 }}</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Error Message -->
+                <div *ngIf="error && !isLoading" class="result-container error">
+                    <p-message severity="error" [text]="error"></p-message>
+                </div>
+            </div>
+        </p-card>
+    </div>
+</div>
+
+<app-footer></app-footer>

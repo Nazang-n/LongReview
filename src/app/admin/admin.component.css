@@ -1,0 +1,128 @@
+.admin-container {
+    min-height: calc(100vh - 200px);
+    padding: 2rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.admin-content {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.sync-section {
+    padding: 1rem 0;
+}
+
+.sync-section h3 {
+    color: #333;
+    margin-bottom: 0.5rem;
+    font-size: 1.5rem;
+}
+
+.sync-section p {
+    color: #666;
+    margin-bottom: 1.5rem;
+}
+
+.sync-button {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    padding: 0.75rem 2rem;
+    font-size: 1rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.sync-button:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.sync-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.loading-container {
+    margin-top: 2rem;
+    text-align: center;
+}
+
+.loading-container p {
+    margin-top: 1rem;
+    color: #667eea;
+    font-weight: 600;
+}
+
+.result-container {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    border-radius: 8px;
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.result-container.success {
+    background: #f0fdf4;
+    border: 1px solid #86efac;
+}
+
+.result-container.error {
+    background: #fef2f2;
+    border: 1px solid #fca5a5;
+}
+
+.result-details {
+    margin-top: 1rem;
+}
+
+.result-details h4 {
+    color: #333;
+    margin-bottom: 0.75rem;
+    font-size: 1.1rem;
+}
+
+.result-details ul {
+    list-style: none;
+    padding: 0;
+}
+
+.result-details li {
+    padding: 0.5rem 0;
+    color: #555;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.result-details li:last-child {
+    border-bottom: none;
+}
+
+.result-details strong {
+    color: #333;
+    margin-right: 0.5rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .admin-container {
+        padding: 1rem;
+    }
+
+    .sync-section h3 {
+        font-size: 1.25rem;
+    }
+
+    .sync-button {
+        width: 100%;
+    }
+}

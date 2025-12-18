@@ -7,6 +7,7 @@ class SteamAPIClient:
     """Client for fetching data from Steam API"""
     
     BASE_URL = "https://store.steampowered.com"
+    STEAMSPY_BASE_URL = "https://steamspy.com/api.php"
     
     @staticmethod
     def get_app_reviews(
@@ -99,18 +100,24 @@ class SteamAPIClient:
         return all_reviews
     
     @staticmethod
-    def get_app_details(app_id: int) -> Optional[Dict[str, Any]]:
+    def get_app_details(app_id: int, language: str = "thai", country_code: str = "th") -> Optional[Dict[str, Any]]:
         """
-        Fetch app details from Steam
+        Fetch app details from Steam with language support
         
         Args:
             app_id: Steam application ID
+            language: Language code (e.g., 'thai', 'english')
+            country_code: Country code for pricing (e.g., 'th', 'us')
             
         Returns:
             Dictionary containing app details or None if failed
         """
         url = f"{SteamAPIClient.BASE_URL}/api/appdetails"
-        params = {"appids": app_id}
+        params = {
+            "appids": app_id,
+            "cc": country_code,  # Country code for pricing
+            "l": language  # Language
+        }
         
         try:
             response = requests.get(url, params=params, timeout=10)
@@ -123,3 +130,89 @@ class SteamAPIClient:
         except requests.exceptions.RequestException as e:
             print(f"Error fetching Steam app details: {e}")
             return None
+    
+    @staticmethod
+    def get_all_games_from_steamspy(
+        page: int = 0,
+        limit: Optional[int] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Fetch all games from SteamSpy API
+        
+        Args:
+            page: Page number (for pagination)
+            limit: Limit number of games returned (None = all)
+            
+        Returns:
+            Dictionary with app_id as keys and game data as values
+        """
+        url = SteamAPIClient.STEAMSPY_BASE_URL
+        params = {"request": "all", "page": page}
+        
+        try:
+            response = requests.get(url, params=params, timeout=30)
+            response.raise_for_status()
+            data = response.json()
+            
+            if limit:
+                # Convert to list of items, slice, and convert back to dict
+                items = list(data.items())[:limit]
+                return dict(items)
+            
+            return data
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching SteamSpy data: {e}")
+            return None
+    
+    @staticmethod
+    def get_game_details_from_steamspy(app_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Fetch detailed game information from SteamSpy
+        
+        Args:
+            app_id: Steam application ID
+            
+        Returns:
+            Dictionary containing game details from SteamSpy
+        """
+        url = SteamAPIClient.STEAMSPY_BASE_URL
+        params = {"request": "appdetails", "appid": app_id}
+        
+        try:
+            response = requests.get(url, params=params, timeout=10)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching SteamSpy game details: {e}")
+            return None
+    
+    @staticmethod
+    def get_top_games_from_steamspy(limit: int = 100) -> Optional[List[Dict[str, Any]]]:
+        """
+        Fetch top games by player count from SteamSpy
+        
+        Args:
+            limit: Number of top games to fetch
+            
+        Returns:
+            List of game dictionaries sorted by player count
+        """
+        all_games = SteamAPIClient.get_all_games_from_steamspy()
+        
+        if not all_games:
+            return None
+        
+        # Convert to list and sort by player count
+        games_list = []
+        for app_id, game_data in all_games.items():
+            game_data['app_id'] = app_id
+            games_list.append(game_data)
+        
+        # Sort by owners (player count) in descending order
+        sorted_games = sorted(
+            games_list,
+            key=lambda x: x.get('owners', 0),
+            reverse=True
+        )
+        
+        return sorted_games[:limit]

@@ -8,89 +8,105 @@
             </div>
             <div>
                 <h1 class="text-3xl font-bold text-gray-900 tracking-tight">ใหม่ล่าสุด</h1>
-                <!-- <p class="text-sm text-gray-500 mt-1">อัพเดทข่าวเกมและเทคโนโลยี</p> -->
             </div>
-        </div>
-        <!-- 
-        <button
-            class="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-full text-sm font-medium hover:bg-gray-50 transition-colors">
-            ดูทั้งหมด <i class="pi pi-chevron-right text-xs"></i>
-        </button> -->
-    </div>
-
-    <!-- Featured News (Hero Section) -->
-    <!-- Mimicking the large banner from the screenshot but adapting for light theme/white bg -->
-    <div class="relative w-full h-[500px] mb-12 rounded-2xl overflow-hidden group shadow-md">
-        <!-- Background Image with Overlay -->
-        <div class="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
-            [style.backgroundImage]="'url(' + featuredNews.image + ')'"></div>
-        <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent"></div>
-
-        <!-- Content Overlay -->
-        <div class="absolute bottom-0 left-0 p-8 md:p-12 w-full md:w-3/4 lg:w-2/3">
-            <div class="flex gap-3 mb-4">
-                <span
-                    class="bg-purple-600 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">Featured</span>
-                <span
-                    class="bg-gray-700/80 backdrop-blur-sm text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">Update</span>
-            </div>
-            <h2 class="text-4xl md:text-5xl font-bold text-white mb-4 leading-tight drop-shadow-sm">
-                {{ featuredNews.title }}
-            </h2>
-            <p class="text-gray-200 text-lg mb-6 line-clamp-2 md:line-clamp-3 leading-relaxed opacity-90">
-                {{ featuredNews.description }}
-            </p>
-            <div class="flex items-center gap-6 text-gray-400 text-sm font-medium mt-8">
-                <div class="flex items-center gap-2">
-                    <i class="pi pi-calendar"></i>
-                    <span>13 ธ.ค. 2025</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Read More Button (Absolute Bottom Right) -->
-        <div class="absolute bottom-8 right-8 md:bottom-12 md:right-12">
-            <button
-                class="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-full font-semibold transition-all shadow-lg hover:shadow-purple-500/30 flex items-center gap-2">
-                อ่านต่อ <i class="pi pi-arrow-right"></i>
-            </button>
         </div>
     </div>
 
+    <!-- Loading State -->
+    <div *ngIf="isLoading" class="flex flex-col items-center justify-center py-20">
+        <i class="pi pi-spin pi-spinner text-5xl text-purple-600 mb-4"></i>
+        <p class="text-gray-600 text-lg">กำลังโหลดข่าว...</p>
+    </div>
 
-    <!-- Latest News Grid (3 Columns) -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        <!-- Render from SideNews + LatestNews combined for the grid demo, or just use latestNews -->
-        <ng-container *ngFor="let item of latestNews.concat(sideNews)">
-            <div
-                class="flex flex-col bg-white border border-gray-100 rounded-2xl overflow-hidden hover:shadow-xl transition-shadow duration-300 group h-full">
-                <!-- Image Container -->
-                <div class="relative h-56 overflow-hidden">
-                    <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
-                        [style.backgroundImage]="'url(' + item.image + ')'">
-                    </div>
-                    <!-- Tag overlay -->
+    <!-- Error State -->
+    <div *ngIf="error && !isLoading" class="bg-red-50 border border-red-200 rounded-xl p-8 text-center">
+        <i class="pi pi-exclamation-triangle text-4xl text-red-600 mb-4"></i>
+        <h3 class="text-xl font-bold text-red-900 mb-2">เกิดข้อผิดพลาด</h3>
+        <p class="text-red-700 mb-4">{{ error }}</p>
+        <button (click)="retry()"
+            class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg font-semibold transition-colors">
+            ลองอีกครั้ง
+        </button>
+    </div>
+
+    <!-- News Content -->
+    <div *ngIf="!isLoading && !error && featuredNews">
+        <!-- Featured News (Hero Section) -->
+        <div [routerLink]="['/news', featuredNews.id]"
+            class="relative w-full h-[500px] mb-12 rounded-2xl overflow-hidden group shadow-md cursor-pointer">
+            <!-- Background Image with Overlay -->
+            <div class="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
+                [style.backgroundImage]="'url(' + featuredNews.image + ')'"></div>
+            <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent"></div>
+
+            <!-- Content Overlay -->
+            <div class="absolute bottom-0 left-0 p-8 md:p-12 w-full md:w-3/4 lg:w-2/3">
+                <div class="flex gap-3 mb-4">
                     <span
-                        class="absolute top-4 left-4 bg-black/60 backdrop-blur-md text-white/90 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wide">
-                        News
-                    </span>
+                        class="bg-purple-600 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">Featured</span>
                 </div>
+                <h2 class="text-4xl md:text-5xl font-bold text-white mb-4 leading-tight drop-shadow-sm">
+                    {{ featuredNews.title }}
+                </h2>
+                <p class="text-gray-200 text-lg mb-6 line-clamp-2 md:line-clamp-3 leading-relaxed opacity-90">
+                    {{ featuredNews.description }}
+                </p>
+                <div class="flex items-center gap-6 text-gray-400 text-sm font-medium mt-8">
+                    <div class="flex items-center gap-2">
+                        <i class="pi pi-calendar"></i>
+                        <span>{{ featuredNews.date }}</span>
+                    </div>
+                    <div *ngIf="featuredNews.author" class="flex items-center gap-2">
+                        <i class="pi pi-user"></i>
+                        <span>{{ featuredNews.author }}</span>
+                    </div>
+                </div>
+            </div>
 
-                <!-- Card Body -->
-                <div class="p-6 flex flex-col flex-grow">
-                    <h3
-                        class="text-xl font-bold text-gray-900 mb-3 line-clamp-2 group-hover:text-purple-600 transition-colors">
-                        {{ item.title }}
-                    </h3>
-                    <p class="text-gray-500 text-sm leading-relaxed line-clamp-3 mb-4 flex-grow">
-                        {{ item.description }}
-                    </p>
+            <!-- Read More Button (Absolute Bottom Right) -->
+            <div class="absolute bottom-8 right-8 md:bottom-12 md:right-12">
+                <button
+                    class="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-full font-semibold transition-all shadow-lg hover:shadow-purple-500/30 flex items-center gap-2">
+                    อ่านต่อ <i class="pi pi-arrow-right"></i>
+                </button>
+            </div>
+        </div>
 
-                    <!-- Footer Meta -->
-                    <div class="border-t border-gray-100 pt-4 flex items-center justify-between mt-auto">
-                        <div class="flex items-center gap-4 text-gray-400 text-xs font-medium">
-                            <div class="flex items-center gap-1.5">
-                                <i class="pi pi-calendar opacity-70"></i> 12 ธ.ค. 2025
+
+        <!-- Latest News Grid (3 Columns) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <!-- Render from SideNews + LatestNews combined for the grid demo, or just use latestNews -->
+            <ng-container *ngFor="let item of latestNews.concat(sideNews)">
+                <div [routerLink]="['/news', item.id]"
+                    class="flex flex-col bg-white border border-gray-100 rounded-2xl overflow-hidden hover:shadow-xl transition-shadow duration-300 group h-full cursor-pointer">
+                    <!-- Image Container -->
+                    <div class="relative h-56 overflow-hidden">
+                        <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
+                            [style.backgroundImage]="'url(' + item.image + ')'">
+                        </div>
+                        <!-- Tag overlay -->
+                        <span
+                            class="absolute top-4 left-4 bg-black/60 backdrop-blur-md text-white/90 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wide">
+                            News
+                        </span>
+                    </div>
+
+                    <!-- Card Body -->
+                    <div class="p-6 flex flex-col flex-grow">
+                        <h3
+                            class="text-xl font-bold text-gray-900 mb-3 line-clamp-2 group-hover:text-purple-600 transition-colors">
+                            {{ item.title }}
+                        </h3>
+                        <p class="text-gray-500 text-sm leading-relaxed line-clamp-3 mb-4 flex-grow">
+                            {{ item.description }}
+                        </p>
+
+                        <!-- Footer Meta -->
+                        <div class="border-t border-gray-100 pt-4 flex items-center justify-between mt-auto">
+                            <div class="flex items-center gap-4 text-gray-400 text-xs font-medium">
+                                <div class="flex items-center gap-1.5">
+                                    <i class="pi pi-calendar opacity-70"></i> {{ item.date }}
+                                </div>
                             </div>
                         </div>
                         <div class="text-sm font-bold text-purple-600 opacity-0 
@@ -100,16 +116,24 @@
                         </div>
                     </div>
                 </div>
-            </div>
-        </ng-container>
-    </div>
 
-    <!-- Load More Button -->
-    <div class="flex justify-center mt-16">
-        <button class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 px-8 rounded-full transition-colors 
-            flex items-center justify-center gap-2 border border-gray-200">
-            <i class="pi pi-refresh"></i> ดูเพิ่มเติม
-        </button>
+            </ng-container>
+        </div>
+
+        <!-- Load More Button -->
+        <div *ngIf="nextPage" class="flex justify-center mt-16">
+            <button (click)="loadMore()" [disabled]="isLoadingMore"
+                class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 px-8 rounded-full transition-colors flex items-center justify-center gap-2 border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed">
+                <i [class]="isLoadingMore ? 'pi pi-spin pi-spinner' : 'pi pi-refresh'"></i>
+                {{ isLoadingMore ? 'กำลังโหลด...' : 'ดูเพิ่มเติม' }}
+            </button>
+        </div>
+
+        <!-- No more news message -->
+        <div *ngIf="!nextPage && latestNews.length > 0" class="text-center mt-16 text-gray-500">
+            <i class="pi pi-check-circle text-2xl mb-2"></i>
+            <p>แสดงข่าวทั้งหมดแล้ว</p>
+        </div>
     </div>
 </div>
 <app-footer></app-footer>
