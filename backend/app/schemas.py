@@ -36,9 +36,12 @@ class GameBase(BaseModel):
     genre: Optional[str] = None
     rating: Optional[float] = Field(None, ge=0, le=10)
     image_url: Optional[str] = None
-    release_date: Optional[str] = None
+    release_date: Optional[str] = None  # Keep as string for JSON serialization
     developer: Optional[str] = None
     publisher: Optional[str] = None
+    platform: Optional[str] = None
+    price: Optional[str] = None
+    video: Optional[str] = None
 
 
 class GameCreate(GameBase):
@@ -54,12 +57,13 @@ class GameUpdate(BaseModel):
     release_date: Optional[str] = None
     developer: Optional[str] = None
     publisher: Optional[str] = None
+    platform: Optional[str] = None
+    price: Optional[str] = None
+    video: Optional[str] = None
 
 
 class Game(GameBase):
     id: int
-    created_at: datetime
-    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
