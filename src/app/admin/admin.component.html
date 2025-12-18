@@ -8,7 +8,7 @@
                 <p>Manually trigger news sync from the API to update the database with the latest articles.</p>
 
                 <button pButton type="button" label="Sync News" icon="pi pi-refresh" [loading]="isLoading"
-                    [disabled]="isLoading || isCleaningDescriptions" (click)="syncNews()" class="sync-button">
+                    [disabled]="isLoading" (click)="syncNews()" class="sync-button">
                 </button>
 
                 <!-- Loading Spinner -->
