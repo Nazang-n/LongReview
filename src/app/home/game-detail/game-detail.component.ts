@@ -1,6 +1,6 @@
 import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, RouterModule } from '@angular/router';
+import { ActivatedRoute, RouterModule, Router } from '@angular/router';
 import { HeaderComponent } from '../../shared/header.component';
 import { FooterComponent } from '../../shared/footer.component';
 import { TagModule } from 'primeng/tag';
@@ -8,6 +8,7 @@ import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { ProgressBarModule } from 'primeng/progressbar';
 import { TextareaModule } from 'primeng/textarea';
+import { GameService } from '../../services/game.service';
 
 interface Review {
     id: number;
@@ -48,41 +49,35 @@ export class GameDetailComponent implements OnInit {
     @ViewChild('reviewsContainer') reviewsContainer!: ElementRef;
 
     gameId: string | null = '';
+    isLoading = true;
+    error: string | null = null;
 
-    game = {
-        title: 'Armored Core VI: Fires of Rubicon',
-        image: 'https://cdn.akamai.steamstatic.com/steam/apps/1938090/header.jpg',
-        tags: ['แอ็คชั่น', 'เมคคา', 'ผู้เล่นคนเดียว'],
-        releaseDate: '25 ส.ค. 2566',
-        developer: 'FromSoftware Inc.',
-        publisher: 'BANDAI NAMCO Entertainment',
-        platform: 'Steam, PS5, Xbox Series',
-        description: `เกมแอ็คชั่นเมคคาสุดมันส์จาก FromSoftware ผู้สร้าง Dark Souls และ Elden Ring กลับมาพร้อมกับซีรีส์ Armored Core ที่หายไปนาน 10 ปี ในภาคนี้คุณจะได้สวมบทเป็นนักรบเมคคาที่ต้องต่อสู้เพื่อความอยู่รอดบนดาวเคราะห์ Rubicon 3 ที่เต็มไปด้วยสงครามและความขัดแย้ง
-
-ระบบการต่อสู้ที่รวดเร็วและเข้มข้น พร้อมระบบปรับแต่งเมคคาที่ลึกซึ้ง ให้คุณสร้างหุ่นรบในแบบของคุณเอง`,
-        score: 77,
+    game: any = {
+        title: '',
+        image: '',
+        tags: [],
+        releaseDate: '',
+        developer: '',
+        publisher: '',
+        platform: '',
+        description: '',
+        score: 0,
         ratings: {
-            excellent: 77,
-            good: 15,
-            average: 5,
-            poor: 3
+            excellent: 0,
+            good: 0,
+            average: 0,
+            poor: 0
         },
         sentiment: {
-            positive: 82,
-            neutral: 12,
-            negative: 6
+            positive: 0,
+            neutral: 0,
+            negative: 0
         },
-        reviewTags: [
-            { label: 'ท้าทาย', count: 1250, severity: 'warning' },
-            { label: 'ยาก', count: 980, severity: 'danger' },
-            { label: 'สนุก', count: 2100, severity: 'success' },
-            { label: 'กราฟิกสวย', count: 1800, severity: 'info' },
-            { label: 'ควบคุมยาก', count: 650, severity: 'warning' },
-            { label: 'คุ้มค่า', count: 1500, severity: 'success' }
-        ],
-        minRequirements: '2,250 THB'
+        reviewTags: [],
+        minRequirements: ''
     };
 
+    // Mock data for reviews - will be replaced with real data later
     reviews: Review[] = [
         {
             id: 1,
@@ -126,6 +121,7 @@ export class GameDetailComponent implements OnInit {
         }
     ];
 
+    // Mock data for related games - will be replaced with real data later
     relatedGames: RelatedGame[] = [
         {
             id: 101,
@@ -163,10 +159,86 @@ export class GameDetailComponent implements OnInit {
 
     displayedReviewsCount = 3; // Initially show 3 reviews
 
-    constructor(private route: ActivatedRoute) { }
+    constructor(
+        private route: ActivatedRoute,
+        private router: Router,
+        private gameService: GameService
+    ) { }
 
     ngOnInit() {
         this.gameId = this.route.snapshot.paramMap.get('id');
+        if (this.gameId) {
+            this.loadGameDetails(parseInt(this.gameId));
+        }
+    }
+
+    loadGameDetails(id: number) {
+        this.isLoading = true;
+        this.error = null;
+
+        this.gameService.getGame(id).subscribe({
+            next: (gameData: any) => {
+                // Map API data to game object
+                this.game = {
+                    title: gameData.title || 'Unknown Game',
+                    image: gameData.image_url || 'https://via.placeholder.com/460x215?text=No+Image',
+                    tags: gameData.genre ? gameData.genre.split(',').map((g: string) => g.trim()) : [],
+                    releaseDate: this.formatDate(gameData.release_date) || 'Unknown',
+                    developer: gameData.developer || 'Unknown Developer',
+                    publisher: gameData.publisher || 'Unknown Publisher',
+                    platform: gameData.platform || 'Unknown Platform',
+                    description: gameData.description || 'No description available.',
+                    score: 77, // Mock data - will be calculated from reviews later
+                    ratings: {
+                        excellent: 77,
+                        good: 15,
+                        average: 5,
+                        poor: 3
+                    },
+                    sentiment: {
+                        positive: 82,
+                        neutral: 12,
+                        negative: 6
+                    },
+                    reviewTags: [
+                        { label: 'สนุก', count: 2100, severity: 'success' },
+                        { label: 'กราฟิกสวย', count: 1800, severity: 'info' },
+                        { label: 'คุ้มค่า', count: 1500, severity: 'success' }
+                    ],
+                    minRequirements: gameData.price || 'N/A'
+                };
+                this.isLoading = false;
+            },
+            error: (err) => {
+                console.error('Error loading game details:', err);
+                this.error = 'ไม่สามารถโหลดข้อมูลเกมได้';
+                this.isLoading = false;
+            }
+        });
+    }
+
+    formatDate(dateString: string): string {
+        if (!dateString) return 'Unknown';
+
+        try {
+            // Parse ISO format date (YYYY-MM-DD) from backend
+            const date = new Date(dateString);
+
+            // Check if date is valid
+            if (isNaN(date.getTime())) {
+                return dateString;
+            }
+
+            const thaiMonths = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+                'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+            const day = date.getDate();
+            const month = thaiMonths[date.getMonth()];
+            const year = date.getFullYear() + 543; // Convert to Buddhist year
+            return `${day} ${month} ${year}`;
+        } catch (e) {
+            console.error('Error formatting date:', e);
+            return dateString;
+        }
     }
 
     getRatingIcon(rating: number): string {
