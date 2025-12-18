@@ -37,11 +37,7 @@
         </button>
 
         <!-- Category Badge -->
-        <div class="absolute top-6 right-6">
-            <span class="bg-purple-600 text-white px-4 py-2 rounded-full text-sm font-semibold">
-                {{ newsItem.category }}
-            </span>
-        </div>
+        
     </div>
 
     <!-- Main Content (Same width as other pages) -->
@@ -64,10 +60,7 @@
                         <i class="pi pi-calendar text-purple-600"></i>
                         <span>{{ newsItem.date }}</span>
                     </div>
-                    <div *ngIf="newsItem.category" class="flex items-center gap-2">
-                        <i class="pi pi-tag text-purple-600"></i>
-                        <span>{{ newsItem.category }}</span>
-                    </div>
+                
                 </div>
 
                 <!-- Article Description -->
@@ -134,12 +127,8 @@
                         <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent">
                         </div>
 
-                        <!-- Category Badge -->
-                        <div class="absolute top-3 right-3">
-                            <span class="bg-purple-600 text-white px-3 py-1 rounded-full text-xs font-semibold">
-                                {{ news.category }}
-                            </span>
-                        </div>
+                       
+                        
                     </div>
 
                     <!-- News Content -->

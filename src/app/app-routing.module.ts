@@ -14,6 +14,8 @@ import { RegisterComponent } from './auth/register.component';
 import { NewsDetailComponent } from './home/news-detail/news-detail.component';
 
 import { AuthGuard } from './guards/auth.guard';
+import { AdminGuard } from './guards/admin.guard';
+import { AdminComponent } from './admin/admin.component';
 
 const routes: Routes = [
   // หน้าแรก (Home)
@@ -27,6 +29,7 @@ const routes: Routes = [
   { path: 'profile', component: ProfileComponent, canActivate: [AuthGuard] },
   { path: 'login', component: LoginComponent },
   { path: 'register', component: RegisterComponent },
+  { path: 'admin', component: AdminComponent, canActivate: [AdminGuard] },
 
   // (Optional) กรณีพิมพ์ URL ผิดให้กลับไปหน้าแรก
   { path: '**', redirectTo: '' }

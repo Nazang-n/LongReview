@@ -8,7 +8,7 @@ from app.utils.date_utils import format_thai_date
 
 def clean_description(description: str) -> str:
     """
-    Clean description by removing truncation markers and handling cut-off text
+    Clean description by replacing [...] with ... and removing WordPress footer
     
     Args:
         description: Raw description text
@@ -19,23 +19,19 @@ def clean_description(description: str) -> str:
     if not description:
         return "ไม่มีคำอธิบาย"
     
-    # Remove [...] truncation markers
-    cleaned = description.replace("[...]", "")
+    # Replace [...] truncation markers with ...
+    cleaned = description.replace("[...]", "...")
     
-    # Remove "The post ... appeared first on ..." footer
-    if "The post" in cleaned and "appeared first on" in cleaned:
-        cleaned = cleaned.split("The post")[0]
+    # Remove "The post ... appeared first on ..." footer ONLY if it's at the end
+    # This pattern appears at the end of WordPress blog excerpts
+    # Use a more specific pattern to avoid removing legitimate content
+    import re
+    # Match "The post <title> appeared first on <site>." at the end
+    # Use non-greedy match and require "appeared first on" to avoid false positives
+    cleaned = re.sub(r'\s*The post .+? appeared first on .+?\.\s*$', '', cleaned)
     
     # Trim whitespace
     cleaned = cleaned.strip()
-    
-    # If text doesn't end with proper punctuation, it's likely truncated
-    # Add ellipsis for better readability
-    if cleaned and not cleaned[-1] in '.!?。':
-        # Check if it's a complete sentence or cut-off
-        # If it ends with incomplete word (no space before last char), add ...
-        if len(cleaned) > 50:  # Only for reasonably long text
-            cleaned = cleaned + "..."
     
     return cleaned if cleaned else "ไม่มีคำอธิบาย"
 
@@ -57,8 +53,7 @@ def map_news_item(article: Dict[str, Any]) -> Dict[str, Any]:
         "image": article.get("image_url") or "https://via.placeholder.com/800x400?text=No+Image",
         "link": article.get("link"),
         "date": format_thai_date(article.get("pubDate", "")),
-        "author": article.get("source_name"),
-        "category": article.get("category", ["ข่าวสาร"])[0] if article.get("category") else "ข่าวสาร"
+        "author": article.get("source_name")
     }
 
 

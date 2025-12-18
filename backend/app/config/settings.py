@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     """Application settings loaded from environment variables"""
     
     # NewsData.io API
-    NEWSDATA_API_KEY: str = "pub_5f46a4d4133a4a3fb02a880318ce3cb9"
+    NEWSDATA_API_KEY: str = "pub_56f1e8b469e84cd084e6c568721b906a"
     NEWSDATA_API_URL: str = "https://newsdata.io/api/1/news"
     NEWSDATA_COUNTRY: str = ""  # Get Thai news from all countries
     NEWSDATA_QUERY: str = "เกม OR gaming OR esports OR อีสปอร์ต OR PlayStation OR Xbox OR Nintendo"

@@ -12,7 +12,6 @@ export interface NewsItem {
     link: string;
     date?: string;
     author?: string;
-    category?: string;
 }
 
 export interface NewsResponse {
@@ -43,7 +42,7 @@ export class NewsService {
      * @param limit Number of articles to return
      * @returns Observable of NewsResponse
      */
-    getNews(nextPage?: string | null, skip: number = 0, limit: number = 20): Observable<NewsResponse> {
+    getNews(nextPage?: string | null, skip: number = 0, limit: number = 30): Observable<NewsResponse> {
         const cacheKey = `skip-${skip}-limit-${limit}`;
 
         // Check cache first
@@ -81,6 +80,20 @@ export class NewsService {
         return this.getNews().pipe(
             map(response => response.news.slice(0, limit)),
             catchError(() => of([]))
+        );
+    }
+
+    /**
+     * Manually trigger news sync from API (admin only)
+     */
+    syncNews(): Observable<any> {
+        return this.http.post(`${this.API_URL}/sync`, {}).pipe(
+            map(response => {
+                // Clear cache after sync to show fresh data
+                this.clearCache();
+                return response;
+            }),
+            catchError(this.handleError)
         );
     }
 

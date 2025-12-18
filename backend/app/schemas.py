@@ -22,6 +22,7 @@ class UserUpdate(BaseModel):
 
 class User(UserBase):
     id: int
+    user_role: str
     created_at: Optional[datetime] = None
 
     class Config:

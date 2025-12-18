@@ -58,8 +58,8 @@ class News(Base):
     link = Column(String(1000), nullable=False)
     pub_date = Column(DateTime(timezone=True), nullable=False, index=True)  # For sorting
     source_name = Column(String(255))
-    category = Column(String(100))
     created_at = Column(DateTime(timezone=True), server_default=func.now())  # When added to our DB
     last_seen_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())  # For cleanup
     is_active = Column(Boolean, default=True, nullable=False, index=True)  # Soft delete
+
 

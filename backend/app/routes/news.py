@@ -35,9 +35,24 @@ async def get_news(
     
     # Check if database is empty, trigger sync
     if total == 0:
-        sync_result = await NewsService.sync_news_from_api(db, max_pages=6)
-        news_list = NewsService.get_news_from_db(db, skip=skip, limit=limit)
-        total = NewsService.get_total_active_news(db)
+        try:
+            sync_result = await NewsService.sync_news_from_api(db, max_pages=6)
+            news_list = NewsService.get_news_from_db(db, skip=skip, limit=limit)
+            total = NewsService.get_total_active_news(db)
+        except HTTPException as e:
+            # If sync fails (e.g., rate limit), return empty list
+            # The background scheduler will retry later
+            if "429" in str(e.detail):
+                return {
+                    "status": "rate_limited",
+                    "news": [],
+                    "totalResults": 0,
+                    "skip": skip,
+                    "limit": limit,
+                    "hasMore": False,
+                    "message": "API rate limit reached. News will sync automatically soon."
+                }
+            raise
     
     return {
         "status": "success",
@@ -89,15 +104,4 @@ async def cleanup_news(
         "status": "success",
         "articles_cleaned": count
     }
-
-
-@router.post("/clear-cache")
-async def clear_news_cache():
-    """
-    Clear the news cache (admin endpoint)
-    
-    Returns:
-        Success message
-    """
-    return NewsService.clear_cache()
 

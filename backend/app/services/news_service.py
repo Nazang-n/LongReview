@@ -11,7 +11,7 @@ from sqlalchemy import and_
 
 from app.config.settings import settings
 from app.utils.cache import cache
-from app.utils.mappers import map_news_item
+from app.utils.mappers import map_news_item, clean_description
 from app.database import get_db
 from app.models import News
 
@@ -321,6 +321,16 @@ class NewsService:
                 "pages_fetched": pages_fetched
             }
             
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 429:
+                raise HTTPException(
+                    status_code=429,
+                    detail="API rate limit reached. Please try again later."
+                )
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to sync news: {str(e)}"
+            )
         except Exception as e:
             raise HTTPException(
                 status_code=500,
@@ -362,12 +372,11 @@ class NewsService:
             news_item = News(
                 article_id=article_id,
                 title=article.get("title", ""),
-                description=article.get("description", ""),
+                description=clean_description(article.get("description", "")),
                 image_url=article.get("image_url"),
                 link=article.get("link", ""),
                 pub_date=pub_date,
-                source_name=article.get("source_name"),
-                category=article.get("category", ["news"])[0] if isinstance(article.get("category"), list) else article.get("category", "news")
+                source_name=article.get("source_name")
             )
             db.add(news_item)
             db.commit()
@@ -398,12 +407,11 @@ class NewsService:
             results.append({
                 "id": item.article_id,
                 "title": item.title,
-                "description": item.description or "ไม่มีคำอธิบาย",
+                "description": clean_description(item.description) if item.description else "ไม่มีคำอธิบาย",
                 "image": item.image_url or "https://via.placeholder.com/800x400?text=No+Image",
                 "link": item.link,
                 "date": item.pub_date.strftime("%d %B %Y") if item.pub_date else "",
-                "author": item.source_name,
-                "category": item.category or "ข่าวสาร"
+                "author": item.source_name
             })
         
         return results
@@ -436,4 +444,3 @@ class NewsService:
     def get_total_active_news(db: Session) -> int:
         """Get count of active news articles"""
         return db.query(News).filter(News.is_active == True).count()
-

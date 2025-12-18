@@ -8,6 +8,7 @@ export interface User {
     id: number;
     username: string;
     email: string;
+    user_role: string;
     is_active: boolean;
     created_at: string;
     updated_at?: string;
@@ -79,6 +80,14 @@ export class AuthService {
      */
     isLoggedIn(): boolean {
         return this.currentUser.value !== null;
+    }
+
+    /**
+     * Check if current user is admin
+     */
+    isAdmin(): boolean {
+        const user = this.currentUser.value;
+        return user !== null && user.user_role === 'Admin';
     }
 
     /**
