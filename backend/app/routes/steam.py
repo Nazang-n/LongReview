@@ -108,10 +108,25 @@ def import_game_from_steam(
                 "game": existing_game
             }
         
+        # Import translator
+        from ..utils.translator import translator
+        
+        # Get English description
+        english_desc = app_details.get("short_description")
+        
+        # Translate to Thai
+        thai_desc = None
+        if english_desc:
+            thai_desc = translator.translate_to_thai(english_desc)
+            print(f"DEBUG: English desc length: {len(english_desc) if english_desc else 0}")
+            print(f"DEBUG: Thai desc length: {len(thai_desc) if thai_desc else 0}")
+            print(f"DEBUG: Thai desc is same as English: {thai_desc == english_desc if thai_desc and english_desc else 'N/A'}")
+        
         # Create new game
         new_game = models.Game(
             title=app_details.get("name"),
-            description=app_details.get("short_description"),
+            description=english_desc,  # English description
+            about_game_th=thai_desc,   # Thai translation
             genre=", ".join([g["description"] for g in app_details.get("genres", [])[:3]]),
             image_url=app_details.get("header_image"),
             release_date=app_details.get("release_date", {}).get("date"),
@@ -370,27 +385,34 @@ def import_games_batch_from_steamspy(
                     
                     # Try to get Thai description first, fallback to English + translation
                     thai_desc = None
+                    english_desc = None
+                    
+                    # Get English description first
+                    about_game_en = steam_details_en.get('about_the_game')
+                    short_desc_en = steam_details_en.get('short_description')
+                    
+                    if about_game_en:
+                        english_desc = clean_html_text(about_game_en)
+                    elif short_desc_en:
+                        english_desc = clean_html_text(short_desc_en)
                     
                     if steam_details_th:
                         # Try Thai about_the_game
                         about_game_th = steam_details_th.get('about_the_game')
                         if about_game_th:
-                            thai_desc = clean_html_text(about_game_th)
-                            print(f"   ✓ Using native Thai description")
+                            cleaned_thai = clean_html_text(about_game_th)
+                            # Verify it's actually Thai, not English
+                            detected_lang = translator.detect_language(cleaned_thai)
+                            if detected_lang == 'th':
+                                thai_desc = cleaned_thai
+                                print(f"   ✓ Using native Thai description")
+                            else:
+                                print(f"   ⚠ Steam Thai API returned {detected_lang}, not Thai. Will translate.")
                     
-                    # If no Thai description, use English and translate
-                    if not thai_desc:
-                        about_game_en = steam_details_en.get('about_the_game')
-                        short_desc_en = steam_details_en.get('short_description')
-                        
-                        if about_game_en:
-                            english_desc = clean_html_text(about_game_en)
-                            thai_desc = translator.get_thai_description(english_desc, english_desc)
-                            print(f"   ⚡ Translated English description to Thai")
-                        elif short_desc_en:
-                            english_desc = clean_html_text(short_desc_en)
-                            thai_desc = translator.get_thai_description(english_desc, english_desc)
-                            print(f"   ⚡ Translated English short description to Thai")
+                    # If no Thai description, translate English
+                    if not thai_desc and english_desc:
+                        thai_desc = translator.translate_to_thai(english_desc)
+                        print(f"   ⚡ Translated English description to Thai")
                     
                     # Extract platform info
                     platforms = steam_details_en.get('platforms', {})
@@ -455,10 +477,11 @@ def import_games_batch_from_steamspy(
                     else:
                         print(f"   ⚠ No release date string found")
                     
-                    # Use Steam API data (English metadata with Thai/translated description)
+                    # Use Steam API data (English in description, Thai in about_game_th)
                     new_game = models.Game(
                         title=steam_details_en.get('name'),
-                        description=thai_desc,  # Thai description (native or translated)
+                        description=english_desc,  # English description
+                        about_game_th=thai_desc,   # Thai description (native or translated)
                         genre=", ".join([g["description"] for g in steam_details_en.get("genres", [])[:3]]),
                         image_url=steam_details_en.get('header_image'),
                         release_date=release_date_obj,
