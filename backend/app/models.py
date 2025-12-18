@@ -38,6 +38,7 @@ class Game(Base):
     developer = Column(String(255))  # Developer name
     publisher = Column(String(255))  # Publisher name
     rating = Column(Float)  # Game rating (optional)
+    about_game_th = Column(Text)  # Thai translation of game details
 
 
 class Review(Base):

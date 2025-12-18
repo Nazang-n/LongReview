@@ -166,10 +166,15 @@
                 </div>
             </div>
 
-            <!-- About Section -->
+            <!-- Thai Game Details Section (เกี่ยวกับเกม) - Always shown -->
             <div class="bg-white rounded-lg shadow-md p-6 mb-8">
-                <h2 class="text-2xl font-bold text-gray-900 mb-4">เกี่ยวกับเกม</h2>
-                <p class="text-gray-700 leading-relaxed whitespace-pre-line">{{ game.description }}</p>
+                <h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <i class="pi pi-info-circle text-red-600"></i>
+                    เกี่ยวกับเกม
+                </h2>
+                <div class="text-gray-700 leading-relaxed whitespace-pre-line">
+                    {{ game.aboutGameTh || game.description }}
+                </div>
             </div>
 
 

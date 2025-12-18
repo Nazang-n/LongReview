@@ -61,6 +61,7 @@ export class GameDetailComponent implements OnInit {
         publisher: '',
         platform: '',
         description: '',
+        aboutGameTh: '',
         score: 0,
         ratings: {
             excellent: 0,
@@ -188,6 +189,7 @@ export class GameDetailComponent implements OnInit {
                     publisher: gameData.publisher || 'Unknown Publisher',
                     platform: gameData.platform || 'Unknown Platform',
                     description: gameData.description || 'No description available.',
+                    aboutGameTh: gameData.about_game_th || '',
                     score: 77, // Mock data - will be calculated from reviews later
                     ratings: {
                         excellent: 77,

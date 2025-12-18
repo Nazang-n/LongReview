@@ -24,7 +24,8 @@ def serialize_game(game: models.Game) -> dict:
         "publisher": game.publisher,
         "platform": game.platform,
         "price": game.price,
-        "video": game.video
+        "video": game.video,
+        "about_game_th": game.about_game_th
     }
 
 
@@ -48,6 +49,7 @@ def get_games(
 def get_game(game_id: int, db: Session = Depends(get_db)):
     """
     Get a specific game by ID.
+    Auto-translates description to Thai if not already available.
     
     - **game_id**: The ID of the game to retrieve
     """
@@ -57,6 +59,26 @@ def get_game(game_id: int, db: Session = Depends(get_db)):
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Game with id {game_id} not found"
         )
+    
+    # Auto-translate to Thai if not available
+    if not game.about_game_th and game.description:
+        try:
+            from ..utils.translator import translator
+            print(f"Auto-translating game {game_id} description to Thai...")
+            
+            # Translate description to Thai
+            thai_translation = translator.translate_to_thai(game.description)
+            
+            # Save to database for caching
+            if thai_translation and thai_translation != game.description:
+                game.about_game_th = thai_translation
+                db.commit()
+                db.refresh(game)
+                print(f"Thai translation saved for game {game_id}")
+        except Exception as e:
+            print(f"Translation error for game {game_id}: {e}")
+            # Continue without translation if it fails
+    
     return serialize_game(game)
 
 
