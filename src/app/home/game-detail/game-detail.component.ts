@@ -72,7 +72,6 @@ export class GameDetailComponent implements OnInit {
         },
         sentiment: {
             positive: 0,
-            neutral: 0,
             negative: 0
         },
         reviewTags: [],
@@ -83,6 +82,11 @@ export class GameDetailComponent implements OnInit {
     steamReviews: any[] = [];
     loadingSteamReviews = false;
     steamReviewsError: string | null = null;
+
+    // Steam sentiment analysis
+    loadingSentiment = true;  // Start as true to show loading initially
+    sentimentError: string | null = null;
+    totalReviewsAnalyzed = 0;
 
     // Mock data for reviews - will be replaced with real data later
     reviews: Review[] = [
@@ -224,6 +228,9 @@ export class GameDetailComponent implements OnInit {
 
                 // Always load Steam reviews for game 727 (or any game)
                 this.loadSteamReviews(id);
+
+                // Load sentiment analysis
+                this.loadSteamSentiment(id);
             },
             error: (err) => {
                 console.error('Error loading game details:', err);
@@ -316,5 +323,27 @@ export class GameDetailComponent implements OnInit {
         return this.game.reviewTags.filter((tag: any) =>
             tag.severity === 'danger' || tag.severity === 'warning'
         );
+    }
+
+    loadSteamSentiment(gameId: number) {
+        this.loadingSentiment = true;
+        this.sentimentError = null;
+
+        this.gameService.getSteamSentiment(gameId).subscribe({
+            next: (response: any) => {
+                if (response.success) {
+                    this.game.sentiment.positive = response.positive_percent;
+                    this.game.sentiment.negative = response.negative_percent;
+                    this.totalReviewsAnalyzed = response.total_reviews;
+                    console.log(`Sentiment: ${response.positive_percent}% positive from ${response.total_reviews} reviews`);
+                }
+                this.loadingSentiment = false;
+            },
+            error: (err) => {
+                console.error('Error loading sentiment:', err);
+                this.sentimentError = 'ไม่สามารถโหลดข้อมูลความรู้สึกได้';
+                this.loadingSentiment = false;
+            }
+        });
     }
 }

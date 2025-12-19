@@ -102,32 +102,46 @@
                     การวิเคราะห์ความรู้สึก
                 </h3>
 
-                <!-- Sentiment Bars -->
-                <div class="space-y-4 mb-6">
-                    <div>
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="text-sm font-medium text-green-700 mt-5">
-                                <i class="pi pi-thumbs-up-fill"></i>
-                                แง่บวก (Positive)</span>
-                            <span class="text-sm font-bold text-green-700">{{ game.sentiment.positive }}%</span>
-                        </div>
-                        <p-progressBar [value]="game.sentiment.positive" [showValue]="false"
-                            styleClass="h-3 progress-positive" [style]="{'background': '#e5e7eb'}"></p-progressBar>
-                    </div>
+                <!-- Loading State -->
+                <div *ngIf="loadingSentiment" class="text-center py-12">
+                    <i class="pi pi-spin pi-spinner text-5xl text-purple-500 mb-4"></i>
+                    <p class="text-gray-700 font-semibold text-lg">กำลังวิเคราะห์รีวิวจาก Steam...</p>
+                    <p class="text-sm text-gray-500 mt-2">กำลังดึงข้อมูลรีวิวทั้งหมด กรุณารอสักครู่...</p>
+                </div>
 
-                    <div>
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="text-sm font-medium text-red-700">
-                                <i class="pi pi-thumbs-down-fill"></i>
-                                แง่ลบ (Negative)</span>
-                            <span class="text-sm font-bold text-red-700">{{ game.sentiment.negative }}%</span>
+                <!-- Sentiment Bars (only show when not loading) -->
+                <div *ngIf="!loadingSentiment">
+                    <div class="space-y-4 mb-6">
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-sm font-medium text-green-700 mt-5">
+                                    <i class="pi pi-thumbs-up-fill"></i>
+                                    แง่บวก (Positive)</span>
+                                <span class="text-sm font-bold text-green-700">{{ game.sentiment.positive }}%</span>
+                            </div>
+                            <p-progressBar [value]="game.sentiment.positive" [showValue]="false"
+                                styleClass="h-3 progress-positive" [style]="{'background': '#e5e7eb'}"></p-progressBar>
                         </div>
-                        <p-progressBar [value]="game.sentiment.negative" [showValue]="false"
-                            styleClass="h-3 progress-negative" [style]="{'background': '#e5e7eb'}"></p-progressBar>
-                    </div>
 
-                    <div class="text-sm text-gray-600 mt-5">
-                        วิเคราะห์จาก 2,350 รีวิว
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-sm font-medium text-red-700">
+                                    <i class="pi pi-thumbs-down-fill"></i>
+                                    แง่ลบ (Negative)</span>
+                                <span class="text-sm font-bold text-red-700">{{ game.sentiment.negative }}%</span>
+                            </div>
+                            <p-progressBar [value]="game.sentiment.negative" [showValue]="false"
+                                styleClass="h-3 progress-negative" [style]="{'background': '#e5e7eb'}"></p-progressBar>
+                        </div>
+
+                        <div class="text-sm text-gray-600 mt-5">
+                            <span *ngIf="totalReviewsAnalyzed > 0">
+                                วิเคราะห์จาก {{ totalReviewsAnalyzed | number }} รีวิวจาก Steam
+                            </span>
+                            <span *ngIf="totalReviewsAnalyzed === 0">
+                                ไม่มีข้อมูลรีวิว
+                            </span>
+                        </div>
                     </div>
                 </div>
 

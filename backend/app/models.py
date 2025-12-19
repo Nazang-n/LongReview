@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Float, DateTime, Boolean, Date
+from sqlalchemy import Column, Integer, String, Text, Float, DateTime, Boolean, Date, text
 from sqlalchemy.sql import func
 from .database import Base
 
@@ -67,6 +67,14 @@ class Review(Base):
     helpful_count = Column(Integer, default=0)
     playtime_hours = Column(Float)
 
+
+class AnalyReview(Base):
+    """Sentiment analysis - stores only voted_up from Steam reviews"""
+    __tablename__ = "analyreview"
+    id = Column(Integer, primary_key=True, index=True)
+    game_id = Column(Integer, nullable=False, index=True)
+    voted_up = Column(Boolean, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=text('NOW()'))
 
 
 

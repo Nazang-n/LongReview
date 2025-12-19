@@ -148,4 +148,11 @@ export class GameService {
         const params = new HttpParams().set('max_reviews', maxReviews.toString());
         return this.http.post<any>(`http://localhost:8000/api/reviews/sync-steam/${gameId}`, null, { params });
     }
+
+    /**
+     * Get sentiment analysis from Steam reviews
+     */
+    getSteamSentiment(gameId: number): Observable<any> {
+        return this.http.get<any>(`http://localhost:8000/api/reviews/sentiment/${gameId}`);
+    }
 }
