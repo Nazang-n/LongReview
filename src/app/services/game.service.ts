@@ -140,5 +140,12 @@ export class GameService {
         const params = new HttpParams().set('limit', limit.toString());
         return this.http.post<any>(`${this.steamApiUrl}/steamspy/import/batch`, null, { params });
     }
-}
 
+    /**
+     * Sync Steam reviews for a game (fetch from Steam if not in database)
+     */
+    syncSteamReviews(gameId: number, maxReviews: number = 20): Observable<any> {
+        const params = new HttpParams().set('max_reviews', maxReviews.toString());
+        return this.http.post<any>(`http://localhost:8000/api/reviews/sync-steam/${gameId}`, null, { params });
+    }
+}

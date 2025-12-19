@@ -166,6 +166,7 @@
                 </div>
             </div>
 
+
             <!-- Thai Game Details Section (เกี่ยวกับเกม) - Always shown -->
             <div class="bg-white rounded-lg shadow-md p-6 mb-8">
                 <h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -177,49 +178,157 @@
                 </div>
             </div>
 
+            <!-- Steam Reviews Section (รีวิวจาก Steam) -->
+            <div *ngIf="game.appId" class="bg-white rounded-lg shadow-md p-6 mb-8">
+                <h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <i class="pi pi-comments text-red-600"></i>
+                    รีวิวจาก Steam (ภาษาไทย)
+                </h2>
 
-            <!-- Reviews Carousel Section -->
-            <div class="bg-white rounded-lg shadow-md p-6 mb-8">
-                <div class="flex items-center justify-between mb-6">
-                    <h2 class="text-2xl font-bold text-gray-900">รีวิว</h2>
-                    <div class="flex items-center gap-2">
-                        <button (click)="scrollReviews('left')"
-                            class="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors">
-                            <i class="pi pi-chevron-left text-gray-700"></i>
-                        </button>
-                        <button (click)="scrollReviews('right')"
-                            class="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors">
-                            <i class="pi pi-chevron-right text-gray-700"></i>
-                        </button>
+                <!-- Loading State -->
+                <div *ngIf="loadingSteamReviews" class="flex items-center justify-center py-8">
+                    <div class="text-center">
+                        <i class="pi pi-spin pi-spinner text-3xl text-purple-500 mb-3"></i>
+                        <p class="text-gray-600">กำลังโหลดรีวิวจาก Steam...</p>
                     </div>
                 </div>
 
-                <div #reviewsContainer class="overflow-x-auto scrollbar-hide scroll-smooth"
-                    style="scrollbar-width: none; -ms-overflow-style: none;">
-                    <div class="inline-grid grid-rows-2 grid-flow-col gap-4 pb-2">
-                        <div *ngFor="let review of reviews"
-                            class="w-96 bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <!-- Error State -->
+                <div *ngIf="steamReviewsError && !loadingSteamReviews"
+                    class="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div class="flex items-center gap-2">
+                        <i class="pi pi-exclamation-triangle text-red-500"></i>
+                        <p class="text-red-600 text-sm">{{ steamReviewsError }}</p>
+                    </div>
+                </div>
+
+                <!-- Reviews List -->
+                <div *ngIf="!loadingSteamReviews && !steamReviewsError">
+                    <!-- No Reviews Message -->
+                    <div *ngIf="steamReviews.length === 0" class="text-center py-8 text-gray-500">
+                        <i class="pi pi-inbox text-4xl mb-3"></i>
+                        <p>ยังไม่มีรีวิวภาษาไทยบน Steam</p>
+                    </div>
+
+                    <!-- Reviews Grid -->
+                    <div *ngIf="steamReviews.length > 0" class="space-y-4">
+                        <div *ngFor="let review of steamReviews"
+                            class="border border-gray-200 rounded-lg p-5 hover:bg-gray-50 transition-colors">
                             <!-- Review Header -->
-                            <div class="flex items-start justify-between mb-2">
-                                <div class="flex items-center gap-2">
-                                    <i class="pi pi-user-circle text-xl text-gray-400"></i>
+                            <div class="flex items-start justify-between mb-3">
+                                <div class="flex items-center gap-3">
+                                    <i class="pi pi-user-circle text-3xl text-gray-400"></i>
                                     <div>
-                                        <div class="font-bold text-gray-900 text-xs">{{ review.username }}</div>
-                                        <div class="text-xs text-gray-500">{{ review.date }}</div>
+                                        <div class="font-bold text-gray-900">{{ review.author || 'Steam User' }}</div>
+                                        <div class="text-sm text-gray-500">
+                                            {{ review.created_at ? (review.created_at | date: 'dd MMM yyyy') : 'Unknown
+                                            date' }}
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="flex items-center gap-1">
-                                    <i
-                                        [class]="'pi ' + getRatingIcon(review.rating) + ' ' + getRatingColor(review.rating) + ' text-xs'"></i>
+                                <div class="flex items-center gap-2">
+                                    <i [class]="review.voted_up ? 'pi pi-thumbs-up text-green-600' : 'pi pi-thumbs-down text-red-600'"
+                                        class="text-xl"></i>
+                                    <span
+                                        [class]="review.voted_up ? 'text-green-700 font-semibold' : 'text-red-700 font-semibold'">
+                                        {{ review.voted_up ? 'แนะนำ' : 'ไม่แนะนำ' }}
+                                    </span>
                                 </div>
                             </div>
 
+                            <!-- Review Content -->
+                            <p class="text-gray-700 leading-relaxed mb-4">{{ review.content }}</p>
 
+                            <!-- Review Footer -->
+                            <div class="flex items-center gap-4 text-sm text-gray-600">
+                                <div class="flex items-center gap-1">
+                                    <i class="pi pi-clock"></i>
+                                    <span>เล่นมา {{ formatPlaytime(review.playtime_hours) }}</span>
+                                </div>
+                                <div class="flex items-center gap-1">
+                                    <i class="pi pi-thumbs-up"></i>
+                                    <span>{{ review.helpful_count || 0 }} คนเห็นว่ามีประโยชน์</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- Steam Reviews Section -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+                <h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <i class="pi pi-comments text-red-600"></i>
+                    รีวิวจาก Steam (ภาษาไทย)
+                </h2>
+
+                <!-- Loading State -->
+                <div *ngIf="loadingSteamReviews" class="flex items-center justify-center py-8">
+                    <div class="text-center">
+                        <i class="pi pi-spin pi-spinner text-3xl text-purple-500 mb-3"></i>
+                        <p class="text-gray-600">กำลังโหลดรีวิวจาก Steam...</p>
+                    </div>
+                </div>
+
+                <!-- Error State -->
+                <div *ngIf="steamReviewsError && !loadingSteamReviews"
+                    class="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div class="flex items-center gap-2">
+                        <i class="pi pi-exclamation-triangle text-red-500"></i>
+                        <p class="text-red-600 text-sm">{{ steamReviewsError }}</p>
+                    </div>
+                </div>
+
+                <!-- Reviews List -->
+                <div *ngIf="!loadingSteamReviews && !steamReviewsError">
+                    <!-- No Reviews Message -->
+                    <div *ngIf="steamReviews.length === 0" class="text-center py-8 text-gray-500">
+                        <i class="pi pi-inbox text-4xl mb-3"></i>
+                        <p>ยังไม่มีรีวิวภาษาไทยบน Steam</p>
+                    </div>
+
+                    <!-- Reviews Grid -->
+                    <div *ngIf="steamReviews.length > 0" class="space-y-4">
+                        <div *ngFor="let review of steamReviews"
+                            class="border border-gray-200 rounded-lg p-5 hover:bg-gray-50 transition-colors">
+                            <!-- Review Header -->
+                            <div class="flex items-start justify-between mb-3">
+                                <div class="flex items-center gap-3">
+                                    <i class="pi pi-user-circle text-3xl text-gray-400"></i>
+                                    <div>
+                                        <div class="font-bold text-gray-900">{{ review.author || 'Steam
+                                            User' }}</div>
+                                        <div class="text-sm text-gray-500">
+                                            {{ review.created_at ? (review.created_at | date: 'dd MMM
+                                            yyyy') : 'Unknown date' }}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <i [class]="review.voted_up ? 'pi pi-thumbs-up text-green-600' : 'pi pi-thumbs-down text-red-600'"
+                                        class="text-xl"></i>
+                                    <span
+                                        [class]="review.voted_up ? 'text-green-700 font-semibold' : 'text-red-700 font-semibold'">
+                                        {{ review.voted_up ? 'แนะนำ' : 'ไม่แนะนำ' }}
+                                    </span>
+                                </div>
+                            </div>
 
                             <!-- Review Content -->
-                            <p class="text-gray-700 text-xs leading-relaxed mb-2 line-clamp-3">{{ review.content }}</p>
+                            <p class="text-gray-700 leading-relaxed mb-4">{{ review.content }}</p>
 
-
+                            <!-- Review Footer -->
+                            <div class="flex items-center gap-4 text-sm text-gray-600">
+                                <div class="flex items-center gap-1">
+                                    <i class="pi pi-clock"></i>
+                                    <span>เล่นมา {{ formatPlaytime(review.playtime_hours) }}</span>
+                                </div>
+                                <div class="flex items-center gap-1">
+                                    <i class="pi pi-thumbs-up"></i>
+                                    <span>{{ review.helpful_count || 0 }} คนเห็นว่ามีประโยชน์</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

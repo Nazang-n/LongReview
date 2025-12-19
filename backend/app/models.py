@@ -56,10 +56,16 @@ class Review(Base):
     content = Column(Text, nullable=False)
     owner = Column(String(255))
     
-    # New columns added for Steam reviews
+    # Steam review columns
     steam_id = Column(String(255), unique=True, index=True)
     voted_up = Column("voted_up", Boolean)  # Column has trailing space in DB
     created_at = Column("created_at", DateTime(timezone=True))  # Column has trailing space in DB
+    
+    # New Steam review fields added by migration
+    is_steam_review = Column(Boolean, default=False, nullable=False, index=True)
+    steam_author = Column(String(255))
+    helpful_count = Column(Integer, default=0)
+    playtime_hours = Column(Float)
 
 
 

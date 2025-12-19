@@ -78,10 +78,10 @@ class SteamAPIClient:
                 cursor=cursor
             )
             
-            print(f"🔍 Steam API response: success={data.get('success') if data else None}, reviews={len(data.get('reviews', [])) if data else 0}")
+            print(f"[DEBUG] Steam API response: success={data.get('success') if data else None}, reviews={len(data.get('reviews', [])) if data else 0}")
             
             if not data or data.get("success") != 1:
-                print(f"⚠️ Steam API failed or returned no data")
+                print(f"[WARNING] Steam API failed or returned no data")
                 break
             
             reviews = data.get("reviews", [])

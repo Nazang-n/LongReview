@@ -62,6 +62,7 @@ export class GameDetailComponent implements OnInit {
         platform: '',
         description: '',
         aboutGameTh: '',
+        appId: null,
         score: 0,
         ratings: {
             excellent: 0,
@@ -77,6 +78,11 @@ export class GameDetailComponent implements OnInit {
         reviewTags: [],
         minRequirements: ''
     };
+
+    // Steam reviews
+    steamReviews: any[] = [];
+    loadingSteamReviews = false;
+    steamReviewsError: string | null = null;
 
     // Mock data for reviews - will be replaced with real data later
     reviews: Review[] = [
@@ -190,6 +196,7 @@ export class GameDetailComponent implements OnInit {
                     platform: gameData.platform || 'Unknown Platform',
                     description: gameData.description || 'No description available.',
                     aboutGameTh: gameData.about_game_th || '',
+                    appId: gameData.app_id,
                     score: 77, // Mock data - will be calculated from reviews later
                     ratings: {
                         excellent: 77,
@@ -210,6 +217,9 @@ export class GameDetailComponent implements OnInit {
                     minRequirements: gameData.price || 'N/A'
                 };
                 this.isLoading = false;
+
+                // Always load Steam reviews for game 727 (or any game)
+                this.loadSteamReviews(id);
             },
             error: (err) => {
                 console.error('Error loading game details:', err);
@@ -264,5 +274,31 @@ export class GameDetailComponent implements OnInit {
 
     loadMoreReviews() {
         this.displayedReviewsCount += 3; // Load 3 more reviews each time
+    }
+
+    loadSteamReviews(gameId: number) {
+        this.loadingSteamReviews = true;
+        this.steamReviewsError = null;
+
+        this.gameService.syncSteamReviews(gameId, 20).subscribe({
+            next: (response: any) => {
+                if (response.success) {
+                    this.steamReviews = response.reviews || [];
+                    console.log(`Loaded ${this.steamReviews.length} Steam reviews`);
+                }
+                this.loadingSteamReviews = false;
+            },
+            error: (err) => {
+                console.error('Error loading Steam reviews:', err);
+                this.steamReviewsError = 'ไม่สามารถโหลดรีวิวจาก Steam ได้';
+                this.loadingSteamReviews = false;
+            }
+        });
+    }
+
+    formatPlaytime(hours: number): string {
+        if (!hours || hours === 0) return 'ไม่มีข้อมูล';
+        if (hours < 1) return `${Math.round(hours * 60)} นาที`;
+        return `${hours.toFixed(1)} ชั่วโมง`;
     }
 }
