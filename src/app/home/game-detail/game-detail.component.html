@@ -95,70 +95,69 @@
             </div>
 
             <!-- Sentiment Analysis & Review Tags Section -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 mt-8">
-                <!-- Sentiment Analysis -->
-                <div class="bg-white rounded-lg shadow-md p-6">
-                    <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                        <i class="pi pi-chart-bar text-red-600"></i>
-                        การวิเคราะห์ความรู้สึก
-                    </h3>
+            <!-- Sentiment Analysis & Tags Combined -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-8 mt-8">
+                <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <i class="pi pi-chart-bar text-red-600"></i>
+                    การวิเคราะห์ความรู้สึก
+                </h3>
 
-                    <div class="space-y-4">
-                        <div>
-                            <div class="flex items-center justify-between mb-2">
-                                <span class="text-sm font-medium text-green-700 mt-5">
-                                    <i class="pi pi-thumbs-up-fill"></i>
-                                    แง่บวก (Positive)</span>
-                                <span class="text-sm font-bold text-green-700">{{ game.sentiment.positive }}%</span>
-                            </div>
-                            <p-progressBar [value]="game.sentiment.positive" [showValue]="false"
-                                styleClass="h-3 progress-positive" [style]="{'background': '#e5e7eb'}"></p-progressBar>
+                <!-- Sentiment Bars -->
+                <div class="space-y-4 mb-6">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm font-medium text-green-700 mt-5">
+                                <i class="pi pi-thumbs-up-fill"></i>
+                                แง่บวก (Positive)</span>
+                            <span class="text-sm font-bold text-green-700">{{ game.sentiment.positive }}%</span>
                         </div>
+                        <p-progressBar [value]="game.sentiment.positive" [showValue]="false"
+                            styleClass="h-3 progress-positive" [style]="{'background': '#e5e7eb'}"></p-progressBar>
+                    </div>
 
-                        <div>
-                            <div class="flex items-center justify-between mb-2">
-                                <span class="text-sm font-medium text-yellow-600">
-                                    <i class="pi pi-sync text-base"></i>
-                                    ผสมกัน (Neutral)</span>
-                                <span class="text-sm font-bold text-yellow-600">{{ game.sentiment.neutral }}%</span>
-                            </div>
-                            <p-progressBar [value]="game.sentiment.neutral" [showValue]="false"
-                                styleClass="h-3 progress-neutral" [style]="{'background': '#e5e7eb'}"></p-progressBar>
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm font-medium text-red-700">
+                                <i class="pi pi-thumbs-down-fill"></i>
+                                แง่ลบ (Negative)</span>
+                            <span class="text-sm font-bold text-red-700">{{ game.sentiment.negative }}%</span>
                         </div>
+                        <p-progressBar [value]="game.sentiment.negative" [showValue]="false"
+                            styleClass="h-3 progress-negative" [style]="{'background': '#e5e7eb'}"></p-progressBar>
+                    </div>
 
-                        <div>
-                            <div class="flex items-center justify-between mb-2">
-                                <span class="text-sm font-medium text-red-700">
-                                    <i class="pi pi-thumbs-down-fill"></i>
-                                    แง่ลบ (Negative)</span>
-                                <span class="text-sm font-bold text-red-700">{{ game.sentiment.negative }}%</span>
-                            </div>
-                            <p-progressBar [value]="game.sentiment.negative" [showValue]="false"
-                                styleClass="h-3 progress-negative" [style]="{'background': '#e5e7eb'}"></p-progressBar>
-                        </div>
+                    <div class="text-sm text-gray-600 mt-5">
+                        วิเคราะห์จาก 2,350 รีวิว
+                    </div>
+                </div>
 
-                        <div class="text-sm text-gray-600 mt-5">
-                            วิเคราะห์จาก 2,350 รีวิว
+                <!-- Divider -->
+                <div class="border-t-2 border-gray-200 my-6"></div>
+
+                <!-- Positive Tags -->
+                <div class="mb-6">
+                    <h4 class="text-md font-semibold text-green-700 mb-3 flex items-center gap-2">
+                        <i class="pi pi-thumbs-up text-sm"></i>
+                        แง่บวก
+                    </h4>
+                    <div class="flex flex-wrap gap-2">
+                        <div *ngFor="let tag of getPositiveTags()"
+                            class="inline-flex items-center gap-2 px-4 py-2 rounded-full border-2 border-green-500 bg-green-50 text-green-700 transition-all hover:shadow-md cursor-pointer">
+                            <span class="font-semibold">{{ tag.label }}</span>
+                            <span class="text-xs opacity-75">({{ tag.count }})</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Review Tags -->
-                <div class="bg-white rounded-lg shadow-md p-6">
-                    <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                        <i class="pi pi-tags text-red-600"></i>
-                        แท็กจากการวิเคราะห์รีวิว
-                    </h3>
-
-                    <div class="flex flex-wrap gap-2 mt-5">
-                        <div *ngFor="let tag of game.reviewTags"
-                            class="inline-flex items-center mt-2 gap-2 px-4 py-2 rounded-full border-2 transition-all hover:shadow-md cursor-pointer"
-                            [ngClass]="{
-                             'border-yellow-500 bg-yellow-50 text-yellow-700': tag.severity === 'warning',
-                             'border-red-500 bg-red-50 text-red-700': tag.severity === 'danger',
-                             'border-green-500 bg-green-50 text-green-700': tag.severity === 'success',
-                             'border-blue-500 bg-blue-50 text-blue-700': tag.severity === 'info'
-                         }">
+                <!-- Negative Tags -->
+                <div>
+                    <h4 class="text-md font-semibold text-red-700 mb-3 flex items-center gap-2">
+                        <i class="pi pi-thumbs-down text-sm"></i>
+                        แง่ลบ
+                    </h4>
+                    <div class="flex flex-wrap gap-2">
+                        <div *ngFor="let tag of getNegativeTags()"
+                            class="inline-flex items-center gap-2 px-4 py-2 rounded-full border-2 border-red-500 bg-red-50 text-red-700 transition-all hover:shadow-md cursor-pointer">
                             <span class="font-semibold">{{ tag.label }}</span>
                             <span class="text-xs opacity-75">({{ tag.count }})</span>
                         </div>

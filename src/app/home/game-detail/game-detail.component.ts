@@ -212,7 +212,11 @@ export class GameDetailComponent implements OnInit {
                     reviewTags: [
                         { label: 'สนุก', count: 2100, severity: 'success' },
                         { label: 'กราฟิกสวย', count: 1800, severity: 'info' },
-                        { label: 'คุ้มค่า', count: 1500, severity: 'success' }
+                        { label: 'คุ้มค่า', count: 1500, severity: 'success' },
+                        { label: 'แลคหนัก', count: 850, severity: 'danger' },
+                        { label: 'บัคเยอะ', count: 620, severity: 'danger' },
+                        { label: 'ราคาแพง', count: 450, severity: 'warning' },
+                        { label: 'ยากเกินไป', count: 380, severity: 'warning' }
                     ],
                     minRequirements: gameData.price || 'N/A'
                 };
@@ -300,5 +304,17 @@ export class GameDetailComponent implements OnInit {
         if (!hours || hours === 0) return 'ไม่มีข้อมูล';
         if (hours < 1) return `${Math.round(hours * 60)} นาที`;
         return `${hours.toFixed(1)} ชั่วโมง`;
+    }
+
+    getPositiveTags() {
+        return this.game.reviewTags.filter((tag: any) =>
+            tag.severity === 'success' || tag.severity === 'info'
+        );
+    }
+
+    getNegativeTags() {
+        return this.game.reviewTags.filter((tag: any) =>
+            tag.severity === 'danger' || tag.severity === 'warning'
+        );
     }
 }
