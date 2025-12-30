@@ -13,3 +13,5 @@ apscheduler==3.10.4
 langdetect==1.0.9
 google-genai
 pythainlp>=4.0.0
+nltk>=3.8.1
+textblob>=0.17.1
