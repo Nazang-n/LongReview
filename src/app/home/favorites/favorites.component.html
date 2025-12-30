@@ -34,7 +34,7 @@
         <!-- Game Grid (3 columns, full width) -->
         <div *ngIf="!isLoading && !error && favoriteGames.length > 0"
             class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div *ngFor="let game of favoriteGames" [routerLink]="['/games', game.id]"
+            <div *ngFor="let game of favoriteGames" [routerLink]="['/game', game.id]"
                 class="game-card bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group border border-gray-100">
 
                 <!-- Game Image -->
