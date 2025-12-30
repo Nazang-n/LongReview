@@ -95,3 +95,16 @@ class News(Base):
     is_active = Column(Boolean, default=True, nullable=False, index=True)  # Soft delete
 
 
+class GameReviewTag(Base):
+    """Game review tags - stores analyzed tags from Thai reviews"""
+    __tablename__ = "game_review_tags"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    game_id = Column(Integer, nullable=False, index=True)
+    tag_type = Column(String(20), nullable=False)  # 'positive' or 'negative'
+    tag_word = Column(String(100), nullable=False)
+    tag_count = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+

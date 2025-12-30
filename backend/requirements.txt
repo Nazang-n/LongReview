@@ -12,3 +12,4 @@ httpx==0.28.1
 apscheduler==3.10.4
 langdetect==1.0.9
 google-genai
+pythainlp>=4.0.0

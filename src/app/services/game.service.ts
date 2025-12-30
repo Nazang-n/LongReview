@@ -155,4 +155,12 @@ export class GameService {
     getSteamSentiment(gameId: number): Observable<any> {
         return this.http.get<any>(`http://localhost:8000/api/reviews/sentiment/${gameId}`);
     }
+
+    /**
+     * Get review tags (positive/negative keywords from Thai reviews)
+     */
+    getReviewTags(gameId: number, refresh: boolean = false): Observable<any> {
+        const params = new HttpParams().set('refresh', refresh.toString());
+        return this.http.get<any>(`${this.apiUrl}/${gameId}/review-tags`, { params });
+    }
 }

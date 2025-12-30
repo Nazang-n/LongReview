@@ -213,15 +213,7 @@ export class GameDetailComponent implements OnInit {
                         neutral: 12,
                         negative: 6
                     },
-                    reviewTags: [
-                        { label: 'สนุก', count: 2100, severity: 'success' },
-                        { label: 'กราฟิกสวย', count: 1800, severity: 'info' },
-                        { label: 'คุ้มค่า', count: 1500, severity: 'success' },
-                        { label: 'แลคหนัก', count: 850, severity: 'danger' },
-                        { label: 'บัคเยอะ', count: 620, severity: 'danger' },
-                        { label: 'ราคาแพง', count: 450, severity: 'warning' },
-                        { label: 'ยากเกินไป', count: 380, severity: 'warning' }
-                    ],
+                    reviewTags: [],  // Will be loaded from API
                     minRequirements: gameData.price || 'N/A'
                 };
                 this.isLoading = false;
@@ -231,6 +223,9 @@ export class GameDetailComponent implements OnInit {
 
                 // Load sentiment analysis
                 this.loadSteamSentiment(id);
+
+                // Load review tags
+                this.loadReviewTags(id);
             },
             error: (err) => {
                 console.error('Error loading game details:', err);
@@ -343,6 +338,34 @@ export class GameDetailComponent implements OnInit {
                 console.error('Error loading sentiment:', err);
                 this.sentimentError = 'ไม่สามารถโหลดข้อมูลความรู้สึกได้';
                 this.loadingSentiment = false;
+            }
+        });
+    }
+
+    loadReviewTags(gameId: number) {
+        this.gameService.getReviewTags(gameId).subscribe({
+            next: (response: any) => {
+                if (response.success) {
+                    // Map API response to reviewTags format
+                    const positiveTags = response.positive_tags.map((tag: any) => ({
+                        label: tag.tag,
+                        count: tag.count,
+                        severity: 'success'
+                    }));
+
+                    const negativeTags = response.negative_tags.map((tag: any) => ({
+                        label: tag.tag,
+                        count: tag.count,
+                        severity: 'danger'
+                    }));
+
+                    this.game.reviewTags = [...positiveTags, ...negativeTags];
+                    console.log(`Loaded ${this.game.reviewTags.length} review tags`);
+                }
+            },
+            error: (err) => {
+                console.error('Error loading review tags:', err);
+                // Keep empty array if error
             }
         });
     }

@@ -104,11 +104,11 @@ class SteamAPIClient:
             
             # Get next cursor for pagination
             new_cursor = data.get("cursor")
-            if not new_cursor or new_cursor == previous_cursor:
+            if not new_cursor or new_cursor == cursor:
                 # No more pages or cursor didn't change (prevent infinite loop)
+                print(f"🛑 Pagination complete or cursor unchanged")
                 break
             
-            previous_cursor = cursor
             cursor = new_cursor
             
             # Be nice to Steam API - add small delay
