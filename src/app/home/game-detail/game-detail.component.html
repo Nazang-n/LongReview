@@ -44,8 +44,11 @@
                 <div class="lg:col-span-1 mt-22">
                     <div class="bg-white rounded-lg shadow-md p-6 space-y-4">
                         <!-- Add to Favorites Button -->
-                        <p-button label="เพิ่มในรายการโปรด" icon="pi pi-heart" styleClass="p-button-danger w-full mb-4"
-                            size="large"></p-button>
+                        <p-button [label]="isFavorited ? 'ลบออกจากรายการโปรด' : 'เพิ่มในรายการโปรด'"
+                            [icon]="isFavorited ? 'pi pi-heart-fill' : 'pi pi-heart'"
+                            [styleClass]="isFavorited ? 'p-button-success w-full mb-4' : 'p-button-danger w-full mb-4'"
+                            [loading]="isTogglingFavorite" size="large" (onClick)="toggleFavorite()">
+                        </p-button>
 
                         <!-- Release Date -->
                         <div class="flex flex-row">

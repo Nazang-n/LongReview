@@ -108,3 +108,18 @@ class GameReviewTag(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
+class Favorite(Base):
+    """Favorite model - tracks user's favorite games"""
+    __tablename__ = "favorite"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    game_id = Column(Integer, nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Ensure a user can only favorite a game once
+    __table_args__ = (
+        {'mysql_engine': 'InnoDB', 'mysql_charset': 'utf8mb4'}
+    )
+
+

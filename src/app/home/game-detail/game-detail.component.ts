@@ -9,6 +9,8 @@ import { CardModule } from 'primeng/card';
 import { ProgressBarModule } from 'primeng/progressbar';
 import { TextareaModule } from 'primeng/textarea';
 import { GameService } from '../../services/game.service';
+import { FavoriteService } from '../../services/favorite.service';
+import { AuthService } from '../../services/auth.service';
 
 interface Review {
     id: number;
@@ -87,6 +89,10 @@ export class GameDetailComponent implements OnInit {
     loadingSentiment = true;  // Start as true to show loading initially
     sentimentError: string | null = null;
     totalReviewsAnalyzed = 0;
+
+    // Favorites
+    isFavorited = false;
+    isTogglingFavorite = false;
 
     // Mock data for reviews - will be replaced with real data later
     reviews: Review[] = [
@@ -173,13 +179,16 @@ export class GameDetailComponent implements OnInit {
     constructor(
         private route: ActivatedRoute,
         private router: Router,
-        private gameService: GameService
+        private gameService: GameService,
+        private favoriteService: FavoriteService,
+        private authService: AuthService
     ) { }
 
     ngOnInit() {
         this.gameId = this.route.snapshot.paramMap.get('id');
         if (this.gameId) {
             this.loadGameDetails(parseInt(this.gameId));
+            this.loadFavoriteStatus(parseInt(this.gameId));
         }
     }
 
@@ -368,5 +377,67 @@ export class GameDetailComponent implements OnInit {
                 // Keep empty array if error
             }
         });
+    }
+
+    loadFavoriteStatus(gameId: number) {
+        const user = this.authService.getCurrentUserValue();
+        if (!user) {
+            this.isFavorited = false;
+            return;
+        }
+
+        this.favoriteService.isFavorited(user.id, gameId).subscribe({
+            next: (response) => {
+                this.isFavorited = response.is_favorited;
+            },
+            error: (err) => {
+                console.error('Error checking favorite status:', err);
+                this.isFavorited = false;
+            }
+        });
+    }
+
+    toggleFavorite() {
+        const user = this.authService.getCurrentUserValue();
+        if (!user) {
+            alert('กรุณาเข้าสู่ระบบเพื่อเพิ่มเกมในรายการโปรด');
+            this.router.navigate(['/login']);
+            return;
+        }
+
+        if (!this.gameId) return;
+
+        this.isTogglingFavorite = true;
+        const gameIdNum = parseInt(this.gameId);
+
+        if (this.isFavorited) {
+            // Remove from favorites
+            this.favoriteService.removeFavorite(user.id, gameIdNum).subscribe({
+                next: (response) => {
+                    this.isFavorited = false;
+                    this.isTogglingFavorite = false;
+                    console.log('Removed from favorites');
+                },
+                error: (err) => {
+                    console.error('Error removing favorite:', err);
+                    this.isTogglingFavorite = false;
+                    alert('เกิดข้อผิดพลาดในการลบออกจากรายการโปรด');
+                }
+            });
+        } else {
+            // Add to favorites
+            this.favoriteService.addFavorite(user.id, gameIdNum).subscribe({
+                next: (response) => {
+                    this.isFavorited = true;
+                    this.isTogglingFavorite = false;
+                    console.log('Added to favorites');
+                },
+                error: (err) => {
+                    console.error('Error adding favorite:', err);
+                    this.isTogglingFavorite = false;
+                    alert('เกิดข้อผิดพลาดในการเพิ่มในรายการโปรด');
+                }
+            });
+        }
     }
 }
