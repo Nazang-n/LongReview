@@ -8,9 +8,11 @@ import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { ProgressBarModule } from 'primeng/progressbar';
 import { TextareaModule } from 'primeng/textarea';
+import { FormsModule } from '@angular/forms';
 import { GameService } from '../../services/game.service';
 import { FavoriteService } from '../../services/favorite.service';
 import { AuthService } from '../../services/auth.service';
+import { CommentService, Comment } from '../../services/comment.service';
 
 interface Review {
     id: number;
@@ -42,7 +44,8 @@ interface RelatedGame {
         ButtonModule,
         CardModule,
         ProgressBarModule,
-        TextareaModule
+        TextareaModule,
+        FormsModule
     ],
     templateUrl: './game-detail.component.html',
     styleUrls: ['./game-detail.component.css']
@@ -93,6 +96,13 @@ export class GameDetailComponent implements OnInit {
     // Favorites
     isFavorited = false;
     isTogglingFavorite = false;
+
+    // Comments
+    comments: Comment[] = [];
+    newComment = '';
+    isSubmittingComment = false;
+    editingCommentId: number | null = null;
+    editingContent = '';
 
     // Mock data for reviews - will be replaced with real data later
     reviews: Review[] = [
@@ -181,7 +191,8 @@ export class GameDetailComponent implements OnInit {
         private router: Router,
         private gameService: GameService,
         private favoriteService: FavoriteService,
-        private authService: AuthService
+        private authService: AuthService,
+        private commentService: CommentService
     ) { }
 
     ngOnInit() {
@@ -189,6 +200,7 @@ export class GameDetailComponent implements OnInit {
         if (this.gameId) {
             this.loadGameDetails(parseInt(this.gameId));
             this.loadFavoriteStatus(parseInt(this.gameId));
+            this.loadComments();
         }
     }
 
@@ -439,5 +451,177 @@ export class GameDetailComponent implements OnInit {
                 }
             });
         }
+    }
+
+    // Comment methods
+    loadComments() {
+        if (!this.gameId) return;
+
+        const user = this.authService.getCurrentUserValue();
+        const userId = user ? user.id : undefined;
+
+        this.commentService.getComments(parseInt(this.gameId), userId).subscribe({
+            next: (comments) => {
+                this.comments = comments;
+            },
+            error: (err) => {
+                console.error('Error loading comments:', err);
+            }
+        });
+    }
+
+    submitComment() {
+        const user = this.authService.getCurrentUserValue();
+        if (!user) {
+            alert('กรุณาเข้าสู่ระบบเพื่อแสดงความคิดเห็น');
+            this.router.navigate(['/login']);
+            return;
+        }
+
+        if (!this.newComment.trim()) {
+            alert('กรุณากรอกความคิดเห็น');
+            return;
+        }
+
+        if (!this.gameId) return;
+
+        this.isSubmittingComment = true;
+
+        this.commentService.addComment(parseInt(this.gameId), user.id, this.newComment).subscribe({
+            next: () => {
+                this.newComment = '';
+                this.isSubmittingComment = false;
+                this.loadComments();
+            },
+            error: (err) => {
+                console.error('Error adding comment:', err);
+                alert('เกิดข้อผิดพลาดในการแสดงความคิดเห็น');
+                this.isSubmittingComment = false;
+            }
+        });
+    }
+
+    startEdit(comment: Comment) {
+        this.editingCommentId = comment.id;
+        this.editingContent = comment.content;
+    }
+
+    cancelEdit() {
+        this.editingCommentId = null;
+        this.editingContent = '';
+    }
+
+    saveEdit() {
+        const user = this.authService.getCurrentUserValue();
+        if (!user || !this.editingCommentId) return;
+
+        if (!this.editingContent.trim()) {
+            alert('กรุณากรอกความคิดเห็น');
+            return;
+        }
+
+        this.commentService.editComment(this.editingCommentId, user.id, this.editingContent).subscribe({
+            next: () => {
+                this.editingCommentId = null;
+                this.editingContent = '';
+                this.loadComments();
+            },
+            error: (err) => {
+                console.error('Error editing comment:', err);
+                alert('เกิดข้อผิดพลาดในการแก้ไขความคิดเห็น');
+            }
+        });
+    }
+
+    deleteComment(commentId: number) {
+        const user = this.authService.getCurrentUserValue();
+        if (!user) return;
+
+        if (confirm('คุณต้องการลบความคิดเห็นนี้หรือไม่?')) {
+            this.commentService.deleteComment(commentId, user.id).subscribe({
+                next: () => {
+                    this.loadComments();
+                },
+                error: (err) => {
+                    console.error('Error deleting comment:', err);
+                    alert('เกิดข้อผิดพลาดในการลบความคิดเห็น');
+                }
+            });
+        }
+    }
+
+    voteComment(commentId: number, voteType: 'up' | 'down') {
+        const user = this.authService.getCurrentUserValue();
+        if (!user) {
+            alert('กรุณาเข้าสู่ระบบเพื่อโหวต');
+            this.router.navigate(['/login']);
+            return;
+        }
+
+        this.commentService.voteComment(commentId, user.id, voteType).subscribe({
+            next: () => {
+                this.loadComments();
+            },
+            error: (err) => {
+                console.error('Error voting comment:', err);
+                alert('เกิดข้อผิดพลาดในการโหวต');
+            }
+        });
+    }
+
+    reportComment(commentId: number) {
+        const user = this.authService.getCurrentUserValue();
+        if (!user) {
+            alert('กรุณาเข้าสู่ระบบเพื่อรายงาน');
+            this.router.navigate(['/login']);
+            return;
+        }
+
+        const reason = prompt('กรุณาระบุเหตุผลในการรายงานความคิดเห็นนี้:');
+        if (!reason || !reason.trim()) {
+            return;
+        }
+
+        this.commentService.reportComment(commentId, user.id, reason).subscribe({
+            next: () => {
+                alert('รายงานความคิดเห็นเรียบร้อยแล้ว');
+            },
+            error: (err) => {
+                console.error('Error reporting comment:', err);
+                if (err.status === 400) {
+                    alert('คุณได้รายงานความคิดเห็นนี้แล้ว');
+                } else {
+                    alert('เกิดข้อผิดพลาดในการรายงาน');
+                }
+            }
+        });
+    }
+
+    isOwnComment(comment: Comment): boolean {
+        const user = this.authService.getCurrentUserValue();
+        return user ? comment.user_id === user.id : false;
+    }
+
+    canDeleteComment(comment: Comment): boolean {
+        const user = this.authService.getCurrentUserValue();
+        if (!user) return false;
+        return comment.user_id === user.id || user.user_role === 'Admin';
+    }
+
+    formatCommentDate(dateString: string): string {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffMs = now.getTime() - date.getTime();
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        if (diffMins < 1) return 'เมื่อสักครู่';
+        if (diffMins < 60) return `${diffMins} นาทีที่แล้ว`;
+        if (diffHours < 24) return `${diffHours} ชั่วโมงที่แล้ว`;
+        if (diffDays < 7) return `${diffDays} วันที่แล้ว`;
+
+        return date.toLocaleDateString('th-TH');
     }
 }

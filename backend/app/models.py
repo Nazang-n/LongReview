@@ -123,3 +123,46 @@ class Favorite(Base):
     )
 
 
+class Comment(Base):
+    """Comment model - user comments on games"""
+    __tablename__ = "comment"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    game_id = Column(Integer, nullable=False, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    content = Column(Text, nullable=False)
+    is_edited = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class CommentVote(Base):
+    """CommentVote model - tracks thumbs up/down votes on comments"""
+    __tablename__ = "comment_vote"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    comment_id = Column(Integer, nullable=False, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    vote_type = Column(String(10), nullable=False)  # 'up' or 'down'
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Ensure a user can only vote once per comment
+    __table_args__ = (
+        {'mysql_engine': 'InnoDB', 'mysql_charset': 'utf8mb4'}
+    )
+
+
+class CommentReport(Base):
+    """CommentReport model - user reports for inappropriate comments"""
+    __tablename__ = "comment_report"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    comment_id = Column(Integer, nullable=False, index=True)
+    reporter_id = Column(Integer, nullable=False, index=True)
+    reason = Column(Text, nullable=False)
+    status = Column(String(20), default='pending', nullable=False)  # 'pending', 'reviewed', 'dismissed'
+    reviewed_by = Column(Integer)  # Admin user ID who reviewed
+    reviewed_at = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
