@@ -9,6 +9,7 @@ import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { NewsService } from '../services/news.service';
 import { CommentService, CommentReport } from '../services/comment.service';
 import { AuthService } from '../services/auth.service';
+import { DialogModule } from 'primeng/dialog';
 
 @Component({
     selector: 'app-admin',
@@ -20,7 +21,8 @@ import { AuthService } from '../services/auth.service';
         ButtonModule,
         CardModule,
         MessageModule,
-        ProgressSpinnerModule
+        ProgressSpinnerModule,
+        DialogModule
     ],
     templateUrl: './admin.component.html',
     styleUrls: ['./admin.component.css']
@@ -34,6 +36,12 @@ export class AdminComponent implements OnInit {
     reportedComments: CommentReport[] = [];
     isLoadingReports = false;
     reportsError: string | null = null;
+
+    // Dialog states
+    showDismissDialog = false;
+    showDeleteCommentDialog = false;
+    pendingReportId: number | null = null;
+    pendingCommentId: number | null = null;
 
     constructor(
         private newsService: NewsService,
@@ -86,36 +94,58 @@ export class AdminComponent implements OnInit {
     }
 
     dismissReport(reportId: number) {
-        const user = this.authService.getCurrentUserValue();
-        if (!user) return;
+        this.pendingReportId = reportId;
+        this.showDismissDialog = true;
+    }
 
-        if (confirm('คุณต้องการยกเลิกรายงานนี้หรือไม่?')) {
-            this.commentService.dismissReport(reportId, user.id).subscribe({
-                next: () => {
-                    this.loadReportedComments();
-                },
-                error: (err) => {
-                    console.error('Error dismissing report:', err);
-                    alert('เกิดข้อผิดพลาดในการยกเลิกรายงาน');
-                }
-            });
-        }
+    confirmDismissReport() {
+        const user = this.authService.getCurrentUserValue();
+        if (!user || !this.pendingReportId) return;
+
+        this.commentService.dismissReport(this.pendingReportId, user.id).subscribe({
+            next: () => {
+                this.loadReportedComments();
+                this.showDismissDialog = false;
+                this.pendingReportId = null;
+            },
+            error: (err) => {
+                console.error('Error dismissing report:', err);
+                alert('เกิดข้อผิดพลาดในการยกเลิกรายงาน');
+                this.showDismissDialog = false;
+            }
+        });
+    }
+
+    cancelDismissReport() {
+        this.showDismissDialog = false;
+        this.pendingReportId = null;
     }
 
     deleteReportedComment(commentId: number) {
-        const user = this.authService.getCurrentUserValue();
-        if (!user) return;
+        this.pendingCommentId = commentId;
+        this.showDeleteCommentDialog = true;
+    }
 
-        if (confirm('คุณต้องการลบความคิดเห็นนี้หรือไม่? การลบจะลบรายงานทั้งหมดที่เกี่ยวข้องด้วย')) {
-            this.commentService.deleteComment(commentId, user.id).subscribe({
-                next: () => {
-                    this.loadReportedComments();
-                },
-                error: (err) => {
-                    console.error('Error deleting comment:', err);
-                    alert('เกิดข้อผิดพลาดในการลบความคิดเห็น');
-                }
-            });
-        }
+    confirmDeleteComment() {
+        const user = this.authService.getCurrentUserValue();
+        if (!user || !this.pendingCommentId) return;
+
+        this.commentService.deleteComment(this.pendingCommentId, user.id).subscribe({
+            next: () => {
+                this.loadReportedComments();
+                this.showDeleteCommentDialog = false;
+                this.pendingCommentId = null;
+            },
+            error: (err) => {
+                console.error('Error deleting comment:', err);
+                alert('เกิดข้อผิดพลาดในการลบความคิดเห็น');
+                this.showDeleteCommentDialog = false;
+            }
+        });
+    }
+
+    cancelDeleteComment() {
+        this.showDeleteCommentDialog = false;
+        this.pendingCommentId = null;
     }
 }

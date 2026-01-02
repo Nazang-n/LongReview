@@ -9,6 +9,7 @@ import { CardModule } from 'primeng/card';
 import { ProgressBarModule } from 'primeng/progressbar';
 import { TextareaModule } from 'primeng/textarea';
 import { FormsModule } from '@angular/forms';
+import { DialogModule } from 'primeng/dialog';
 import { GameService } from '../../services/game.service';
 import { FavoriteService } from '../../services/favorite.service';
 import { AuthService } from '../../services/auth.service';
@@ -45,7 +46,8 @@ interface RelatedGame {
         CardModule,
         ProgressBarModule,
         TextareaModule,
-        FormsModule
+        FormsModule,
+        DialogModule
     ],
     templateUrl: './game-detail.component.html',
     styleUrls: ['./game-detail.component.css']
@@ -103,6 +105,13 @@ export class GameDetailComponent implements OnInit {
     isSubmittingComment = false;
     editingCommentId: number | null = null;
     editingContent = '';
+
+    // Dialog states
+    showDeleteDialog = false;
+    showReportDialog = false;
+    reportReason = '';
+    pendingDeleteCommentId: number | null = null;
+    pendingReportCommentId: number | null = null;
 
     // Mock data for reviews - will be replaced with real data later
     reviews: Review[] = [
@@ -534,20 +543,31 @@ export class GameDetailComponent implements OnInit {
     }
 
     deleteComment(commentId: number) {
-        const user = this.authService.getCurrentUserValue();
-        if (!user) return;
+        this.pendingDeleteCommentId = commentId;
+        this.showDeleteDialog = true;
+    }
 
-        if (confirm('คุณต้องการลบความคิดเห็นนี้หรือไม่?')) {
-            this.commentService.deleteComment(commentId, user.id).subscribe({
-                next: () => {
-                    this.loadComments();
-                },
-                error: (err) => {
-                    console.error('Error deleting comment:', err);
-                    alert('เกิดข้อผิดพลาดในการลบความคิดเห็น');
-                }
-            });
-        }
+    confirmDelete() {
+        const user = this.authService.getCurrentUserValue();
+        if (!user || !this.pendingDeleteCommentId) return;
+
+        this.commentService.deleteComment(this.pendingDeleteCommentId, user.id).subscribe({
+            next: () => {
+                this.loadComments();
+                this.showDeleteDialog = false;
+                this.pendingDeleteCommentId = null;
+            },
+            error: (err) => {
+                console.error('Error deleting comment:', err);
+                alert('เกิดข้อผิดพลาดในการลบความคิดเห็น');
+                this.showDeleteDialog = false;
+            }
+        });
+    }
+
+    cancelDelete() {
+        this.showDeleteDialog = false;
+        this.pendingDeleteCommentId = null;
     }
 
     voteComment(commentId: number, voteType: 'up' | 'down') {
@@ -577,14 +597,26 @@ export class GameDetailComponent implements OnInit {
             return;
         }
 
-        const reason = prompt('กรุณาระบุเหตุผลในการรายงานความคิดเห็นนี้:');
-        if (!reason || !reason.trim()) {
+        this.pendingReportCommentId = commentId;
+        this.reportReason = '';
+        this.showReportDialog = true;
+    }
+
+    confirmReport() {
+        const user = this.authService.getCurrentUserValue();
+        if (!user || !this.pendingReportCommentId) return;
+
+        if (!this.reportReason.trim()) {
+            alert('กรุณาระบุเหตุผลในการรายงาน');
             return;
         }
 
-        this.commentService.reportComment(commentId, user.id, reason).subscribe({
+        this.commentService.reportComment(this.pendingReportCommentId, user.id, this.reportReason).subscribe({
             next: () => {
                 alert('รายงานความคิดเห็นเรียบร้อยแล้ว');
+                this.showReportDialog = false;
+                this.pendingReportCommentId = null;
+                this.reportReason = '';
             },
             error: (err) => {
                 console.error('Error reporting comment:', err);
@@ -593,8 +625,15 @@ export class GameDetailComponent implements OnInit {
                 } else {
                     alert('เกิดข้อผิดพลาดในการรายงาน');
                 }
+                this.showReportDialog = false;
             }
         });
+    }
+
+    cancelReport() {
+        this.showReportDialog = false;
+        this.pendingReportCommentId = null;
+        this.reportReason = '';
     }
 
     isOwnComment(comment: Comment): boolean {

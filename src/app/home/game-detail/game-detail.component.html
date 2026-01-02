@@ -509,4 +509,58 @@
     </div>
 </div>
 
+<!-- Delete Confirmation Dialog -->
+<p-dialog [(visible)]="showDeleteDialog" [modal]="true" [style]="{width: '450px'}" [draggable]="false"
+    [resizable]="false">
+    <ng-template pTemplate="header">
+        <div class="flex items-center gap-3">
+            <i class="pi pi-exclamation-triangle text-red-600 text-2xl"></i>
+            <span class="font-bold text-xl">ยืนยันการลบ</span>
+        </div>
+    </ng-template>
+    <div class="py-4">
+        <p class="text-gray-700 text-lg">คุณต้องการลบความคิดเห็นนี้หรือไม่?</p>
+        <p class="text-gray-500 text-sm mt-2">การลบจะไม่สามารถกู้คืนได้</p>
+    </div>
+    <ng-template pTemplate="footer">
+        <button (click)="cancelDelete()"
+            class="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg transition-colors font-medium">
+            ยกเลิก
+        </button>
+        <button (click)="confirmDelete()"
+            class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium">
+            ลบความคิดเห็น
+        </button>
+    </ng-template>
+</p-dialog>
+
+<!-- Report Dialog -->
+<p-dialog [(visible)]="showReportDialog" [modal]="true" [style]="{width: '500px'}" [draggable]="false"
+    [resizable]="false">
+    <ng-template pTemplate="header">
+        <div class="flex items-center gap-3">
+            <i class="pi pi-flag text-orange-600 text-2xl"></i>
+            <span class="font-bold text-xl">รายงานความคิดเห็น</span>
+        </div>
+    </ng-template>
+    <div class="py-4">
+        <label for="reportReason" class="block text-gray-700 font-medium mb-2">
+            กรุณาระบุเหตุผลในการรายงาน:
+        </label>
+        <textarea id="reportReason" [(ngModel)]="reportReason" rows="4"
+            class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none"
+            placeholder="เช่น: เนื้อหาไม่เหมาะสม, ใช้ภาษาหยาบคาย, สแปม..."></textarea>
+    </div>
+    <ng-template pTemplate="footer">
+        <button (click)="cancelReport()"
+            class="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg transition-colors font-medium">
+            ยกเลิก
+        </button>
+        <button (click)="confirmReport()" [disabled]="!reportReason.trim()"
+            class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+            ส่งรายงาน
+        </button>
+    </ng-template>
+</p-dialog>
+
 <app-footer></app-footer>
