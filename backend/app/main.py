@@ -35,7 +35,7 @@ async def shutdown_event():
     NewsSyncService.stop_scheduler()
 
 # Configure CORS
-origins = os.getenv("CORS_ORIGINS", "http://localhost:4200").split(",")
+origins = os.getenv("CORS_ORIGINS", "http://localhost:4200,http://127.0.0.1:4200").split(",")
 
 app.add_middleware(
     CORSMiddleware,

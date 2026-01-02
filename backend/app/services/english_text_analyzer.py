@@ -111,21 +111,46 @@ class EnglishTextAnalyzer:
             'long time', 'first time', 'bad thing', 'good thing',
             'much time', 'many times', 'last year', 'next year',
             'pokemon fan', 'huge pokemon fan', 'fan base',
+            'pokemon fan', 'huge pokemon fan', 'fan base',
             'huge pokemon', 'progression feels', 'pokemon company',
-            'cant wait'
+            'cant wait',
+            
+            # Generic Status/Genre (Filtered to show detailed features instead)
+            # Generic Status/Genre (Filtered to show detailed features instead)
+            'open world', 'new content',
+            'single player', 'multi player', 'multiplayer', 'co op',
+            'full price', 'free to play', 'worth money', 'worth it',
+            'next gen', 'fps drops', 'frame rate',
+            
+            # Game Comparisons (Confusion Source)
+            'ark survival', 'ark survival evolved', 'pokemon game'
+        }
+        
+        # Feature Keywords - Single words that are important enough to be tags on their own
+        # Removed ambiguous technical words (performance, animation, ai) to force descriptive phrases
+        # Kept ONLY objective/binary technical states (crash, lag, fps)
+        self.feature_keywords = {
+            'glitch', 'crash', 'server', 'connection', 'ping', 'lag', 'fps'
+        }
+        
+        # Negative Keywords - Words that are inherently negative and should NEVER appear in Positive tags
+        self.negative_keywords = {
+            'lag', 'crash', 'glitch', 'bugs', 'bug', 'errors', 'error',
+            'fps drops', 'low fps', 'stutter', 'freezing', 'freeze',
+            'disconnect', 'connection', 'ping', 'server issues',
+            'broken', 'unplayable', 'terrible', 'worst', 'bad'
         }
     
     def extract_phrases(self, text: str) -> List[str]:
         """
         Extract meaningful phrases from English text
-        ONLY returns multi-word phrases (2-3 words)
-        Supports bigrams and trigrams for more complete phrases
+        Returns multi-word phrases (2-3 words) AND specific single-word feature tags
         
         Args:
             text: English text to analyze
             
         Returns:
-            List of meaningful phrases (2-3 words only)
+            List of meaningful phrases
         """
         if not text:
             return []
@@ -159,7 +184,16 @@ class EnglishTextAnalyzer:
             if not word.isalpha():
                 continue
             
-            # Try to build trigram first (3 words)
+            # Check for generic or filtered words first
+            if word in self.generic_phrases:
+                continue
+
+            # 1. Capture Important Single Words (Unigrams)
+            # If this word is a key feature (e.g. "story", "graphics"), add it immediately
+            if word in self.feature_keywords:
+                phrases.append(word)
+
+            # 2. Try to build trigram first (3 words)
             if i >= 2:
                 word1, pos1 = pos_tagged[i-2]
                 word2, pos2 = pos_tagged[i-1]
@@ -187,7 +221,7 @@ class EnglishTextAnalyzer:
                         phrases.append(phrase)
                         continue  # Skip bigram check
             
-            # Try bigram (2 words) if trigram didn't match
+            # 3. Try bigram (2 words) if trigram didn't match
             if i > 0:
                 prev_word, prev_pos = pos_tagged[i-1]
                 if (prev_word not in self.stopwords and
@@ -223,7 +257,7 @@ class EnglishTextAnalyzer:
             return word[:-1]  # pals -> pal, updates -> update
         return word
     
-    def analyze_texts(self, texts: List[str], top_n: int = 10, min_count: int = 3, game_name: str = None, min_count_ratio: float = 0.1) -> List[Dict[str, any]]:
+    def analyze_texts(self, texts: List[str], top_n: int = 10, min_count: int = 3, game_name: str = None, min_count_ratio: float = 0.1, exclude_negative_keywords: bool = False) -> List[Dict[str, any]]:
         """
         Analyze multiple texts and return top N most frequent phrases
         Filters out phrases that are substrings or semantic duplicates of longer phrases
@@ -234,6 +268,7 @@ class EnglishTextAnalyzer:
             min_count: Absolute minimum number of times a phrase must appear (default: 3)
             game_name: Name of the game to filter out self-referential tags
             min_count_ratio: Ratio of max frequency to use as minimum threshold (default: 0.1 = 10%)
+            exclude_negative_keywords: If True, filter out inherently negative words (for Positive tags)
             
         Returns:
             List of dicts with 'word' (phrase) and 'count' keys
@@ -247,6 +282,16 @@ class EnglishTextAnalyzer:
         # Count frequencies
         phrase_counts = Counter(all_phrases)
         
+        if not phrase_counts:
+            return []
+            
+        # Filter out negative keywords if requested
+        if exclude_negative_keywords:
+            phrase_counts = Counter({
+                phrase: count for phrase, count in phrase_counts.items() 
+                if phrase not in self.negative_keywords
+            })
+            
         if not phrase_counts:
             return []
             
@@ -383,7 +428,14 @@ class EnglishTextAnalyzer:
         # If very few reviews, maybe lower it? But user asked for 5 (strict).
         # We will respect the user's min_count primarily.
         
-        positive_tags = self.analyze_texts(positive_reviews, top_n, min_count=min_count, game_name=game_name)
+        # Positive Tags - Enable Negative Keyword Exclusion to prevent "Lag", "Crash" in Pros
+        positive_tags = self.analyze_texts(
+            positive_reviews, 
+            top_n, 
+            min_count=min_count, 
+            game_name=game_name,
+            exclude_negative_keywords=True
+        )
         
         # For negative tags, the volume is often much lower (especially for good games).
         # A strict min_count=5 might wipe out all negative tags.
