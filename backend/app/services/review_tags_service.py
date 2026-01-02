@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from ..models import GameReviewTag, Review
 from .thai_text_analyzer import ThaiTextAnalyzer
 from .english_text_analyzer import EnglishTextAnalyzer
+from .tag_polisher_service import TagPolisherService
 
 
 class ReviewTagsService:
@@ -17,6 +18,7 @@ class ReviewTagsService:
         self.db = db
         self.thai_analyzer = ThaiTextAnalyzer()
         self.english_analyzer = EnglishTextAnalyzer()
+        self.polisher = TagPolisherService()
     
     def get_tags_for_game(self, game_id: int) -> Dict:
         """
@@ -57,7 +59,7 @@ class ReviewTagsService:
         
         return result
     
-    def generate_tags_for_game(self, game_id: int, top_n: int = 7, language: str = "english", max_reviews: int = 500) -> Dict:
+    def generate_tags_for_game(self, game_id: int, top_n: int = 7, language: str = "english", max_reviews: int = 1500) -> Dict:
         """
         Generate review tags for a game by fetching and analyzing Steam reviews
         
@@ -140,6 +142,93 @@ class ReviewTagsService:
                     top_n
                 )
             
+            # --- GOLDEN RULE: Deduplication & Game Name Filtering ---
+            # 1. Clean up Game Name Tags (e.g. remove "Black Myth Wukong" tag from "Black Myth: Wukong")
+            # Create a normalized version of game name for comparison (remove spaces/conduct punctuation)
+            import re
+            def normalize_text(text):
+                return re.sub(r'[^a-z0-9]', '', text.lower())
+            
+            norm_game_name = normalize_text(game_name)
+            
+            def is_title_tag(tag_word):
+                norm_tag = normalize_text(tag_word)
+                # Check if tag is essentially the game name (or very close)
+                # Equal, or contained if it's long enough to be significant
+                if norm_tag == norm_game_name:
+                    return True
+                if len(norm_tag) > 5 and (norm_tag in norm_game_name or norm_game_name in norm_tag):
+                     return True
+                return False
+
+            positive_tags = [t for t in positive_tags if not is_title_tag(t['word'])]
+            negative_tags = [t for t in negative_tags if not is_title_tag(t['word'])]
+            
+            # 2. Resolve Conflicting Tags (Dominance Rule)
+            # If a tag exists in both, keep ONLY the one with higher count.
+            # If counts are equal, default to Positive (or maybe remove both? taking Positive for now).
+            
+            # Re-build dictionaries after title filtering
+            pos_dict = {tag['word']: tag['count'] for tag in positive_tags}
+            neg_dict = {tag['word']: tag['count'] for tag in negative_tags}
+            
+            final_pos_tags = []
+            final_neg_tags = []
+            
+            # Process Positive: Keep if Count > Negative Count
+            for tag in positive_tags:
+                word = tag['word']
+                p_count = tag['count']
+                n_count = neg_dict.get(word, 0)
+                
+                if n_count > p_count:
+                    print(f"[ReviewTags] Dominance: '{word}' is more NEGATIVE ({n_count} > {p_count}). Removing from Positive.")
+                    continue # Skip (it belongs to Negative)
+                elif n_count == p_count and n_count > 0:
+                     # Tie-breaker: Maybe keep positive? Or remove?
+                     # User said "If which side has more...". If equal, maybe ambiguous.
+                     # Let's keep in Positive as default benefit of doubt.
+                     pass 
+                
+                final_pos_tags.append(tag)
+                
+            # Process Negative: Keep if Count > Positive Count
+            # Note: We use > so that if equal, it fails here (since we kept it in Positive above)
+            for tag in negative_tags:
+                word = tag['word']
+                n_count = tag['count']
+                p_count = pos_dict.get(word, 0)
+                
+                if p_count >= n_count: # If Positive is deeper or equal, we removed it from Negative
+                    if p_count > 0:
+                        print(f"[ReviewTags] Dominance: '{word}' is more POSITIVE (or equal) ({p_count} >= {n_count}). Removing from Negative.")
+                    continue
+                
+                final_neg_tags.append(tag)
+            
+            positive_tags = final_pos_tags
+            negative_tags = final_neg_tags
+            # ----------------------------------------------
+            
+            # --- AI Polishing Step (DISABLED) ---
+            # if language == "english":
+            #     try:
+            #         all_tag_words = [t['word'] for t in positive_tags] + [t['word'] for t in negative_tags]
+            #         if all_tag_words:
+            #             print(f"[ReviewTags] Polishing {len(all_tag_words)} tags with AI...")
+            #             polished_map = self.polisher.polish_tags(all_tag_words)
+            #             
+            #             # Apply polished words
+            #             for tag in positive_tags:
+            #                 tag['word'] = polished_map.get(tag['word'], tag['word'])
+            #                 
+            #             for tag in negative_tags:
+            #                 tag['word'] = polished_map.get(tag['word'], tag['word'])
+            #             print("[ReviewTags] AI Polishing complete.")
+            #     except Exception as e:
+            #         print(f"[ReviewTags] AI Polishing failed (skipping): {e}")
+            # -------------------------------
+
             # Delete existing tags for this game
             self.db.query(GameReviewTag).filter(
                 GameReviewTag.game_id == game_id
