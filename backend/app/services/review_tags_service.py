@@ -210,23 +210,23 @@ class ReviewTagsService:
             negative_tags = final_neg_tags
             # ----------------------------------------------
             
-            # --- AI Polishing Step (DISABLED) ---
-            # if language == "english":
-            #     try:
-            #         all_tag_words = [t['word'] for t in positive_tags] + [t['word'] for t in negative_tags]
-            #         if all_tag_words:
-            #             print(f"[ReviewTags] Polishing {len(all_tag_words)} tags with AI...")
-            #             polished_map = self.polisher.polish_tags(all_tag_words)
-            #             
-            #             # Apply polished words
-            #             for tag in positive_tags:
-            #                 tag['word'] = polished_map.get(tag['word'], tag['word'])
-            #                 
-            #             for tag in negative_tags:
-            #                 tag['word'] = polished_map.get(tag['word'], tag['word'])
-            #             print("[ReviewTags] AI Polishing complete.")
-            #     except Exception as e:
-            #         print(f"[ReviewTags] AI Polishing failed (skipping): {e}")
+            # --- AI Polishing Step ---
+            if language == "english":
+                try:
+                    all_tag_words = [t['word'] for t in positive_tags] + [t['word'] for t in negative_tags]
+                    if all_tag_words:
+                        print(f"[ReviewTags] Polishing {len(all_tag_words)} tags with AI...")
+                        polished_map = self.polisher.polish_tags(all_tag_words)
+                        
+                        # Apply polished words
+                        for tag in positive_tags:
+                            tag['word'] = polished_map.get(tag['word'], tag['word'])
+                            
+                        for tag in negative_tags:
+                            tag['word'] = polished_map.get(tag['word'], tag['word'])
+                        print("[ReviewTags] AI Polishing complete.")
+                except Exception as e:
+                    print(f"[ReviewTags] AI Polishing failed (skipping): {e}")
             # -------------------------------
 
             # Delete existing tags for this game

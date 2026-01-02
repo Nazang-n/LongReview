@@ -71,7 +71,7 @@ class TagPolisherService:
             for attempt in range(max_retries):
                 try:
                     response = self.client.models.generate_content(
-                        model='gemini-flash-latest',
+                        model='gemini-2.0-flash-lite-001',
                         contents=prompt
                     )
                     result_text = response.text.strip()
@@ -139,5 +139,8 @@ class TagPolisherService:
 
             with open(self.log_file, "a", encoding='utf-8') as f:
                 f.write(f"[Fallback] Applied backup dictionary to {len(tags)} tags.\n")
+                for orig, pol in final_fallback.items():
+                    if orig != pol:
+                        f.write(f"   - '{orig}' -> '{pol}'\n")
                 
             return final_fallback

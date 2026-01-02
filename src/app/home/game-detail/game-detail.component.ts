@@ -372,9 +372,16 @@ export class GameDetailComponent implements OnInit {
         });
     }
 
-    loadReviewTags(gameId: number) {
-        this.gameService.getReviewTags(gameId).subscribe({
+    isLoadingTags = false;
+
+    loadReviewTags(gameId: number, refresh: boolean = false) {
+        if (refresh) {
+            this.isLoadingTags = true;
+        }
+
+        this.gameService.getReviewTags(gameId, refresh).subscribe({
             next: (response: any) => {
+                if (refresh) this.isLoadingTags = false;
                 if (response.success) {
                     // Map API response to reviewTags format
                     const positiveTags = response.positive_tags.map((tag: any) => ({
@@ -390,7 +397,7 @@ export class GameDetailComponent implements OnInit {
                     }));
 
                     this.game.reviewTags = [...positiveTags, ...negativeTags];
-                    console.log(`Loaded ${this.game.reviewTags.length} review tags`);
+                    console.log(`Loaded ${this.game.reviewTags.length} review tags (Refreshed: ${refresh})`);
                 }
             },
             error: (err) => {
@@ -398,6 +405,12 @@ export class GameDetailComponent implements OnInit {
                 // Keep empty array if error
             }
         });
+    }
+
+    refreshTags() {
+        if (this.gameId) {
+            this.loadReviewTags(parseInt(this.gameId), true);
+        }
     }
 
     loadFavoriteStatus(gameId: number) {
