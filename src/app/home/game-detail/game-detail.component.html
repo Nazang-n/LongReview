@@ -451,13 +451,6 @@
                                     [ngClass]="comment.user_vote === 'up' ? 'pi-thumbs-up-fill' : 'pi-thumbs-up'"></i>
                                 <span class="font-semibold">{{ comment.upvotes }}</span>
                             </button>
-                            <button (click)="voteComment(comment.id, 'down')"
-                                [ngClass]="comment.user_vote === 'down' ? 'text-red-600' : 'text-gray-600 hover:text-red-600'"
-                                class="flex items-center gap-2 transition-colors">
-                                <i class="pi"
-                                    [ngClass]="comment.user_vote === 'down' ? 'pi-thumbs-down-fill' : 'pi-thumbs-down'"></i>
-                                <span class="font-semibold">{{ comment.downvotes }}</span>
-                            </button>
                         </div>
                     </div>
                 </div>

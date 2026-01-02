@@ -78,12 +78,11 @@ export class CommentService {
     }
 
     /**
-     * Vote on a comment
+     * Like a comment
      */
-    voteComment(commentId: number, userId: number, voteType: 'up' | 'down'): Observable<any> {
-        return this.http.post(`${this.apiUrl}/${commentId}/vote`, {
-            user_id: userId,
-            vote_type: voteType
+    likeComment(commentId: number, userId: number): Observable<any> {
+        return this.http.post(`${this.apiUrl}/${commentId}/like`, {
+            user_id: userId
         });
     }
 

@@ -12,6 +12,7 @@ class User(Base):
     email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column("password", String(255), nullable=False)
     user_role = Column(String(50), nullable=False, default="User")
+    avatar_url = Column(Text)  # Store avatar as base64 or URL
     created_at = Column("created_date", DateTime(timezone=True), server_default=func.now())
 
 
@@ -132,6 +133,7 @@ class Comment(Base):
     user_id = Column(Integer, nullable=False, index=True)
     content = Column(Text, nullable=False)
     is_edited = Column(Boolean, default=False, nullable=False)
+    upvotes = Column(Integer, default=0, nullable=False)  # Store upvotes directly
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

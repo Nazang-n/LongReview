@@ -5,6 +5,7 @@ import { HeaderComponent } from '../../shared/header.component';
 import { FooterComponent } from '../../shared/footer.component';
 import { FavoriteService } from '../../services/favorite.service';
 import { AuthService } from '../../services/auth.service';
+import { DialogModule } from 'primeng/dialog';
 
 interface Game {
     id: number;
@@ -21,7 +22,7 @@ interface Game {
 @Component({
     selector: 'app-favorites',
     standalone: true,
-    imports: [CommonModule, RouterModule, HeaderComponent, FooterComponent],
+    imports: [CommonModule, RouterModule, HeaderComponent, FooterComponent, DialogModule],
     templateUrl: './favorites.component.html',
     styleUrls: ['./favorites.component.css']
 })
@@ -29,6 +30,11 @@ export class FavoritesComponent implements OnInit {
     favoriteGames: Game[] = [];
     isLoading = true;
     error: string | null = null;
+
+    // Dialog state
+    showRemoveDialog = false;
+    pendingRemoveGameId: number | null = null;
+    pendingRemoveGameTitle: string = '';
 
     constructor(
         private favoriteService: FavoriteService,
@@ -97,25 +103,38 @@ export class FavoritesComponent implements OnInit {
         }
     }
 
-    removeFavorite(event: Event, gameId: number) {
+    removeFavorite(event: Event, gameId: number, gameTitle: string) {
         event.stopPropagation();
         event.preventDefault();
 
-        const user = this.authService.getCurrentUserValue();
-        if (!user) return;
+        this.pendingRemoveGameId = gameId;
+        this.pendingRemoveGameTitle = gameTitle;
+        this.showRemoveDialog = true;
+    }
 
-        if (confirm('คุณต้องการลบเกมนี้ออกจากรายการโปรดหรือไม่?')) {
-            this.favoriteService.removeFavorite(user.id, gameId).subscribe({
-                next: () => {
-                    // Remove from local array
-                    this.favoriteGames = this.favoriteGames.filter(game => game.id !== gameId);
-                    console.log('Removed from favorites');
-                },
-                error: (err) => {
-                    console.error('Error removing favorite:', err);
-                    alert('เกิดข้อผิดพลาดในการลบออกจากรายการโปรด');
-                }
-            });
-        }
+    confirmRemove() {
+        const user = this.authService.getCurrentUserValue();
+        if (!user || !this.pendingRemoveGameId) return;
+
+        this.favoriteService.removeFavorite(user.id, this.pendingRemoveGameId).subscribe({
+            next: () => {
+                // Remove from local array
+                this.favoriteGames = this.favoriteGames.filter(game => game.id !== this.pendingRemoveGameId);
+                this.showRemoveDialog = false;
+                this.pendingRemoveGameId = null;
+                this.pendingRemoveGameTitle = '';
+            },
+            error: (err) => {
+                console.error('Error removing favorite:', err);
+                alert('เกิดข้อผิดพลาดในการลบออกจากรายการโปรด');
+                this.showRemoveDialog = false;
+            }
+        });
+    }
+
+    cancelRemove() {
+        this.showRemoveDialog = false;
+        this.pendingRemoveGameId = null;
+        this.pendingRemoveGameTitle = '';
     }
 }

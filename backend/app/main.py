@@ -1,7 +1,7 @@
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from .database import engine, Base
-from .routes import games, reviews, steam, auth, news, review_tags, favorites, comments
+from .routes import games, reviews, steam, auth, news, review_tags, favorites, comments, profile
 import os
 from dotenv import load_dotenv
 
@@ -54,6 +54,7 @@ app.include_router(news.router)
 app.include_router(review_tags.router)
 app.include_router(favorites.router)
 app.include_router(comments.router)
+app.include_router(profile.router)
 
 
 @app.get("/", tags=["root"])

@@ -26,10 +26,9 @@ class CommentUpdate(BaseModel):
     content: str
 
 
-class VoteRequest(BaseModel):
-    """Request body for voting on a comment"""
+class LikeRequest(BaseModel):
+    """Request body for liking a comment"""
     user_id: int
-    vote_type: str  # 'up' or 'down'
 
 
 class ReportRequest(BaseModel):
@@ -49,8 +48,6 @@ class CommentResponse(BaseModel):
     created_at: str
     updated_at: str
     upvotes: int
-    downvotes: int
-    user_vote: Optional[str] = None  # 'up', 'down', or None
 
 
 class ReportResponse(BaseModel):
@@ -100,7 +97,8 @@ def add_comment(
     new_comment = models.Comment(
         game_id=game_id,
         user_id=request.user_id,
-        content=request.content
+        content=request.content,
+        upvotes=0
     )
     
     db.add(new_comment)
@@ -121,10 +119,10 @@ def get_comments(
     db: Session = Depends(get_db)
 ):
     """
-    Get all comments for a game with vote counts.
+    Get all comments for a game.
     
     - **game_id**: The ID of the game
-    - **user_id**: Optional - to include user's vote status
+    - **user_id**: Optional - not used anymore (kept for compatibility)
     """
     comments = db.query(models.Comment).filter(
         models.Comment.game_id == game_id
@@ -136,32 +134,6 @@ def get_comments(
         user = db.query(models.User).filter(models.User.id == comment.user_id).first()
         username = user.username if user else "Unknown User"
         
-        # Count votes
-        upvotes = db.query(models.CommentVote).filter(
-            and_(
-                models.CommentVote.comment_id == comment.id,
-                models.CommentVote.vote_type == 'up'
-            )
-        ).count()
-        
-        downvotes = db.query(models.CommentVote).filter(
-            and_(
-                models.CommentVote.comment_id == comment.id,
-                models.CommentVote.vote_type == 'down'
-            )
-        ).count()
-        
-        # Get user's vote if user_id provided
-        user_vote = None
-        if user_id:
-            vote = db.query(models.CommentVote).filter(
-                and_(
-                    models.CommentVote.comment_id == comment.id,
-                    models.CommentVote.user_id == user_id
-                )
-            ).first()
-            user_vote = vote.vote_type if vote else None
-        
         result.append({
             "id": comment.id,
             "game_id": comment.game_id,
@@ -171,9 +143,7 @@ def get_comments(
             "is_edited": comment.is_edited,
             "created_at": comment.created_at.isoformat() if comment.created_at else None,
             "updated_at": comment.updated_at.isoformat() if comment.updated_at else None,
-            "upvotes": upvotes,
-            "downvotes": downvotes,
-            "user_vote": user_vote
+            "upvotes": comment.upvotes
         })
     
     return result
@@ -258,11 +228,6 @@ def delete_comment(
             detail="You can only delete your own comments"
         )
     
-    # Delete related votes
-    db.query(models.CommentVote).filter(
-        models.CommentVote.comment_id == comment_id
-    ).delete()
-    
     # Delete related reports
     db.query(models.CommentReport).filter(
         models.CommentReport.comment_id == comment_id
@@ -278,18 +243,17 @@ def delete_comment(
     }
 
 
-@router.post("/{comment_id}/vote")
-def vote_comment(
+@router.post("/{comment_id}/like")
+def like_comment(
     comment_id: int,
-    request: VoteRequest,
+    request: LikeRequest,
     db: Session = Depends(get_db)
 ):
     """
-    Vote on a comment (thumbs up or down).
+    Like a comment (increment upvotes).
     
     - **comment_id**: The ID of the comment
-    - **user_id**: The ID of the user voting
-    - **vote_type**: 'up' or 'down'
+    - **user_id**: The ID of the user liking
     """
     # Verify comment exists
     comment = db.query(models.Comment).filter(models.Comment.id == comment_id).first()
@@ -299,54 +263,15 @@ def vote_comment(
             detail="Comment not found"
         )
     
-    # Validate vote type
-    if request.vote_type not in ['up', 'down']:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Vote type must be 'up' or 'down'"
-        )
+    # Increment upvotes
+    comment.upvotes += 1
+    db.commit()
     
-    # Check if user already voted
-    existing_vote = db.query(models.CommentVote).filter(
-        and_(
-            models.CommentVote.comment_id == comment_id,
-            models.CommentVote.user_id == request.user_id
-        )
-    ).first()
-    
-    if existing_vote:
-        if existing_vote.vote_type == request.vote_type:
-            # Remove vote (toggle off)
-            db.delete(existing_vote)
-            db.commit()
-            return {
-                "success": True,
-                "message": "Vote removed",
-                "action": "removed"
-            }
-        else:
-            # Change vote
-            existing_vote.vote_type = request.vote_type
-            db.commit()
-            return {
-                "success": True,
-                "message": "Vote changed",
-                "action": "changed"
-            }
-    else:
-        # Add new vote
-        new_vote = models.CommentVote(
-            comment_id=comment_id,
-            user_id=request.user_id,
-            vote_type=request.vote_type
-        )
-        db.add(new_vote)
-        db.commit()
-        return {
-            "success": True,
-            "message": "Vote added",
-            "action": "added"
-        }
+    return {
+        "success": True,
+        "message": "Comment liked",
+        "upvotes": comment.upvotes
+    }
 
 
 @router.post("/{comment_id}/report")

@@ -578,15 +578,18 @@ export class GameDetailComponent implements OnInit {
             return;
         }
 
-        this.commentService.voteComment(commentId, user.id, voteType).subscribe({
-            next: () => {
-                this.loadComments();
-            },
-            error: (err) => {
-                console.error('Error voting comment:', err);
-                alert('เกิดข้อผิดพลาดในการโหวต');
-            }
-        });
+        // Only handle 'up' votes now (like button)
+        if (voteType === 'up') {
+            this.commentService.likeComment(commentId, user.id).subscribe({
+                next: () => {
+                    this.loadComments();
+                },
+                error: (err) => {
+                    console.error('Error liking comment:', err);
+                    alert('เกิดข้อผิดพลาดในการถูกใจ');
+                }
+            });
+        }
     }
 
     reportComment(commentId: number) {
