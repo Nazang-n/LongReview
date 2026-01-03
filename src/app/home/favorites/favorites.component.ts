@@ -5,6 +5,7 @@ import { HeaderComponent } from '../../shared/header.component';
 import { FooterComponent } from '../../shared/footer.component';
 import { FavoriteService } from '../../services/favorite.service';
 import { AuthService } from '../../services/auth.service';
+import { GameService } from '../../services/game.service';
 import { DialogModule } from 'primeng/dialog';
 
 interface Game {
@@ -15,7 +16,7 @@ interface Game {
     genres: string[];
     reviewTags: string[];
     image: string;
-    reviewType: 'positive' | 'negative' | 'mixed';
+    reviewType?: 'positive' | 'negative' | 'mixed';  // Optional - set by sentiment data
     isNew?: boolean;
 }
 
@@ -39,7 +40,8 @@ export class FavoritesComponent implements OnInit {
     constructor(
         private favoriteService: FavoriteService,
         private authService: AuthService,
-        private router: Router
+        private router: Router,
+        private gameService: GameService
     ) { }
 
     ngOnInit() {
@@ -69,10 +71,13 @@ export class FavoritesComponent implements OnInit {
                     genres: fav.genre ? fav.genre.split(',').map((g: string) => g.trim()) : [],
                     reviewTags: [], // Can be populated if needed
                     image: fav.image_url || fav.picture || 'https://via.placeholder.com/460x215?text=No+Image',
-                    reviewType: 'positive', // Default, can be calculated from sentiment
+                    reviewType: undefined,  // Will be set by loadFavoriteSentiments()
                     isNew: false
                 }));
                 this.isLoading = false;
+
+                // Load sentiment data for review badges
+                this.loadFavoriteSentiments();
             },
             error: (err) => {
                 console.error('Error loading favorites:', err);
@@ -136,5 +141,34 @@ export class FavoritesComponent implements OnInit {
         this.showRemoveDialog = false;
         this.pendingRemoveGameId = null;
         this.pendingRemoveGameTitle = '';
+    }
+
+    loadFavoriteSentiments() {
+        const gameIds = this.favoriteGames.map(g => g.id);
+
+        if (gameIds.length === 0) return;
+
+        this.gameService.getBatchSentiment(gameIds).subscribe({
+            next: (sentiments) => {
+                this.favoriteGames.forEach(game => {
+                    const sentiment = sentiments[game.id];
+                    if (sentiment) {
+                        const diff = Math.abs(sentiment.positive_percent - sentiment.negative_percent);
+
+                        // Determine review type based on percentages
+                        if (diff <= 10) {
+                            game.reviewType = 'mixed';
+                        } else if (sentiment.positive_percent > sentiment.negative_percent) {
+                            game.reviewType = 'positive';
+                        } else {
+                            game.reviewType = 'negative';
+                        }
+                    }
+                });
+            },
+            error: (err) => {
+                console.error('Error loading sentiment data:', err);
+            }
+        });
     }
 }

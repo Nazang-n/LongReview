@@ -325,3 +325,36 @@ def get_steam_sentiment(game_id: int, db: Session = Depends(get_db)):
         db.rollback()
         print(f"[Sentiment] Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/sentiment/batch")
+def get_batch_sentiment(game_ids: List[int], db: Session = Depends(get_db)):
+    """Get sentiment for multiple games at once - efficient for game list"""
+    from sqlalchemy import text
+    
+    results = {}
+    
+    for game_id in game_ids:
+        try:
+            result = db.execute(
+                text("SELECT COUNT(*), SUM(CASE WHEN voted_up = TRUE THEN 1 ELSE 0 END) FROM analyreview WHERE game_id = :game_id"),
+                {"game_id": game_id}
+            ).fetchone()
+            
+            total = result[0] if result else 0
+            positive = result[1] if result else 0
+            
+            if total > 0:
+                pos_pct = round((positive / total * 100), 1)
+                neg_pct = round(((total - positive) / total * 100), 1)
+                
+                results[game_id] = {
+                    "positive_percent": pos_pct,
+                    "negative_percent": neg_pct,
+                    "total_reviews": total
+                }
+        except Exception as e:
+            print(f"[Batch Sentiment] Error for game {game_id}: {e}")
+            continue
+    
+    return results
