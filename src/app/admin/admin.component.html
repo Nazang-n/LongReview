@@ -39,6 +39,53 @@
             </div>
         </p-card>
 
+        <!-- Game Translation Section -->
+        <p-card header="Game Translation" subheader="Translate game descriptions to Thai" class="mt-4">
+            <div class="sync-section">
+                <h3>Batch Translate Games</h3>
+                <p>Translate all games that don't have Thai descriptions yet. This will use AI to translate English
+                    descriptions to Thai.</p>
+
+                <button pButton type="button" label="Translate All Games" icon="pi pi-language"
+                    [loading]="isTranslating" [disabled]="isTranslating" (click)="translateGames()" class="sync-button">
+                </button>
+
+                <!-- Loading Spinner -->
+                <div *ngIf="isTranslating" class="loading-container">
+                    <p-progressSpinner styleClass="custom-spinner" strokeWidth="4" animationDuration="1s">
+                    </p-progressSpinner>
+                    <p>Translating game descriptions...</p>
+                </div>
+
+                <!-- Success Result -->
+                <div *ngIf="translateResult && !isTranslating" class="result-container success">
+                    <p-message severity="success" text="Translation completed!"></p-message>
+                    <div class="result-details">
+                        <h4>Translation Results:</h4>
+                        <ul>
+                            <li><strong>Games Found:</strong> {{ translateResult.total_found || 0 }}</li>
+                            <li><strong>Successfully Translated:</strong> {{ translateResult.translated || 0 }}</li>
+                            <li><strong>Failed:</strong> {{ translateResult.failed || 0 }}</li>
+                        </ul>
+                        <div *ngIf="translateResult.failed_games && translateResult.failed_games.length > 0"
+                            class="mt-3">
+                            <p class="text-sm text-gray-600">Failed games:</p>
+                            <ul class="text-sm text-gray-500">
+                                <li *ngFor="let game of translateResult.failed_games">
+                                    {{ game.title }} - {{ game.reason }}
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Error Message -->
+                <div *ngIf="translateError && !isTranslating" class="result-container error">
+                    <p-message severity="error" [text]="translateError"></p-message>
+                </div>
+            </div>
+        </p-card>
+
         <!-- Reported Comments Section -->
         <div class="bg-white rounded-lg shadow-md p-6 mb-8">
             <h2 class="text-2xl font-bold text-gray-900 mb-6">รายงานความคิดเห็น</h2>
