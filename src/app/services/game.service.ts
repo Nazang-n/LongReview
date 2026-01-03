@@ -69,6 +69,13 @@ export class GameService {
     }
 
     /**
+     * Get total count of games
+     */
+    getGamesCount(): Observable<{ total: number }> {
+        return this.http.get<{ total: number }>(`${this.apiUrl}/count`);
+    }
+
+    /**
      * Create a new game
      */
     createGame(game: Game): Observable<Game> {

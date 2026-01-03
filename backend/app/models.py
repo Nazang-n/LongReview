@@ -40,7 +40,7 @@ class Game(Base):
     publisher = Column(String(255))  # Publisher name
     rating = Column(Float)  # Game rating (optional)
     about_game_th = Column(Text)  # Thai translation of game details
-    steam_app_id = Column(String(50), unique=True, index=True)  # Steam App ID from SteamSpy
+    steam_app_id = Column(Integer, unique=True, index=True)  # Steam App ID from SteamSpy
 
 
 

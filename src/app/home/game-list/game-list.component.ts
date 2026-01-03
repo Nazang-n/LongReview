@@ -32,6 +32,11 @@ export class GameListComponent implements OnInit {
     isLoading = true;
     error: string | null = null;
 
+    // Pagination
+    currentPage = 1;
+    gamesPerPage = 30;
+    totalGames = 0;
+
     constructor(private gameService: GameService) { }
 
     ngOnInit() {
@@ -42,9 +47,16 @@ export class GameListComponent implements OnInit {
         this.isLoading = true;
         this.error = null;
 
-        // Fetch games from local database (already imported from SteamSpy + Steam API)
-        this.gameService.getGames(0, 30).subscribe({
-            next: (gamesFromDb) => {
+        const skip = (this.currentPage - 1) * this.gamesPerPage;
+
+        // Fetch both games and total count
+        forkJoin({
+            games: this.gameService.getGames(skip, this.gamesPerPage),
+            count: this.gameService.getGamesCount()
+        }).subscribe({
+            next: ({ games: gamesFromDb, count }) => {
+                this.totalGames = count.total;
+
                 if (gamesFromDb && gamesFromDb.length > 0) {
                     // Map database games to display format
                     this.games = gamesFromDb.map((game: any) => {
@@ -67,6 +79,13 @@ export class GameListComponent implements OnInit {
                             platform: game.platform,
                             price: game.price
                         };
+                    });
+
+                    // Sort games by release date (newest first)
+                    this.games.sort((a, b) => {
+                        if (!a.releaseDate || a.releaseDate === 'Unknown') return 1;
+                        if (!b.releaseDate || b.releaseDate === 'Unknown') return -1;
+                        return new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime();
                     });
 
                     this.isLoading = false;
@@ -127,5 +146,43 @@ export class GameListComponent implements OnInit {
 
     toggleFilter() {
         this.isFilterOpen = !this.isFilterOpen;
+    }
+
+    // Pagination methods
+    get totalPages(): number {
+        return Math.ceil(this.totalGames / this.gamesPerPage);
+    }
+
+    get pageNumbers(): number[] {
+        const pages: number[] = [];
+        const maxPagesToShow = 5;
+        let startPage = Math.max(1, this.currentPage - 2);
+        let endPage = Math.min(this.totalPages, startPage + maxPagesToShow - 1);
+
+        // Adjust start page if we're near the end
+        if (endPage - startPage < maxPagesToShow - 1) {
+            startPage = Math.max(1, endPage - maxPagesToShow + 1);
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+            pages.push(i);
+        }
+        return pages;
+    }
+
+    goToPage(page: number) {
+        if (page >= 1 && page <= this.totalPages) {
+            this.currentPage = page;
+            this.loadGamesFromDatabase();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    }
+
+    previousPage() {
+        this.goToPage(this.currentPage - 1);
+    }
+
+    nextPage() {
+        this.goToPage(this.currentPage + 1);
     }
 }

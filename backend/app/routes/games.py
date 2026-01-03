@@ -42,13 +42,24 @@ def get_games(
     db: Session = Depends(get_db)
 ):
     """
-    Get all games with pagination.
+    Get all games with pagination, sorted by newest release date first.
     
     - **skip**: Number of records to skip (default: 0)
     - **limit**: Maximum number of records to return (default: 100)
     """
-    games = db.query(models.Game).offset(skip).limit(limit).all()
+    games = db.query(models.Game).order_by(models.Game.release_date.desc()).offset(skip).limit(limit).all()
     return [serialize_game(game) for game in games]
+
+
+@router.get("/count")
+def get_games_count(db: Session = Depends(get_db)):
+    """
+    Get total count of games in database.
+    
+    Returns the total number of games for pagination.
+    """
+    count = db.query(models.Game).count()
+    return {"total": count}
 
 
 @router.get("/{game_id}", response_model=schemas.Game)

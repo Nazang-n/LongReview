@@ -233,3 +233,49 @@ class SteamAPIClient:
         )
         
         return sorted_games[:limit]
+    
+    @staticmethod
+    def get_newest_games_from_steamspy(limit: int = 100) -> Optional[List[Dict[str, Any]]]:
+        """
+        Fetch newest games by release date from SteamSpy
+        
+        Args:
+            limit: Number of newest games to fetch
+            
+        Returns:
+            List of game dictionaries sorted by release date (newest first)
+        """
+        all_games = SteamAPIClient.get_all_games_from_steamspy()
+        
+        if not all_games:
+            return None
+        
+        # Convert to list
+        games_list = []
+        for app_id, game_data in all_games.items():
+            game_data['app_id'] = app_id
+            games_list.append(game_data)
+        
+        # Filter out games without initialprice and convert to int
+        games_with_date = []
+        for game in games_list:
+            initialprice = game.get('initialprice', 0)
+            # Convert to int if it's a string
+            try:
+                if isinstance(initialprice, str):
+                    initialprice = int(initialprice)
+                if initialprice > 0:
+                    game['initialprice_int'] = initialprice
+                    games_with_date.append(game)
+            except (ValueError, TypeError):
+                # Skip games with invalid initialprice
+                continue
+        
+        # Sort by initialprice (Unix timestamp) in descending order (newest first)
+        sorted_games = sorted(
+            games_with_date,
+            key=lambda x: x.get('initialprice_int', 0),
+            reverse=True
+        )
+        
+        return sorted_games[:limit]
