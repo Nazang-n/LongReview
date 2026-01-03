@@ -1,24 +1,44 @@
 """
-AI Translation Helper using Google Gemini (New API)
+AI Translation Helper using Google Gemini (New API) with Google Translate fallback
 """
 import os
 from typing import Optional
 from google import genai
 from google.genai import types
 from langdetect import detect, LangDetectException
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Import Google Translate as fallback
+try:
+    from deep_translator import GoogleTranslator
+    GOOGLE_TRANSLATE_AVAILABLE = True
+except ImportError:
+    GOOGLE_TRANSLATE_AVAILABLE = False
+    print("WARNING: deep-translator not available. Install with: pip install deep-translator")
 
 
 class AITranslator:
-    """Helper class for AI-powered translation"""
+    """Helper class for AI-powered translation with Google Translate fallback"""
     
     def __init__(self):
         # Get API key from environment variable
         api_key = os.getenv("GEMINI_API_KEY")
         if api_key:
             self.client = genai.Client(api_key=api_key)
+            print("Gemini AI translator initialized")
         else:
-            print("Warning: GEMINI_API_KEY not found. AI translation will be disabled.")
+            print("WARNING: GEMINI_API_KEY not found. AI translation will be disabled.")
             self.client = None
+        
+        # Initialize Google Translate fallback
+        if GOOGLE_TRANSLATE_AVAILABLE:
+            self.google_translator = GoogleTranslator(source='en', target='th')
+            print("Google Translate fallback initialized")
+        else:
+            self.google_translator = None
     
     def detect_language(self, text: str) -> Optional[str]:
         """
@@ -38,6 +58,36 @@ class AITranslator:
         except LangDetectException:
             return None
     
+    def translate_with_google(self, text: str) -> Optional[str]:
+        """
+        Translate text to Thai using Google Translate (fallback)
+        
+        Args:
+            text: Text to translate
+            
+        Returns:
+            Thai translation or None if failed
+        """
+        if not self.google_translator:
+            return None
+        
+        try:
+            print("Using Google Translate fallback...")
+            result = self.google_translator.translate(text)
+            if result:
+                try:
+                    print(f"Google Translate successful: {result[:50]}...")
+                except UnicodeEncodeError:
+                    print("Google Translate successful (Thai text)")
+                return result
+        except Exception as e:
+            try:
+                print(f"Google Translate error: {e}")
+            except UnicodeEncodeError:
+                print("Google Translate error (encoding issue)")
+        
+        return None
+    
     def translate_to_thai(self, text: str) -> str:
         """
         Translate English text to Thai using AI
@@ -49,7 +99,10 @@ class AITranslator:
             Thai translation or original text if translation fails
         """
         if not self.client:
-            print("⚠️ Warning: Gemini API not configured. Translation disabled.")
+            print("WARNING: Gemini API not configured. Trying Google Translate...")
+            google_result = self.translate_with_google(text)
+            if google_result:
+                return google_result
             return text
         
         if not text or len(text.strip()) < 3:
@@ -60,11 +113,11 @@ class AITranslator:
         
         # Check language with langdetect
         lang = self.detect_language(text)
-        print(f"🔍 Detected language: {lang}, Has Thai chars: {has_thai} for text: {text[:50]}...")
+        print(f"Detected language: {lang}, Has Thai chars: {has_thai} for text: {text[:50]}...")
         
         # If has Thai characters or detected as Thai, skip translation
         if has_thai or lang == 'th':
-            print("✅ Already in Thai, skipping translation")
+            print("Already in Thai, skipping translation")
             return text
         
         # Retry logic for rate limits
@@ -73,7 +126,7 @@ class AITranslator:
         
         for attempt in range(max_retries):
             try:
-                print(f"🤖 Translating to Thai... (attempt {attempt + 1}/{max_retries})")
+                print(f"Translating to Thai... (attempt {attempt + 1}/{max_retries})")
                 prompt = f"""แปลข้อความต่อไปนี้เป็นภาษาไทยที่เป็นธรรมชาติและเหมาะสมสำหรับคำอธิบายเกม:
 
 "{text}"
@@ -93,7 +146,7 @@ class AITranslator:
                 if translated.startswith("'") and translated.endswith("'"):
                     translated = translated[1:-1]
                 
-                print(f"✅ Translation successful: {translated[:50]}...")
+                print(f"Translation successful: {translated[:50]}...")
                 return translated
                 
             except Exception as e:
@@ -103,17 +156,29 @@ class AITranslator:
                 if '429' in error_msg or 'quota' in error_msg.lower() or 'rate limit' in error_msg.lower():
                     if attempt < max_retries - 1:
                         wait_time = retry_delay * (2 ** attempt)  # Exponential backoff
-                        print(f"⏳ Rate limit hit. Waiting {wait_time}s before retry...")
+                        print(f"Rate limit hit. Waiting {wait_time}s before retry...")
                         import time
                         time.sleep(wait_time)
                         continue
                     else:
-                        print(f"❌ Rate limit exceeded after {max_retries} attempts. Using original text.")
+                        print(f"ERROR: Rate limit exceeded after {max_retries} attempts.")
+                        # Try Google Translate fallback
+                        google_result = self.translate_with_google(text)
+                        if google_result:
+                            return google_result
                         return text
                 else:
-                    print(f"❌ AI translation error: {e}")
+                    print(f"ERROR: AI translation error: {e}")
+                    # Try Google Translate fallback for any error
+                    google_result = self.translate_with_google(text)
+                    if google_result:
+                        return google_result
                     return text
         
+        # If all retries failed, try Google Translate
+        google_result = self.translate_with_google(text)
+        if google_result:
+            return google_result
         return text
     
     def get_thai_description(self, thai_desc: Optional[str], english_desc: Optional[str]) -> Optional[str]:

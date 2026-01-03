@@ -67,22 +67,35 @@ class SteamAPIClient:
         """
         all_reviews = []
         cursor = "*"
+        previous_cursor = None
         
         while True:
+            previous_count = len(all_reviews)
+            
             data = SteamAPIClient.get_app_reviews(
                 app_id=app_id,
                 language=language,
                 cursor=cursor
             )
             
+            print(f"[DEBUG] Steam API response: success={data.get('success') if data else None}, reviews={len(data.get('reviews', [])) if data else 0}")
+            
             if not data or data.get("success") != 1:
+                print(f"[WARNING] Steam API failed or returned no data")
                 break
             
             reviews = data.get("reviews", [])
             if not reviews:
+                print(f"⚠️ No reviews in response")
                 break
             
             all_reviews.extend(reviews)
+            
+            # Check if we actually got new reviews
+            if len(all_reviews) == previous_count:
+                # No new reviews added, break to prevent infinite loop
+                print(f"⚠️ No new reviews fetched, stopping pagination")
+                break
             
             # Check if we've reached max_reviews
             if max_reviews and len(all_reviews) >= max_reviews:
@@ -90,9 +103,13 @@ class SteamAPIClient:
                 break
             
             # Get next cursor for pagination
-            cursor = data.get("cursor")
-            if not cursor:
+            new_cursor = data.get("cursor")
+            if not new_cursor or new_cursor == cursor:
+                # No more pages or cursor didn't change (prevent infinite loop)
+                print(f"🛑 Pagination complete or cursor unchanged")
                 break
+            
+            cursor = new_cursor
             
             # Be nice to Steam API - add small delay
             time.sleep(0.5)
@@ -212,6 +229,52 @@ class SteamAPIClient:
         sorted_games = sorted(
             games_list,
             key=lambda x: x.get('owners', 0),
+            reverse=True
+        )
+        
+        return sorted_games[:limit]
+    
+    @staticmethod
+    def get_newest_games_from_steamspy(limit: int = 100) -> Optional[List[Dict[str, Any]]]:
+        """
+        Fetch newest games by release date from SteamSpy
+        
+        Args:
+            limit: Number of newest games to fetch
+            
+        Returns:
+            List of game dictionaries sorted by release date (newest first)
+        """
+        all_games = SteamAPIClient.get_all_games_from_steamspy()
+        
+        if not all_games:
+            return None
+        
+        # Convert to list
+        games_list = []
+        for app_id, game_data in all_games.items():
+            game_data['app_id'] = app_id
+            games_list.append(game_data)
+        
+        # Filter out games without initialprice and convert to int
+        games_with_date = []
+        for game in games_list:
+            initialprice = game.get('initialprice', 0)
+            # Convert to int if it's a string
+            try:
+                if isinstance(initialprice, str):
+                    initialprice = int(initialprice)
+                if initialprice > 0:
+                    game['initialprice_int'] = initialprice
+                    games_with_date.append(game)
+            except (ValueError, TypeError):
+                # Skip games with invalid initialprice
+                continue
+        
+        # Sort by initialprice (Unix timestamp) in descending order (newest first)
+        sorted_games = sorted(
+            games_with_date,
+            key=lambda x: x.get('initialprice_int', 0),
             reverse=True
         )
         

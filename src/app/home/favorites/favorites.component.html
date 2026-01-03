@@ -12,8 +12,28 @@
             <p class="text-gray-600">{{ favoriteGames.length }} เกม</p>
         </div>
 
+        <!-- Loading State -->
+        <div *ngIf="isLoading" class="flex items-center justify-center py-20">
+            <div class="text-center">
+                <i class="pi pi-spin pi-spinner text-4xl text-purple-500 mb-4"></i>
+                <p class="text-gray-600">กำลังโหลดรายการโปรด...</p>
+            </div>
+        </div>
+
+        <!-- Error State -->
+        <div *ngIf="error && !isLoading" class="bg-red-50 border border-red-200 rounded-lg p-6 mb-6">
+            <div class="flex items-start gap-3">
+                <i class="pi pi-exclamation-triangle text-red-500 text-xl"></i>
+                <div>
+                    <h3 class="font-bold text-red-800 mb-1">เกิดข้อผิดพลาด</h3>
+                    <p class="text-red-600 text-sm">{{ error }}</p>
+                </div>
+            </div>
+        </div>
+
         <!-- Game Grid (3 columns, full width) -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div *ngIf="!isLoading && !error && favoriteGames.length > 0"
+            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div *ngFor="let game of favoriteGames" [routerLink]="['/game', game.id]"
                 class="game-card bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group border border-gray-100">
 
@@ -53,7 +73,7 @@
                     <!-- Remove from Favorites Button (Top Left) -->
                     <button
                         class="absolute top-3 left-3 w-8 h-8 bg-red-600 hover:bg-red-700 text-white rounded-full shadow-lg transition-colors z-10 flex items-center justify-center"
-                        (click)="$event.stopPropagation(); $event.preventDefault()">
+                        (click)="removeFavorite($event, game.id, game.title)">
                         <i class="pi pi-heart-fill text-sm"></i>
                     </button>
                 </div>
@@ -97,7 +117,7 @@
         </div>
 
         <!-- Empty State -->
-        <div *ngIf="favoriteGames.length === 0" class="text-center py-20">
+        <div *ngIf="!isLoading && !error && favoriteGames.length === 0" class="text-center py-20">
             <i class="pi pi-heart text-6xl text-gray-300 mb-4"></i>
             <h2 class="text-2xl font-bold text-gray-600 mb-2">ยังไม่มีเกมในรายการโปรด</h2>
             <p class="text-gray-500 mb-6">เพิ่มเกมที่คุณชอบเข้ามาในรายการโปรดของคุณ</p>
@@ -109,5 +129,32 @@
         </div>
     </div>
 </div>
+
+<!-- Remove Favorite Dialog -->
+<p-dialog [(visible)]="showRemoveDialog" [modal]="true" [style]="{width: '500px'}" [draggable]="false"
+    [resizable]="false">
+    <ng-template pTemplate="header">
+        <div class="flex items-center gap-3">
+            <i class="pi pi-heart-fill text-red-600 text-2xl"></i>
+            <span class="font-bold text-xl">ลบออกจากรายการโปรด</span>
+        </div>
+    </ng-template>
+    <div class="py-4">
+        <p class="text-gray-700 text-lg">
+            คุณต้องการลบ <strong class="text-purple-600">{{ pendingRemoveGameTitle }}</strong> ออกจากรายการโปรดหรือไม่?
+        </p>
+    </div>
+    <ng-template pTemplate="footer">
+        <button (click)="cancelRemove()"
+            class="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg transition-colors font-medium">
+            ยกเลิก
+        </button>
+        <button (click)="confirmRemove()"
+            class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium">
+            <i class="pi pi-heart-fill mr-2"></i>
+            ลบออกจากรายการโปรด
+        </button>
+    </ng-template>
+</p-dialog>
 
 <app-footer></app-footer>

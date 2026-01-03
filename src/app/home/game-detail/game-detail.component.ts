@@ -1,6 +1,6 @@
 import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, RouterModule } from '@angular/router';
+import { ActivatedRoute, RouterModule, Router } from '@angular/router';
 import { HeaderComponent } from '../../shared/header.component';
 import { FooterComponent } from '../../shared/footer.component';
 import { TagModule } from 'primeng/tag';
@@ -8,6 +8,12 @@ import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { ProgressBarModule } from 'primeng/progressbar';
 import { TextareaModule } from 'primeng/textarea';
+import { FormsModule } from '@angular/forms';
+import { DialogModule } from 'primeng/dialog';
+import { GameService } from '../../services/game.service';
+import { FavoriteService } from '../../services/favorite.service';
+import { AuthService } from '../../services/auth.service';
+import { CommentService, Comment } from '../../services/comment.service';
 
 interface Review {
     id: number;
@@ -39,7 +45,9 @@ interface RelatedGame {
         ButtonModule,
         CardModule,
         ProgressBarModule,
-        TextareaModule
+        TextareaModule,
+        FormsModule,
+        DialogModule
     ],
     templateUrl: './game-detail.component.html',
     styleUrls: ['./game-detail.component.css']
@@ -48,41 +56,64 @@ export class GameDetailComponent implements OnInit {
     @ViewChild('reviewsContainer') reviewsContainer!: ElementRef;
 
     gameId: string | null = '';
+    isLoading = true;
+    error: string | null = null;
 
-    game = {
-        title: 'Armored Core VI: Fires of Rubicon',
-        image: 'https://cdn.akamai.steamstatic.com/steam/apps/1938090/header.jpg',
-        tags: ['แอ็คชั่น', 'เมคคา', 'ผู้เล่นคนเดียว'],
-        releaseDate: '25 ส.ค. 2566',
-        developer: 'FromSoftware Inc.',
-        publisher: 'BANDAI NAMCO Entertainment',
-        platform: 'Steam, PS5, Xbox Series',
-        description: `เกมแอ็คชั่นเมคคาสุดมันส์จาก FromSoftware ผู้สร้าง Dark Souls และ Elden Ring กลับมาพร้อมกับซีรีส์ Armored Core ที่หายไปนาน 10 ปี ในภาคนี้คุณจะได้สวมบทเป็นนักรบเมคคาที่ต้องต่อสู้เพื่อความอยู่รอดบนดาวเคราะห์ Rubicon 3 ที่เต็มไปด้วยสงครามและความขัดแย้ง
-
-ระบบการต่อสู้ที่รวดเร็วและเข้มข้น พร้อมระบบปรับแต่งเมคคาที่ลึกซึ้ง ให้คุณสร้างหุ่นรบในแบบของคุณเอง`,
-        score: 77,
+    game: any = {
+        title: '',
+        image: '',
+        tags: [],
+        releaseDate: '',
+        developer: '',
+        publisher: '',
+        platform: '',
+        description: '',
+        aboutGameTh: '',
+        appId: null,
+        score: 0,
         ratings: {
-            excellent: 77,
-            good: 15,
-            average: 5,
-            poor: 3
+            excellent: 0,
+            good: 0,
+            average: 0,
+            poor: 0
         },
         sentiment: {
-            positive: 82,
-            neutral: 12,
-            negative: 6
+            positive: 0,
+            negative: 0
         },
-        reviewTags: [
-            { label: 'ท้าทาย', count: 1250, severity: 'warning' },
-            { label: 'ยาก', count: 980, severity: 'danger' },
-            { label: 'สนุก', count: 2100, severity: 'success' },
-            { label: 'กราฟิกสวย', count: 1800, severity: 'info' },
-            { label: 'ควบคุมยาก', count: 650, severity: 'warning' },
-            { label: 'คุ้มค่า', count: 1500, severity: 'success' }
-        ],
-        minRequirements: '2,250 THB'
+        reviewTags: [],
+        minRequirements: ''
     };
 
+    // Steam reviews
+    steamReviews: any[] = [];
+    loadingSteamReviews = false;
+    steamReviewsError: string | null = null;
+
+    // Steam sentiment analysis
+    loadingSentiment = true;  // Start as true to show loading initially
+    sentimentError: string | null = null;
+    totalReviewsAnalyzed = 0;
+
+    // Favorites
+    isFavorited = false;
+    isTogglingFavorite = false;
+
+    // Comments
+    comments: Comment[] = [];
+    newComment = '';
+    isSubmittingComment = false;
+    editingCommentId: number | null = null;
+    editingContent = '';
+
+    // Dialog states
+    showDeleteDialog = false;
+    showReportDialog = false;
+    reportReason = '';
+    pendingDeleteCommentId: number | null = null;
+    pendingReportCommentId: number | null = null;
+
+    // Mock data for reviews - will be replaced with real data later
     reviews: Review[] = [
         {
             id: 1,
@@ -126,6 +157,7 @@ export class GameDetailComponent implements OnInit {
         }
     ];
 
+    // Mock data for related games - will be replaced with real data later
     relatedGames: RelatedGame[] = [
         {
             id: 101,
@@ -163,10 +195,98 @@ export class GameDetailComponent implements OnInit {
 
     displayedReviewsCount = 3; // Initially show 3 reviews
 
-    constructor(private route: ActivatedRoute) { }
+    constructor(
+        private route: ActivatedRoute,
+        private router: Router,
+        private gameService: GameService,
+        private favoriteService: FavoriteService,
+        private authService: AuthService,
+        private commentService: CommentService
+    ) { }
 
     ngOnInit() {
         this.gameId = this.route.snapshot.paramMap.get('id');
+        if (this.gameId) {
+            this.loadGameDetails(parseInt(this.gameId));
+            this.loadFavoriteStatus(parseInt(this.gameId));
+            this.loadComments();
+        }
+    }
+
+    loadGameDetails(id: number) {
+        this.isLoading = true;
+        this.error = null;
+
+        this.gameService.getGame(id).subscribe({
+            next: (gameData: any) => {
+                // Map API data to game object
+                this.game = {
+                    title: gameData.title || 'Unknown Game',
+                    image: gameData.image_url || 'https://via.placeholder.com/460x215?text=No+Image',
+                    tags: gameData.genre ? gameData.genre.split(',').map((g: string) => g.trim()) : [],
+                    releaseDate: this.formatDate(gameData.release_date) || 'Unknown',
+                    developer: gameData.developer || 'Unknown Developer',
+                    publisher: gameData.publisher || 'Unknown Publisher',
+                    platform: gameData.platform || 'Unknown Platform',
+                    description: gameData.description || 'No description available.',
+                    aboutGameTh: gameData.about_game_th || '',
+                    appId: gameData.app_id,
+                    score: 77, // Mock data - will be calculated from reviews later
+                    ratings: {
+                        excellent: 77,
+                        good: 15,
+                        average: 5,
+                        poor: 3
+                    },
+                    sentiment: {
+                        positive: 82,
+                        neutral: 12,
+                        negative: 6
+                    },
+                    reviewTags: [],  // Will be loaded from API
+                    minRequirements: gameData.price || 'N/A'
+                };
+                this.isLoading = false;
+
+                // Always load Steam reviews for game 727 (or any game)
+                this.loadSteamReviews(id);
+
+                // Load sentiment analysis
+                this.loadSteamSentiment(id);
+
+                // Load review tags
+                this.loadReviewTags(id);
+            },
+            error: (err) => {
+                console.error('Error loading game details:', err);
+                this.error = 'ไม่สามารถโหลดข้อมูลเกมได้';
+                this.isLoading = false;
+            }
+        });
+    }
+
+    formatDate(dateString: string): string {
+        if (!dateString) return 'Unknown';
+
+        try {
+            // Parse ISO format date (YYYY-MM-DD) from backend
+            const date = new Date(dateString);
+
+            // Check if date is valid
+            if (isNaN(date.getTime())) {
+                return dateString;
+            }
+
+            const thaiMonths = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+                'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+            const day = date.getDate();
+            const month = thaiMonths[date.getMonth()];
+            const year = date.getFullYear() + 543; // Convert to Buddhist year
+            return `${day} ${month} ${year}`;
+        } catch (e) {
+            console.error('Error formatting date:', e);
+            return dateString;
+        }
     }
 
     getRatingIcon(rating: number): string {
@@ -190,5 +310,373 @@ export class GameDetailComponent implements OnInit {
 
     loadMoreReviews() {
         this.displayedReviewsCount += 3; // Load 3 more reviews each time
+    }
+
+    loadSteamReviews(gameId: number) {
+        this.loadingSteamReviews = true;
+        this.steamReviewsError = null;
+
+        this.gameService.syncSteamReviews(gameId, 20).subscribe({
+            next: (response: any) => {
+                if (response.success) {
+                    this.steamReviews = response.reviews || [];
+                    console.log(`Loaded ${this.steamReviews.length} Steam reviews`);
+                }
+                this.loadingSteamReviews = false;
+            },
+            error: (err) => {
+                console.error('Error loading Steam reviews:', err);
+                this.steamReviewsError = 'ไม่สามารถโหลดรีวิวจาก Steam ได้';
+                this.loadingSteamReviews = false;
+            }
+        });
+    }
+
+    formatPlaytime(hours: number): string {
+        if (!hours || hours === 0) return 'ไม่มีข้อมูล';
+        if (hours < 1) return `${Math.round(hours * 60)} นาที`;
+        return `${hours.toFixed(1)} ชั่วโมง`;
+    }
+
+    getPositiveTags() {
+        return this.game.reviewTags.filter((tag: any) =>
+            tag.severity === 'success' || tag.severity === 'info'
+        );
+    }
+
+    getNegativeTags() {
+        return this.game.reviewTags.filter((tag: any) =>
+            tag.severity === 'danger' || tag.severity === 'warning'
+        );
+    }
+
+    loadSteamSentiment(gameId: number) {
+        this.loadingSentiment = true;
+        this.sentimentError = null;
+
+        this.gameService.getSteamSentiment(gameId).subscribe({
+            next: (response: any) => {
+                if (response.success) {
+                    this.game.sentiment.positive = response.positive_percent;
+                    this.game.sentiment.negative = response.negative_percent;
+                    this.totalReviewsAnalyzed = response.total_reviews;
+                    console.log(`Sentiment: ${response.positive_percent}% positive from ${response.total_reviews} reviews`);
+                }
+                this.loadingSentiment = false;
+            },
+            error: (err) => {
+                console.error('Error loading sentiment:', err);
+                this.sentimentError = 'ไม่สามารถโหลดข้อมูลความรู้สึกได้';
+                this.loadingSentiment = false;
+            }
+        });
+    }
+
+    isLoadingTags = false;
+
+    loadReviewTags(gameId: number, refresh: boolean = false) {
+        if (refresh) {
+            this.isLoadingTags = true;
+        }
+
+        this.gameService.getReviewTags(gameId, refresh).subscribe({
+            next: (response: any) => {
+                if (refresh) this.isLoadingTags = false;
+                if (response.success) {
+                    // Map API response to reviewTags format
+                    const positiveTags = response.positive_tags.map((tag: any) => ({
+                        label: tag.tag,
+                        count: tag.count,
+                        severity: 'success'
+                    }));
+
+                    const negativeTags = response.negative_tags.map((tag: any) => ({
+                        label: tag.tag,
+                        count: tag.count,
+                        severity: 'danger'
+                    }));
+
+                    this.game.reviewTags = [...positiveTags, ...negativeTags];
+                    console.log(`Loaded ${this.game.reviewTags.length} review tags (Refreshed: ${refresh})`);
+                }
+            },
+            error: (err) => {
+                console.error('Error loading review tags:', err);
+                // Keep empty array if error
+            }
+        });
+    }
+
+    refreshTags() {
+        if (this.gameId) {
+            this.loadReviewTags(parseInt(this.gameId), true);
+        }
+    }
+
+    loadFavoriteStatus(gameId: number) {
+        const user = this.authService.getCurrentUserValue();
+        if (!user) {
+            this.isFavorited = false;
+            return;
+        }
+
+        this.favoriteService.isFavorited(user.id, gameId).subscribe({
+            next: (response) => {
+                this.isFavorited = response.is_favorited;
+            },
+            error: (err) => {
+                console.error('Error checking favorite status:', err);
+                this.isFavorited = false;
+            }
+        });
+    }
+
+    toggleFavorite() {
+        const user = this.authService.getCurrentUserValue();
+        if (!user) {
+            alert('กรุณาเข้าสู่ระบบเพื่อเพิ่มเกมในรายการโปรด');
+            this.router.navigate(['/login']);
+            return;
+        }
+
+        if (!this.gameId) return;
+
+        this.isTogglingFavorite = true;
+        const gameIdNum = parseInt(this.gameId);
+
+        if (this.isFavorited) {
+            // Remove from favorites
+            this.favoriteService.removeFavorite(user.id, gameIdNum).subscribe({
+                next: (response) => {
+                    this.isFavorited = false;
+                    this.isTogglingFavorite = false;
+                    console.log('Removed from favorites');
+                },
+                error: (err) => {
+                    console.error('Error removing favorite:', err);
+                    this.isTogglingFavorite = false;
+                    alert('เกิดข้อผิดพลาดในการลบออกจากรายการโปรด');
+                }
+            });
+        } else {
+            // Add to favorites
+            this.favoriteService.addFavorite(user.id, gameIdNum).subscribe({
+                next: (response) => {
+                    this.isFavorited = true;
+                    this.isTogglingFavorite = false;
+                    console.log('Added to favorites');
+                },
+                error: (err) => {
+                    console.error('Error adding favorite:', err);
+                    this.isTogglingFavorite = false;
+                    alert('เกิดข้อผิดพลาดในการเพิ่มในรายการโปรด');
+                }
+            });
+        }
+    }
+
+    // Comment methods
+    loadComments() {
+        if (!this.gameId) return;
+
+        const user = this.authService.getCurrentUserValue();
+        const userId = user ? user.id : undefined;
+
+        this.commentService.getComments(parseInt(this.gameId), userId).subscribe({
+            next: (comments) => {
+                this.comments = comments;
+            },
+            error: (err) => {
+                console.error('Error loading comments:', err);
+            }
+        });
+    }
+
+    submitComment() {
+        const user = this.authService.getCurrentUserValue();
+        if (!user) {
+            alert('กรุณาเข้าสู่ระบบเพื่อแสดงความคิดเห็น');
+            this.router.navigate(['/login']);
+            return;
+        }
+
+        if (!this.newComment.trim()) {
+            alert('กรุณากรอกความคิดเห็น');
+            return;
+        }
+
+        if (!this.gameId) return;
+
+        this.isSubmittingComment = true;
+
+        this.commentService.addComment(parseInt(this.gameId), user.id, this.newComment).subscribe({
+            next: () => {
+                this.newComment = '';
+                this.isSubmittingComment = false;
+                this.loadComments();
+            },
+            error: (err) => {
+                console.error('Error adding comment:', err);
+                alert('เกิดข้อผิดพลาดในการแสดงความคิดเห็น');
+                this.isSubmittingComment = false;
+            }
+        });
+    }
+
+    startEdit(comment: Comment) {
+        this.editingCommentId = comment.id;
+        this.editingContent = comment.content;
+    }
+
+    cancelEdit() {
+        this.editingCommentId = null;
+        this.editingContent = '';
+    }
+
+    saveEdit() {
+        const user = this.authService.getCurrentUserValue();
+        if (!user || !this.editingCommentId) return;
+
+        if (!this.editingContent.trim()) {
+            alert('กรุณากรอกความคิดเห็น');
+            return;
+        }
+
+        this.commentService.editComment(this.editingCommentId, user.id, this.editingContent).subscribe({
+            next: () => {
+                this.editingCommentId = null;
+                this.editingContent = '';
+                this.loadComments();
+            },
+            error: (err) => {
+                console.error('Error editing comment:', err);
+                alert('เกิดข้อผิดพลาดในการแก้ไขความคิดเห็น');
+            }
+        });
+    }
+
+    deleteComment(commentId: number) {
+        this.pendingDeleteCommentId = commentId;
+        this.showDeleteDialog = true;
+    }
+
+    confirmDelete() {
+        const user = this.authService.getCurrentUserValue();
+        if (!user || !this.pendingDeleteCommentId) return;
+
+        this.commentService.deleteComment(this.pendingDeleteCommentId, user.id).subscribe({
+            next: () => {
+                this.loadComments();
+                this.showDeleteDialog = false;
+                this.pendingDeleteCommentId = null;
+            },
+            error: (err) => {
+                console.error('Error deleting comment:', err);
+                alert('เกิดข้อผิดพลาดในการลบความคิดเห็น');
+                this.showDeleteDialog = false;
+            }
+        });
+    }
+
+    cancelDelete() {
+        this.showDeleteDialog = false;
+        this.pendingDeleteCommentId = null;
+    }
+
+    voteComment(commentId: number, voteType: 'up' | 'down') {
+        const user = this.authService.getCurrentUserValue();
+        if (!user) {
+            alert('กรุณาเข้าสู่ระบบเพื่อโหวต');
+            this.router.navigate(['/login']);
+            return;
+        }
+
+        // Only handle 'up' votes now (like button)
+        if (voteType === 'up') {
+            this.commentService.likeComment(commentId, user.id).subscribe({
+                next: () => {
+                    this.loadComments();
+                },
+                error: (err) => {
+                    console.error('Error liking comment:', err);
+                    alert('เกิดข้อผิดพลาดในการถูกใจ');
+                }
+            });
+        }
+    }
+
+    reportComment(commentId: number) {
+        const user = this.authService.getCurrentUserValue();
+        if (!user) {
+            alert('กรุณาเข้าสู่ระบบเพื่อรายงาน');
+            this.router.navigate(['/login']);
+            return;
+        }
+
+        this.pendingReportCommentId = commentId;
+        this.reportReason = '';
+        this.showReportDialog = true;
+    }
+
+    confirmReport() {
+        const user = this.authService.getCurrentUserValue();
+        if (!user || !this.pendingReportCommentId) return;
+
+        if (!this.reportReason.trim()) {
+            alert('กรุณาระบุเหตุผลในการรายงาน');
+            return;
+        }
+
+        this.commentService.reportComment(this.pendingReportCommentId, user.id, this.reportReason).subscribe({
+            next: () => {
+                alert('รายงานความคิดเห็นเรียบร้อยแล้ว');
+                this.showReportDialog = false;
+                this.pendingReportCommentId = null;
+                this.reportReason = '';
+            },
+            error: (err) => {
+                console.error('Error reporting comment:', err);
+                if (err.status === 400) {
+                    alert('คุณได้รายงานความคิดเห็นนี้แล้ว');
+                } else {
+                    alert('เกิดข้อผิดพลาดในการรายงาน');
+                }
+                this.showReportDialog = false;
+            }
+        });
+    }
+
+    cancelReport() {
+        this.showReportDialog = false;
+        this.pendingReportCommentId = null;
+        this.reportReason = '';
+    }
+
+    isOwnComment(comment: Comment): boolean {
+        const user = this.authService.getCurrentUserValue();
+        return user ? comment.user_id === user.id : false;
+    }
+
+    canDeleteComment(comment: Comment): boolean {
+        const user = this.authService.getCurrentUserValue();
+        if (!user) return false;
+        return comment.user_id === user.id || user.user_role === 'Admin';
+    }
+
+    formatCommentDate(dateString: string): string {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffMs = now.getTime() - date.getTime();
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        if (diffMins < 1) return 'เมื่อสักครู่';
+        if (diffMins < 60) return `${diffMins} นาทีที่แล้ว`;
+        if (diffHours < 24) return `${diffHours} ชั่วโมงที่แล้ว`;
+        if (diffDays < 7) return `${diffDays} วันที่แล้ว`;
+
+        return date.toLocaleDateString('th-TH');
     }
 }

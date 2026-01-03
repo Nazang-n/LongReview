@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
-from typing import List
+from sqlalchemy import text
+from typing import List, Optional
 from .. import models, schemas
 from ..database import get_db
+from datetime import date
 
 router = APIRouter(
     prefix="/api/games",
@@ -12,6 +14,9 @@ router = APIRouter(
 
 def serialize_game(game: models.Game) -> dict:
     """Convert Game model to dict with proper date serialization"""
+    # Try to get steam_app_id - it may not be loaded if backend wasn't restarted
+    steam_app_id = getattr(game, 'steam_app_id', None)
+    
     return {
         "id": game.id,
         "title": game.title,
@@ -24,7 +29,9 @@ def serialize_game(game: models.Game) -> dict:
         "publisher": game.publisher,
         "platform": game.platform,
         "price": game.price,
-        "video": game.video
+        "video": game.video,
+        "about_game_th": game.about_game_th,
+        "app_id": steam_app_id
     }
 
 
@@ -35,19 +42,31 @@ def get_games(
     db: Session = Depends(get_db)
 ):
     """
-    Get all games with pagination.
+    Get all games with pagination, sorted by newest release date first.
     
     - **skip**: Number of records to skip (default: 0)
     - **limit**: Maximum number of records to return (default: 100)
     """
-    games = db.query(models.Game).offset(skip).limit(limit).all()
+    games = db.query(models.Game).order_by(models.Game.release_date.desc()).offset(skip).limit(limit).all()
     return [serialize_game(game) for game in games]
+
+
+@router.get("/count")
+def get_games_count(db: Session = Depends(get_db)):
+    """
+    Get total count of games in database.
+    
+    Returns the total number of games for pagination.
+    """
+    count = db.query(models.Game).count()
+    return {"total": count}
 
 
 @router.get("/{game_id}", response_model=schemas.Game)
 def get_game(game_id: int, db: Session = Depends(get_db)):
     """
     Get a specific game by ID.
+    Auto-translates description to Thai if not already available.
     
     - **game_id**: The ID of the game to retrieve
     """
@@ -57,7 +76,37 @@ def get_game(game_id: int, db: Session = Depends(get_db)):
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Game with id {game_id} not found"
         )
-    return serialize_game(game)
+    
+    # Auto-translate to Thai if not available
+    if not game.about_game_th and game.description:
+        try:
+            from ..utils.translator import translator
+            print(f"Auto-translating game {game_id} description to Thai...")
+            
+            # Translate description to Thai
+            thai_translation = translator.translate_to_thai(game.description)
+            
+            # Save to database for caching
+            if thai_translation and thai_translation != game.description:
+                game.about_game_th = thai_translation
+                db.commit()
+                db.refresh(game)
+                print(f"Thai translation saved for game {game_id}")
+        except Exception as e:
+            print(f"Translation error for game {game_id}: {e}")
+            # Continue without translation if it fails
+    
+    # Get steam_app_id using raw SQL and add to response
+    result = db.execute(
+        text("SELECT steam_app_id FROM game WHERE id = :game_id"),
+        {"game_id": game_id}
+    )
+    row = result.fetchone()
+    
+    game_dict = serialize_game(game)
+    game_dict["app_id"] = row[0] if row else None
+    
+    return game_dict
 
 
 @router.post("/", response_model=schemas.Game, status_code=status.HTTP_201_CREATED)

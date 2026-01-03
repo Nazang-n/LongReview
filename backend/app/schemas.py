@@ -42,6 +42,7 @@ class GameBase(BaseModel):
     platform: Optional[str] = None
     price: Optional[str] = None
     video: Optional[str] = None
+    about_game_th: Optional[str] = None
 
 
 class GameCreate(GameBase):
@@ -60,6 +61,7 @@ class GameUpdate(BaseModel):
     platform: Optional[str] = None
     price: Optional[str] = None
     video: Optional[str] = None
+    about_game_th: Optional[str] = None
 
 
 class Game(GameBase):

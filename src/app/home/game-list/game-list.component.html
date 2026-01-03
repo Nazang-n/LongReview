@@ -126,7 +126,7 @@
             <div *ngIf="isLoading" class="flex items-center justify-center py-20">
                 <div class="text-center">
                     <i class="pi pi-spin pi-spinner text-4xl text-purple-500 mb-4"></i>
-                    <p class="text-gray-600">กำลังโหลดเกมจาก SteamSpy...</p>
+                    <p class="text-gray-600">กำลังโหลดเกม...</p>
                 </div>
             </div>
 
@@ -142,8 +142,25 @@
                 </div>
             </div>
 
+            <!-- Search Bar -->
+            <div *ngIf="!isLoading" class="mb-6">
+                <div class="relative">
+                    <i class="pi pi-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg"></i>
+                    <input type="text" [(ngModel)]="searchQuery" (input)="filterGames()"
+                        placeholder="ค้นหาเกม... (เช่น Grand Theft Auto)"
+                        class="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-700 placeholder-gray-400" />
+                </div>
+            </div>
+
+            <!-- No Results Message -->
+            <div *ngIf="!isLoading && games.length === 0 && searchQuery" class="text-center py-20">
+                <i class="pi pi-search text-6xl text-gray-300 mb-4"></i>
+                <p class="text-gray-600 text-lg font-semibold">ไม่พบเกมที่ค้นหา "{{ searchQuery }}"</p>
+                <p class="text-gray-400 text-sm mt-2">ลองค้นหาด้วยคำอื่นหรือตรวจสอบการสะกดคำ</p>
+            </div>
+
             <!-- Game Grid (3 columns) -->
-            <div *ngIf="!isLoading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div *ngIf="!isLoading && games.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div *ngFor="let game of games" [routerLink]="['/game', game.id]"
                     class="game-card bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group border border-gray-100">
 
@@ -187,9 +204,9 @@
                         </h3>
 
                         <!-- Description -->
-                        <p class="text-sm text-gray-500 mb-3 line-clamp-2 leading-relaxed">
+                        <!-- <p class="text-sm text-gray-500 mb-3 line-clamp-2 leading-relaxed">
                             {{ game.description }}
-                        </p>
+                        </p> -->
 
                         <!-- Footer: Date, Genres and Review Tags -->
                         <div class="pt-3 border-t border-gray-100 space-y-2">
@@ -215,6 +232,36 @@
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <!-- Pagination -->
+            <div *ngIf="!isLoading && games.length > 0" class="mt-8 flex justify-center items-center gap-2">
+                <!-- Previous Button -->
+                <button (click)="previousPage()" [disabled]="currentPage === 1"
+                    class="px-4 py-2 rounded-lg border transition-colors" [ngClass]="{
+                        'bg-gray-100 text-gray-400 cursor-not-allowed': currentPage === 1,
+                        'bg-white text-gray-700 hover:bg-purple-50 hover:border-purple-500': currentPage !== 1
+                    }">
+                    <i class="pi pi-chevron-left"></i>
+                </button>
+
+                <!-- Page Numbers -->
+                <button *ngFor="let page of pageNumbers" (click)="goToPage(page)"
+                    class="px-4 py-2 rounded-lg border transition-colors min-w-[40px]" [ngClass]="{
+                        'bg-purple-500 text-white border-purple-500': page === currentPage,
+                        'bg-white text-gray-700 hover:bg-purple-50 hover:border-purple-500': page !== currentPage
+                    }">
+                    {{ page }}
+                </button>
+
+                <!-- Next Button -->
+                <button (click)="nextPage()" [disabled]="currentPage === totalPages"
+                    class="px-4 py-2 rounded-lg border transition-colors" [ngClass]="{
+                        'bg-gray-100 text-gray-400 cursor-not-allowed': currentPage === totalPages,
+                        'bg-white text-gray-700 hover:bg-purple-50 hover:border-purple-500': currentPage !== totalPages
+                    }">
+                    <i class="pi pi-chevron-right"></i>
+                </button>
             </div>
         </main>
     </div>

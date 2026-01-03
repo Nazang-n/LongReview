@@ -108,10 +108,25 @@ def import_game_from_steam(
                 "game": existing_game
             }
         
+        # Import translator
+        from ..utils.translator import translator
+        
+        # Get English description
+        english_desc = app_details.get("short_description")
+        
+        # Translate to Thai
+        thai_desc = None
+        if english_desc:
+            thai_desc = translator.translate_to_thai(english_desc)
+            print(f"DEBUG: English desc length: {len(english_desc) if english_desc else 0}")
+            print(f"DEBUG: Thai desc length: {len(thai_desc) if thai_desc else 0}")
+            print(f"DEBUG: Thai desc is same as English: {thai_desc == english_desc if thai_desc and english_desc else 'N/A'}")
+        
         # Create new game
         new_game = models.Game(
             title=app_details.get("name"),
-            description=app_details.get("short_description"),
+            description=english_desc,  # English description
+            about_game_th=thai_desc,   # Thai translation
             genre=", ".join([g["description"] for g in app_details.get("genres", [])[:3]]),
             image_url=app_details.get("header_image"),
             release_date=app_details.get("release_date", {}).get("date"),
@@ -334,23 +349,20 @@ def import_games_batch_from_steamspy(
                 continue
             
             try:
-                # Check if game already exists
+                # Check if game already exists (by title OR steam_app_id)
                 existing_game = db.query(models.Game).filter(
-                    models.Game.title == game.get('name')
+                    (models.Game.title == game.get('name')) |
+                    (models.Game.steam_app_id == int(app_id))
                 ).first()
                 
                 if existing_game:
                     skipped_count += 1
                     continue
                 
-                # Fetch detailed info from Steam API (Thai language first)
-                steam_details_th = SteamAPIClient.get_app_details(int(app_id), language="thai", country_code="th")
+                # Fetch detailed info from Steam API (English for reliable date parsing)
+                steam_details_en = SteamAPIClient.get_app_details(int(app_id), language="english", country_code="us")
                 
-                if not steam_details_th:
-                    # Try English as fallback
-                    steam_details_th = SteamAPIClient.get_app_details(int(app_id), language="english", country_code="us")
-                
-                if not steam_details_th:
+                if not steam_details_en:
                     # Use SteamSpy data as fallback
                     new_game = models.Game(
                         title=game.get('name', 'Unknown'),
@@ -365,20 +377,46 @@ def import_games_batch_from_steamspy(
                         video=None
                     )
                 else:
-                    # Import translator
+                    # Also fetch Thai version for Thai description (if available)
+                    steam_details_th = SteamAPIClient.get_app_details(int(app_id), language="thai", country_code="th")
+                    
+                    # Import utilities
                     from ..utils.translator import translator
+                    from ..utils.text_cleaner import clean_html_text
                     
-                    # Get description (Thai or translated)
-                    thai_desc = steam_details_th.get('short_description')
+                    # Try to get Thai description first, fallback to English + translation
+                    thai_desc = None
+                    english_desc = None
                     
-                    # If description is in English, translate it
-                    if thai_desc:
-                        final_desc = translator.get_thai_description(thai_desc, thai_desc)
-                    else:
-                        final_desc = None
+                    # Get English description first
+                    about_game_en = steam_details_en.get('about_the_game')
+                    short_desc_en = steam_details_en.get('short_description')
+                    
+                    if about_game_en:
+                        english_desc = clean_html_text(about_game_en)
+                    elif short_desc_en:
+                        english_desc = clean_html_text(short_desc_en)
+                    
+                    if steam_details_th:
+                        # Try Thai about_the_game
+                        about_game_th = steam_details_th.get('about_the_game')
+                        if about_game_th:
+                            cleaned_thai = clean_html_text(about_game_th)
+                            # Verify it's actually Thai, not English
+                            detected_lang = translator.detect_language(cleaned_thai)
+                            if detected_lang == 'th':
+                                thai_desc = cleaned_thai
+                                print(f"   ✓ Using native Thai description")
+                            else:
+                                print(f"   ⚠ Steam Thai API returned {detected_lang}, not Thai. Will translate.")
+                    
+                    # If no Thai description, translate English
+                    if not thai_desc and english_desc:
+                        thai_desc = translator.translate_to_thai(english_desc)
+                        print(f"   ⚡ Translated English description to Thai")
                     
                     # Extract platform info
-                    platforms = steam_details_th.get('platforms', {})
+                    platforms = steam_details_en.get('platforms', {})
                     platform_list = []
                     if platforms.get('windows'): platform_list.append('Windows')
                     if platforms.get('mac'): platform_list.append('Mac')
@@ -386,43 +424,74 @@ def import_games_batch_from_steamspy(
                     platform_str = ', '.join(platform_list) if platform_list else None
                     
                     # Extract price info
-                    price_overview = steam_details_th.get('price_overview', {})
+                    price_overview = steam_details_en.get('price_overview', {})
                     price_str = price_overview.get('final_formatted') if price_overview else None
                     
                     # Extract video URL (first movie)
-                    movies = steam_details_th.get('movies', [])
+                    movies = steam_details_en.get('movies', [])
                     video_url = movies[0].get('webm', {}).get('480') if movies else None
                     if not video_url and movies:
                         video_url = movies[0].get('mp4', {}).get('480')
                     
-                    # Parse release date
-                    release_date_str = steam_details_th.get('release_date', {}).get('date')
+                    # Parse release date (from English API for reliable parsing)
+                    release_date_info = steam_details_en.get('release_date', {})
+                    release_date_str = release_date_info.get('date')
+                    coming_soon = release_date_info.get('coming_soon', False)
+                    
+                    # Debug: Print raw release date info
+                    print(f"🔍 Game: {steam_details_en.get('name')}")
+                    print(f"   Release date info: {release_date_info}")
+                    print(f"   Date string: '{release_date_str}'")
+                    print(f"   Coming soon: {coming_soon}")
+                    
                     release_date_obj = None
-                    if release_date_str:
+                    if release_date_str and not coming_soon:
                         try:
                             from datetime import datetime
-                            # Try different date formats
-                            for fmt in ['%d %b, %Y', '%b %d, %Y', '%Y-%m-%d', '%d %B, %Y']:
+                            # Try different date formats that Steam uses
+                            date_formats = [
+                                '%d %b, %Y',      # "9 Jul, 2013"
+                                '%b %d, %Y',      # "Jul 9, 2013"
+                                '%d %B, %Y',      # "9 July, 2013"
+                                '%B %d, %Y',      # "July 9, 2013"
+                                '%Y-%m-%d',       # "2013-07-09"
+                                '%d %b %Y',       # "9 Jul 2013" (without comma)
+                                '%b %d %Y',       # "Jul 9 2013" (without comma)
+                                '%Y',             # "2013" (year only)
+                            ]
+                            
+                            for fmt in date_formats:
                                 try:
                                     release_date_obj = datetime.strptime(release_date_str, fmt).date()
+                                    print(f"   ✓ Parsed date '{release_date_str}' using format '{fmt}' -> {release_date_obj}")
                                     break
                                 except ValueError:
                                     continue
-                        except:
+                            
+                            if not release_date_obj:
+                                print(f"   ⚠ Failed to parse date: '{release_date_str}'")
+                        except Exception as e:
+                            print(f"   ⚠ Error parsing date '{release_date_str}': {e}")
                             pass
+                    elif coming_soon:
+                        print(f"   ⏳ Game is coming soon, skipping date")
+                    else:
+                        print(f"   ⚠ No release date string found")
                     
-                    # Use Steam API data (with Thai language support)
+                    # Use Steam API data (English in description, Thai in about_game_th)
                     new_game = models.Game(
-                        title=steam_details_th.get('name'),
-                        description=final_desc,  # Thai or translated description
-                        genre=", ".join([g["description"] for g in steam_details_th.get("genres", [])[:3]]),
-                        image_url=steam_details_th.get('header_image'),
+                        title=steam_details_en.get('name'),
+                        description=english_desc,  # English description
+                        about_game_th=thai_desc,   # Thai description (native or translated)
+                        genre=", ".join([g["description"] for g in steam_details_en.get("genres", [])[:3]]),
+                        image_url=steam_details_en.get('header_image'),
                         release_date=release_date_obj,
-                        developer=", ".join(steam_details_th.get('developers', [])),
-                        publisher=", ".join(steam_details_th.get('publishers', [])),
+                        developer=", ".join(steam_details_en.get('developers', [])),
+                        publisher=", ".join(steam_details_en.get('publishers', [])),
                         platform=platform_str,
                         price=price_str,
-                        video=video_url
+                        video=video_url,
+                        steam_app_id=int(app_id)  # Store Steam App ID
                     )
                 
                 db.add(new_game)
@@ -459,5 +528,295 @@ def import_games_batch_from_steamspy(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error during batch import: {str(e)}"
+        )
+
+
+@router.post("/steamspy/import/batch/newest")
+def import_newest_games_from_steamspy(
+    limit: int = Query(50, description="Number of newest games to import", ge=1, le=500),
+    db: Session = Depends(get_db)
+):
+    """
+    Import newest games from SteamSpy into the database
+    
+    - **limit**: Number of newest games to import (1-500, default: 50)
+    
+    This will fetch newest games from SteamSpy (sorted by release date), 
+    then get detailed info from Steam API, and import them into your database
+    """
+    try:
+        # Get newest games from SteamSpy
+        newest_games = SteamAPIClient.get_newest_games_from_steamspy(limit=limit)
+        
+        if not newest_games:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to fetch newest games from SteamSpy"
+            )
+        
+        imported_count = 0
+        skipped_count = 0
+        failed_count = 0
+        
+        for game in newest_games:
+            app_id = game.get('app_id')
+            
+            if not app_id:
+                continue
+            
+            try:
+                # Check if game already exists (by title OR steam_app_id)
+                existing_game = db.query(models.Game).filter(
+                    (models.Game.title == game.get('name')) |
+                    (models.Game.steam_app_id == int(app_id))
+                ).first()
+                
+                if existing_game:
+                    skipped_count += 1
+                    continue
+                
+                # Fetch detailed info from Steam API (English for reliable date parsing)
+                steam_details_en = SteamAPIClient.get_app_details(int(app_id), language="english", country_code="us")
+                
+                if not steam_details_en:
+                    # Use SteamSpy data as fallback
+                    new_game = models.Game(
+                        title=game.get('name', 'Unknown'),
+                        description=game.get('developer', ''),
+                        genre=game.get('genre', ''),
+                        image_url=None,
+                        release_date=None,
+                        developer=game.get('developer', ''),
+                        publisher=game.get('publisher', ''),
+                        platform=None,
+                        price=None,
+                        video=None
+                    )
+                else:
+                    # Also fetch Thai version for Thai description (if available)
+                    steam_details_th = SteamAPIClient.get_app_details(int(app_id), language="thai", country_code="th")
+                    
+                    # Import utilities
+                    from ..utils.translator import translator
+                    from ..utils.text_cleaner import clean_html_text
+                    
+                    # Try to get Thai description first, fallback to English + translation
+                    thai_desc = None
+                    english_desc = None
+                    
+                    # Get English description first
+                    about_game_en = steam_details_en.get('about_the_game')
+                    short_desc_en = steam_details_en.get('short_description')
+                    
+                    if about_game_en:
+                        english_desc = clean_html_text(about_game_en)
+                    elif short_desc_en:
+                        english_desc = clean_html_text(short_desc_en)
+                    
+                    if steam_details_th:
+                        # Try Thai about_the_game
+                        about_game_th = steam_details_th.get('about_the_game')
+                        if about_game_th:
+                            cleaned_thai = clean_html_text(about_game_th)
+                            # Verify it's actually Thai, not English
+                            detected_lang = translator.detect_language(cleaned_thai)
+                            if detected_lang == 'th':
+                                thai_desc = cleaned_thai
+                                print(f"   ✓ Using native Thai description")
+                            else:
+                                print(f"   ⚠ Steam Thai API returned {detected_lang}, not Thai. Will translate.")
+                    
+                    # If no Thai description, translate English
+                    if not thai_desc and english_desc:
+                        thai_desc = translator.translate_to_thai(english_desc)
+                        print(f"   ⚡ Translated English description to Thai")
+                    
+                    # Extract platform info
+                    platforms = steam_details_en.get('platforms', {})
+                    platform_list = []
+                    if platforms.get('windows'): platform_list.append('Windows')
+                    if platforms.get('mac'): platform_list.append('Mac')
+                    if platforms.get('linux'): platform_list.append('Linux')
+                    platform_str = ', '.join(platform_list) if platform_list else None
+                    
+                    # Extract price info
+                    price_overview = steam_details_en.get('price_overview', {})
+                    price_str = price_overview.get('final_formatted') if price_overview else None
+                    
+                    # Extract video URL (first movie)
+                    movies = steam_details_en.get('movies', [])
+                    video_url = movies[0].get('webm', {}).get('480') if movies else None
+                    if not video_url and movies:
+                        video_url = movies[0].get('mp4', {}).get('480')
+                    
+                    # Parse release date (from English API for reliable parsing)
+                    release_date_info = steam_details_en.get('release_date', {})
+                    release_date_str = release_date_info.get('date')
+                    coming_soon = release_date_info.get('coming_soon', False)
+                    
+                    # Debug: Print raw release date info
+                    print(f"🔍 Game: {steam_details_en.get('name')}")
+                    print(f"   Release date info: {release_date_info}")
+                    print(f"   Date string: '{release_date_str}'")
+                    print(f"   Coming soon: {coming_soon}")
+                    
+                    release_date_obj = None
+                    if release_date_str and not coming_soon:
+                        try:
+                            from datetime import datetime
+                            # Try different date formats that Steam uses
+                            date_formats = [
+                                '%d %b, %Y',      # "9 Jul, 2013"
+                                '%b %d, %Y',      # "Jul 9, 2013"
+                                '%d %B, %Y',      # "9 July, 2013"
+                                '%B %d, %Y',      # "July 9, 2013"
+                                '%Y-%m-%d',       # "2013-07-09"
+                                '%d %b %Y',       # "9 Jul 2013" (without comma)
+                                '%b %d %Y',       # "Jul 9 2013" (without comma)
+                                '%Y',             # "2013" (year only)
+                            ]
+                            
+                            for fmt in date_formats:
+                                try:
+                                    release_date_obj = datetime.strptime(release_date_str, fmt).date()
+                                    print(f"   ✓ Parsed date '{release_date_str}' using format '{fmt}' -> {release_date_obj}")
+                                    break
+                                except ValueError:
+                                    continue
+                            
+                            if not release_date_obj:
+                                print(f"   ⚠ Failed to parse date: '{release_date_str}'")
+                        except Exception as e:
+                            print(f"   ⚠ Error parsing date '{release_date_str}': {e}")
+                            pass
+                    elif coming_soon:
+                        print(f"   ⏳ Game is coming soon, skipping date")
+                    else:
+                        print(f"   ⚠ No release date string found")
+                    
+                    # Use Steam API data (English in description, Thai in about_game_th)
+                    new_game = models.Game(
+                        title=steam_details_en.get('name'),
+                        description=english_desc,  # English description
+                        about_game_th=thai_desc,   # Thai description (native or translated)
+                        genre=", ".join([g["description"] for g in steam_details_en.get("genres", [])[:3]]),
+                        image_url=steam_details_en.get('header_image'),
+                        release_date=release_date_obj,
+                        developer=", ".join(steam_details_en.get('developers', [])),
+                        publisher=", ".join(steam_details_en.get('publishers', [])),
+                        platform=platform_str,
+                        price=price_str,
+                        video=video_url,
+                        steam_app_id=int(app_id)  # Store Steam App ID
+                    )
+                
+                db.add(new_game)
+                imported_count += 1
+                
+                # Commit every 10 games to avoid losing progress
+                if imported_count % 10 == 0:
+                    db.commit()
+                
+                # Be nice to APIs - add delay
+                time.sleep(1.5)
+                
+            except Exception as e:
+                print(f"Error importing game {app_id}: {e}")
+                failed_count += 1
+                continue
+        
+        # Final commit
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": f"Batch import of newest games completed",
+            "imported": imported_count,
+            "skipped": skipped_count,
+            "failed": failed_count,
+            "total_processed": imported_count + skipped_count + failed_count
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error during batch import: {str(e)}"
+        )
+
+
+@router.post("/steamspy/update-app-ids")
+def update_steam_app_ids(
+    limit: int = Query(100, description="Number of games to update", ge=1, le=500),
+    db: Session = Depends(get_db)
+):
+    """
+    Update steam_app_id for existing games by matching title with SteamSpy
+    
+    This is useful for games imported before steam_app_id column was added.
+    """
+    try:
+        # Get games without steam_app_id
+        games_without_appid = db.query(models.Game).filter(
+            models.Game.steam_app_id.is_(None)
+        ).limit(limit).all()
+        
+        if not games_without_appid:
+            return {
+                "success": True,
+                "message": "All games already have steam_app_id",
+                "updated": 0
+            }
+        
+        # Get all games from SteamSpy
+        print(f"📥 Fetching game list from SteamSpy...")
+        steamspy_data = SteamAPIClient.get_all_games_from_steamspy()
+        
+        if not steamspy_data:
+            return {
+                "success": False,
+                "message": "Failed to fetch data from SteamSpy",
+                "updated": 0
+            }
+        
+        # Create a mapping of game names to app_ids
+        name_to_appid = {}
+        for app_id, game_data in steamspy_data.items():
+            game_name = game_data.get('name', '').strip().lower()
+            if game_name:
+                name_to_appid[game_name] = app_id
+        
+        updated_count = 0
+        not_found_count = 0
+        
+        for game in games_without_appid:
+            game_name_lower = game.title.strip().lower()
+            
+            # Try exact match first
+            if game_name_lower in name_to_appid:
+                game.steam_app_id = name_to_appid[game_name_lower]
+                updated_count += 1
+                print(f"   ✓ Updated {game.title} -> App ID: {game.steam_app_id}")
+            else:
+                not_found_count += 1
+                print(f"   ✗ Not found: {game.title}")
+        
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": f"Updated {updated_count} games with steam_app_id",
+            "updated": updated_count,
+            "not_found": not_found_count,
+            "total_processed": updated_count + not_found_count
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error updating steam_app_ids: {str(e)}"
         )
 
