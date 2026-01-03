@@ -157,6 +157,13 @@ export class GameService {
     }
 
     /**
+     * Get sentiment for multiple games at once (for game list)
+     */
+    getBatchSentiment(gameIds: number[]): Observable<any> {
+        return this.http.post<any>('http://localhost:8000/api/reviews/sentiment/batch', gameIds);
+    }
+
+    /**
      * Get review tags (positive/negative keywords from Thai reviews)
      */
     getReviewTags(gameId: number, refresh: boolean = false): Observable<any> {

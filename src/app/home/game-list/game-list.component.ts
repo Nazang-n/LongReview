@@ -14,7 +14,7 @@ interface Game {
     genres: string[];
     reviewTags: string[];
     image: string;
-    reviewType: 'positive' | 'negative' | 'mixed';
+    reviewType?: 'positive' | 'negative' | 'mixed';  // Optional - set by sentiment data
     isNew?: boolean;
     appId?: string;
 }
@@ -48,9 +48,6 @@ export class GameListComponent implements OnInit {
                 if (gamesFromDb && gamesFromDb.length > 0) {
                     // Map database games to display format
                     this.games = gamesFromDb.map((game: any) => {
-                        // Determine review type (placeholder - can be calculated from reviews later)
-                        const reviewType: 'positive' | 'negative' | 'mixed' = 'positive';
-
                         // Extract genres
                         const genres = game.genre ? game.genre.split(',').slice(0, 2).map((g: string) => g.trim()) : [];
 
@@ -62,7 +59,7 @@ export class GameListComponent implements OnInit {
                             genres: genres,
                             reviewTags: [],
                             image: game.image_url || `https://via.placeholder.com/460x215?text=${encodeURIComponent(game.title)}`,
-                            reviewType: reviewType,
+                            reviewType: undefined,  // Will be set by loadGameSentiments()
                             isNew: false,
                             platform: game.platform,
                             price: game.price
@@ -70,6 +67,9 @@ export class GameListComponent implements OnInit {
                     });
 
                     this.isLoading = false;
+
+                    // Load sentiment data for review badges
+                    this.loadGameSentiments();
                 } else {
                     // No games in database - show message
                     this.error = 'No games found in database. Please import games first using: POST /api/steam/steamspy/import/batch';
@@ -127,5 +127,34 @@ export class GameListComponent implements OnInit {
 
     toggleFilter() {
         this.isFilterOpen = !this.isFilterOpen;
+    }
+
+    loadGameSentiments() {
+        const gameIds = this.games.map(g => g.id);
+
+        if (gameIds.length === 0) return;
+
+        this.gameService.getBatchSentiment(gameIds).subscribe({
+            next: (sentiments) => {
+                this.games.forEach(game => {
+                    const sentiment = sentiments[game.id];
+                    if (sentiment) {
+                        const diff = Math.abs(sentiment.positive_percent - sentiment.negative_percent);
+
+                        // Determine review type based on percentages
+                        if (diff <= 10) {
+                            game.reviewType = 'mixed';
+                        } else if (sentiment.positive_percent > sentiment.negative_percent) {
+                            game.reviewType = 'positive';
+                        } else {
+                            game.reviewType = 'negative';
+                        }
+                    }
+                });
+            },
+            error: (err) => {
+                console.error('Error loading sentiment data:', err);
+            }
+        });
     }
 }
