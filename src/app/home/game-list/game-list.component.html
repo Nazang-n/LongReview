@@ -160,8 +160,9 @@
             </div>
 
             <!-- Game Grid (3 columns) -->
-            <div *ngIf="!isLoading && games.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div *ngFor="let game of games" [routerLink]="['/game', game.id]"
+            <div *ngIf="!isLoading && paginatedGames.length > 0"
+                class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div *ngFor="let game of paginatedGames" [routerLink]="['/game', game.id]"
                     class="game-card bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group border border-gray-100">
 
                     <!-- Game Image -->
@@ -235,7 +236,7 @@
             </div>
 
             <!-- Pagination -->
-            <div *ngIf="!isLoading && games.length > 0" class="mt-8 flex justify-center items-center gap-2">
+            <div *ngIf="!isLoading && paginatedGames.length > 0" class="mt-8 flex justify-center items-center gap-2">
                 <!-- Previous Button -->
                 <button (click)="previousPage()" [disabled]="currentPage === 1"
                     class="px-4 py-2 rounded-lg border transition-colors" [ngClass]="{

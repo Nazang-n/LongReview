@@ -30,14 +30,15 @@ interface Game {
 export class GameListComponent implements OnInit {
     isFilterOpen = true;
     allGames: Game[] = [];  // Store all games
-    games: Game[] = [];  // Display games (filtered/sorted)
+    games: Game[] = [];  // Filtered games (after search)
+    paginatedGames: Game[] = [];  // Games to display on current page
     isLoading = true;
     error: string | null = null;
     searchQuery: string = '';  // Search input
 
     // Pagination
     currentPage = 1;
-    gamesPerPage = 30;
+    gamesPerPage = 12;  // Show 12 games per page
     totalGames = 0;
 
     constructor(private gameService: GameService) { }
@@ -50,16 +51,9 @@ export class GameListComponent implements OnInit {
         this.isLoading = true;
         this.error = null;
 
-        const skip = (this.currentPage - 1) * this.gamesPerPage;
-
-        // Fetch both games and total count
-        forkJoin({
-            games: this.gameService.getGames(skip, this.gamesPerPage),
-            count: this.gameService.getGamesCount()
-        }).subscribe({
-            next: ({ games: gamesFromDb, count }) => {
-                this.totalGames = count.total;
-
+        // Load ALL games at once (no pagination from backend)
+        this.gameService.getGames(0, 1000).subscribe({  // Load up to 1000 games
+            next: (gamesFromDb) => {
                 if (gamesFromDb && gamesFromDb.length > 0) {
                     // Map database games to display format
                     this.allGames = gamesFromDb.map((game: any) => {
@@ -81,13 +75,9 @@ export class GameListComponent implements OnInit {
                         };
                     });
 
-                    // Sort games by release date (newest first)
-                    this.games.sort((a, b) => {
-                        if (!a.releaseDate || a.releaseDate === 'Unknown') return 1;
-                        if (!b.releaseDate || b.releaseDate === 'Unknown') return -1;
-                        return new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime();
-                    });
-                    // Sort by release date (newest first) when no search
+                    this.totalGames = this.allGames.length;
+
+                    // Sort by release date (newest first)
                     this.sortByReleaseDate();
 
                     this.isLoading = false;
@@ -101,7 +91,7 @@ export class GameListComponent implements OnInit {
                     this.loadFallbackGames();
                 }
             },
-            error: (err) => {
+            error: (err: any) => {
                 console.error('Error loading games from database:', err);
                 this.error = 'Failed to connect to server';
                 this.isLoading = false;
@@ -155,7 +145,7 @@ export class GameListComponent implements OnInit {
 
     // Pagination methods
     get totalPages(): number {
-        return Math.ceil(this.totalGames / this.gamesPerPage);
+        return Math.ceil(this.games.length / this.gamesPerPage);
     }
 
     get pageNumbers(): number[] {
@@ -178,7 +168,7 @@ export class GameListComponent implements OnInit {
     goToPage(page: number) {
         if (page >= 1 && page <= this.totalPages) {
             this.currentPage = page;
-            this.loadGamesFromDatabase();
+            this.getPaginatedGames();  // Get paginated slice
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
     }
@@ -231,6 +221,10 @@ export class GameListComponent implements OnInit {
         this.games = this.allGames.filter(game =>
             game.title.toLowerCase().includes(query)
         );
+
+        // Reset to page 1 and paginate
+        this.currentPage = 1;
+        this.getPaginatedGames();
     }
 
     sortByReleaseDate() {
@@ -240,5 +234,14 @@ export class GameListComponent implements OnInit {
             const dateB = new Date(b.releaseDate);
             return dateB.getTime() - dateA.getTime();
         });
+
+        // Paginate after sorting
+        this.getPaginatedGames();
+    }
+
+    getPaginatedGames() {
+        const start = (this.currentPage - 1) * this.gamesPerPage;
+        const end = start + this.gamesPerPage;
+        this.paginatedGames = this.games.slice(start, end);
     }
 }
