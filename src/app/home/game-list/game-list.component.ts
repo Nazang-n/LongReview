@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { HeaderComponent } from '../../shared/header.component';
 import { FooterComponent } from '../../shared/footer.component';
 import { GameService } from '../../services/game.service';
@@ -22,15 +23,17 @@ interface Game {
 @Component({
     selector: 'app-game-list',
     standalone: true,
-    imports: [CommonModule, RouterModule, HeaderComponent, FooterComponent],
+    imports: [CommonModule, RouterModule, HeaderComponent, FooterComponent, FormsModule],
     templateUrl: './game-list.component.html',
     styleUrls: ['./game-list.component.css']
 })
 export class GameListComponent implements OnInit {
     isFilterOpen = true;
-    games: Game[] = [];
+    allGames: Game[] = [];  // Store all games
+    games: Game[] = [];  // Display games (filtered/sorted)
     isLoading = true;
     error: string | null = null;
+    searchQuery: string = '';  // Search input
 
     constructor(private gameService: GameService) { }
 
@@ -47,7 +50,7 @@ export class GameListComponent implements OnInit {
             next: (gamesFromDb) => {
                 if (gamesFromDb && gamesFromDb.length > 0) {
                     // Map database games to display format
-                    this.games = gamesFromDb.map((game: any) => {
+                    this.allGames = gamesFromDb.map((game: any) => {
                         // Extract genres
                         const genres = game.genre ? game.genre.split(',').slice(0, 2).map((g: string) => g.trim()) : [];
 
@@ -65,6 +68,9 @@ export class GameListComponent implements OnInit {
                             price: game.price
                         };
                     });
+
+                    // Sort by release date (newest first) when no search
+                    this.sortByReleaseDate();
 
                     this.isLoading = false;
 
@@ -155,6 +161,29 @@ export class GameListComponent implements OnInit {
             error: (err) => {
                 console.error('Error loading sentiment data:', err);
             }
+        });
+    }
+
+    filterGames() {
+        if (!this.searchQuery.trim()) {
+            // No search query - show all games sorted by release date
+            this.sortByReleaseDate();
+            return;
+        }
+
+        // Filter games by title (case-insensitive, partial match)
+        const query = this.searchQuery.toLowerCase();
+        this.games = this.allGames.filter(game =>
+            game.title.toLowerCase().includes(query)
+        );
+    }
+
+    sortByReleaseDate() {
+        // Sort by release date (newest first)
+        this.games = [...this.allGames].sort((a, b) => {
+            const dateA = new Date(a.releaseDate);
+            const dateB = new Date(b.releaseDate);
+            return dateB.getTime() - dateA.getTime();
         });
     }
 }
