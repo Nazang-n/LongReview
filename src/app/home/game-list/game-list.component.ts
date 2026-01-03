@@ -1,10 +1,13 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { RouterModule, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { HeaderComponent } from '../../shared/header.component';
 import { FooterComponent } from '../../shared/footer.component';
 import { GameService } from '../../services/game.service';
+import { FavoriteService } from '../../services/favorite.service';
+import { AuthService } from '../../services/auth.service';
+import { DialogModule } from 'primeng/dialog';
 import { forkJoin } from 'rxjs';
 
 interface Game {
@@ -18,12 +21,13 @@ interface Game {
     reviewType?: 'positive' | 'negative' | 'mixed';  // Optional - set by sentiment data
     isNew?: boolean;
     appId?: string;
+    isFavorite?: boolean;  // Is this game in user's favorites?
 }
 
 @Component({
     selector: 'app-game-list',
     standalone: true,
-    imports: [CommonModule, RouterModule, HeaderComponent, FooterComponent, FormsModule],
+    imports: [CommonModule, RouterModule, HeaderComponent, FooterComponent, FormsModule, DialogModule],
     templateUrl: './game-list.component.html',
     styleUrls: ['./game-list.component.css']
 })
@@ -41,10 +45,24 @@ export class GameListComponent implements OnInit {
     gamesPerPage = 12;  // Show 12 games per page
     totalGames = 0;
 
-    constructor(private gameService: GameService) { }
+    // Favorites
+    userFavoriteIds: number[] = [];  // IDs of user's favorite games
+
+    // Dialog state
+    showRemoveDialog = false;
+    pendingRemoveGameId: number | null = null;
+    pendingRemoveGameTitle: string = '';
+
+    constructor(
+        private gameService: GameService,
+        private favoriteService: FavoriteService,
+        private authService: AuthService,
+        private router: Router
+    ) { }
 
     ngOnInit() {
         this.loadGamesFromDatabase();
+        this.loadUserFavorites();
     }
 
     loadGamesFromDatabase() {
@@ -243,5 +261,80 @@ export class GameListComponent implements OnInit {
         const start = (this.currentPage - 1) * this.gamesPerPage;
         const end = start + this.gamesPerPage;
         this.paginatedGames = this.games.slice(start, end);
+    }
+
+    loadUserFavorites() {
+        const user = this.authService.getCurrentUserValue();
+        if (!user) return;
+
+        this.favoriteService.getUserFavorites(user.id).subscribe({
+            next: (favorites) => {
+                this.userFavoriteIds = favorites.map((f: any) => f.id);
+                this.updateFavoriteStatus();
+            },
+            error: (err: any) => {
+                console.error('Error loading user favorites:', err);
+            }
+        });
+    }
+
+    updateFavoriteStatus() {
+        // Update favorite status for all game arrays
+        this.allGames.forEach(game => {
+            game.isFavorite = this.userFavoriteIds.includes(game.id);
+        });
+        this.games.forEach(game => {
+            game.isFavorite = this.userFavoriteIds.includes(game.id);
+        });
+        this.paginatedGames.forEach(game => {
+            game.isFavorite = this.userFavoriteIds.includes(game.id);
+        });
+    }
+
+    toggleFavorite(event: Event, game: Game) {
+        event.stopPropagation();  // Prevent navigation to game detail
+        event.preventDefault();
+
+        const user = this.authService.getCurrentUserValue();
+        if (!user) {
+            this.router.navigate(['/login']);
+            return;
+        }
+
+        if (game.isFavorite) {
+            // Show confirmation dialog
+            this.pendingRemoveGameId = game.id;
+            this.pendingRemoveGameTitle = game.title;
+            this.showRemoveDialog = true;
+        }
+    }
+
+    confirmRemove() {
+        const user = this.authService.getCurrentUserValue();
+        if (!user || !this.pendingRemoveGameId) return;
+
+        this.favoriteService.removeFavorite(user.id, this.pendingRemoveGameId).subscribe({
+            next: () => {
+                const gameId = this.pendingRemoveGameId;
+                this.allGames.forEach(g => { if (g.id === gameId) g.isFavorite = false; });
+                this.games.forEach(g => { if (g.id === gameId) g.isFavorite = false; });
+                this.paginatedGames.forEach(g => { if (g.id === gameId) g.isFavorite = false; });
+
+                this.userFavoriteIds = this.userFavoriteIds.filter(id => id !== gameId);
+                this.showRemoveDialog = false;
+                this.pendingRemoveGameId = null;
+                this.pendingRemoveGameTitle = '';
+            },
+            error: (err: any) => {
+                console.error('Error removing favorite:', err);
+                this.showRemoveDialog = false;
+            }
+        });
+    }
+
+    cancelRemove() {
+        this.showRemoveDialog = false;
+        this.pendingRemoveGameId = null;
+        this.pendingRemoveGameTitle = '';
     }
 }
