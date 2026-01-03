@@ -31,6 +31,23 @@
             </div>
         </div>
 
+        <!-- Search Bar -->
+        <div *ngIf="!isLoading" class="mb-6">
+            <div class="relative">
+                <i class="pi pi-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg"></i>
+                <input type="text" [(ngModel)]="searchQuery" (input)="filterGames()"
+                    placeholder="ค้นหาเกมในรายการโปรด..."
+                    class="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-700 placeholder-gray-400" />
+            </div>
+        </div>
+
+        <!-- No Results Message -->
+        <div *ngIf="!isLoading && favoriteGames.length === 0 && searchQuery" class="text-center py-20">
+            <i class="pi pi-search text-6xl text-gray-300 mb-4"></i>
+            <p class="text-gray-600 text-lg font-semibold">ไม่พบเกมที่ค้นหา "{{ searchQuery }}"</p>
+            <p class="text-gray-400 text-sm mt-2">ลองค้นหาด้วยคำอื่นหรือตรวจสอบการสะกดคำ</p>
+        </div>
+
         <!-- Game Grid (3 columns, full width) -->
         <div *ngIf="!isLoading && !error && favoriteGames.length > 0"
             class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
