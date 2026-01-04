@@ -130,25 +130,25 @@
                 <div *ngFor="let game of paginatedGames" [routerLink]="['/game', game.id]"
                     class="game-card bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group border border-gray-100">
 
-                    <!-- Game Image -->
+                    <!-- Game Image with Title Overlay -->
                     <div class="relative h-64 overflow-hidden">
                         <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
                             [style.backgroundImage]="'url(' + game.image + ')'">
                         </div>
 
                         <!-- Gradient Overlay -->
-                        <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
                         </div>
 
-                        <!-- Review Badge (Top Right) - Single badge based on review type -->
+                        <!-- Review Badge (Top Right) -->
                         <div class="absolute top-3 right-3">
-                            <!-- Positive Reviews Only -->
+                            <!-- Positive Reviews -->
                             <div *ngIf="game.reviewType === 'positive'"
                                 class="bg-green-500 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-lg">
                                 <i class="pi pi-thumbs-up text-base"></i>
                             </div>
 
-                            <!-- Negative Reviews Only -->
+                            <!-- Negative Reviews -->
                             <div *ngIf="game.reviewType === 'negative'"
                                 class="bg-red-500 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-lg">
                                 <i class="pi pi-thumbs-down text-base"></i>
@@ -161,44 +161,35 @@
                             </div>
                         </div>
 
-                        <!-- Favorite Heart Button (Top Left) - Only show on favorited games -->
+                        <!-- Favorite Heart Button (Top Left) -->
                         <button *ngIf="game.isFavorite"
                             class="absolute top-3 left-3 w-8 h-8 bg-red-600 hover:bg-red-700 text-white rounded-full shadow-lg transition-colors z-10 flex items-center justify-center"
                             (click)="toggleFavorite($event, game)">
                             <i class="pi pi-heart-fill text-sm"></i>
                         </button>
-                    </div>
 
-                    <!-- Card Content -->
-                    <div class="p-4">
-                        <!-- Game Title -->
-                        <h3 class="text-lg font-bold text-gray-900 mb-2 group-hover:text-purple-600 transition-colors">
-                            {{ game.title }}
-                        </h3>
+                        <!-- Game Title Overlay (Bottom) -->
+                        <div class="absolute bottom-0 left-0 right-0 p-4 space-y-2">
+                            <h3 class="text-xl font-bold text-white drop-shadow-lg">
+                                {{ game.title }}
+                            </h3>
 
-                        <!-- Description -->
-                        <!-- <p class="text-sm text-gray-500 mb-3 line-clamp-2 leading-relaxed">
-                            {{ game.description }}
-                        </p> -->
-
-                        <!-- Footer: Date, Genres and Review Tags -->
-                        <div class="pt-3 border-t border-gray-100 space-y-2">
                             <!-- Release Date -->
-                            <div class="flex items-center gap-1.5 text-gray-400 text-xs">
+                            <div class="flex items-center gap-1.5 text-white/90 text-xs">
                                 <i class="pi pi-calendar"></i>
                                 <span>{{ game.releaseDate }}</span>
                             </div>
 
-                            <!-- Genre and Review Tags Combined -->
+                            <!-- Genre and Review Tags -->
                             <div class="flex flex-wrap gap-1.5">
                                 <!-- Genre Tags (Purple) -->
                                 <span *ngFor="let genre of game.genres"
-                                    class="bg-purple-100 text-purple-700 text-xs px-2 py-1 rounded font-medium">
+                                    class="bg-purple-500/90 text-white text-xs px-2 py-1 rounded font-medium backdrop-blur-sm">
                                     {{ genre }}
                                 </span>
-                                <!-- Review Tags (Blue) -->
+                                <!-- Review Tags (Yellow) -->
                                 <span *ngFor="let tag of game.reviewTags"
-                                    class="bg-yellow-100 text-yellow-700 text-xs px-2 py-1 rounded font-medium">
+                                    class="bg-yellow-500/90 text-white text-xs px-2 py-1 rounded font-medium backdrop-blur-sm">
                                     {{ tag }}
                                 </span>
                             </div>

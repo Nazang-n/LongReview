@@ -159,11 +159,11 @@ export class ProfileComponent implements OnInit {
         this.profileService.updateAvatar(user.id, base64).subscribe({
             next: () => {
                 this.userProfile.avatar_url = base64;
-                alert('อัพโหลดรูปโปรไฟล์สำเร็จ');
+                this.showMessage('success', 'สำเร็จ', 'อัพโหลดรูปโปรไฟล์สำเร็จ');
             },
             error: (err) => {
                 console.error('Error uploading avatar:', err);
-                alert('เกิดข้อผิดพลาดในการอัพโหลดรูป');
+                this.showMessage('error', 'เกิดข้อผิดพลาด', 'เกิดข้อผิดพลาดในการอัพโหลดรูป');
             }
         });
     }
@@ -179,7 +179,7 @@ export class ProfileComponent implements OnInit {
         if (!user || !this.editingComment) return;
 
         if (!this.editingContent.trim()) {
-            alert('กรุณากรอกความคิดเห็น');
+            this.showMessage('error', 'กรุณากรอกข้อมูล', 'กรุณากรอกความคิดเห็น');
             return;
         }
 
@@ -192,7 +192,7 @@ export class ProfileComponent implements OnInit {
             },
             error: (err) => {
                 console.error('Error editing comment:', err);
-                alert('เกิดข้อผิดพลาดในการแก้ไขความคิดเห็น');
+                this.showMessage('error', 'เกิดข้อผิดพลาด', 'เกิดข้อผิดพลาดในการแก้ไขความคิดเห็น');
             }
         });
     }
@@ -221,7 +221,7 @@ export class ProfileComponent implements OnInit {
             },
             error: (err) => {
                 console.error('Error deleting comment:', err);
-                alert('เกิดข้อผิดพลาดในการลบความคิดเห็น');
+                this.showMessage('error', 'เกิดข้อผิดพลาด', 'เกิดข้อผิดพลาดในการลบความคิดเห็น');
                 this.showDeleteDialog = false;
             }
         });
@@ -365,6 +365,14 @@ export class ProfileComponent implements OnInit {
         this.messageDialogTitle = title;
         this.messageDialogContent = message;
         this.messageDialogType = 'error';
+        this.showMessageDialog = true;
+    }
+
+    // Helper method to show message dialog
+    showMessage(type: 'success' | 'error', title: string, content: string) {
+        this.messageDialogType = type;
+        this.messageDialogTitle = title;
+        this.messageDialogContent = content;
         this.showMessageDialog = true;
     }
 }

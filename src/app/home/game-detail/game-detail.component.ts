@@ -113,6 +113,13 @@ export class GameDetailComponent implements OnInit {
     pendingDeleteCommentId: number | null = null;
     pendingReportCommentId: number | null = null;
 
+    // Alert dialogs
+    showLoginDialog = false;
+    showErrorDialog = false;
+    errorMessage = '';
+    loginMessage = '';
+    loginRedirect = false;
+
     // Mock data for reviews - will be replaced with real data later
     reviews: Review[] = [
         {
@@ -434,8 +441,7 @@ export class GameDetailComponent implements OnInit {
     toggleFavorite() {
         const user = this.authService.getCurrentUserValue();
         if (!user) {
-            alert('กรุณาเข้าสู่ระบบเพื่อเพิ่มเกมในรายการโปรด');
-            this.router.navigate(['/login']);
+            this.showLogin('กรุณาเข้าสู่ระบบเพื่อเพิ่มเกมในรายการโปรด', true);
             return;
         }
 
@@ -455,7 +461,7 @@ export class GameDetailComponent implements OnInit {
                 error: (err) => {
                     console.error('Error removing favorite:', err);
                     this.isTogglingFavorite = false;
-                    alert('เกิดข้อผิดพลาดในการลบออกจากรายการโปรด');
+                    this.showError('เกิดข้อผิดพลาดในการลบออกจากรายการโปรด');
                 }
             });
         } else {
@@ -469,7 +475,7 @@ export class GameDetailComponent implements OnInit {
                 error: (err) => {
                     console.error('Error adding favorite:', err);
                     this.isTogglingFavorite = false;
-                    alert('เกิดข้อผิดพลาดในการเพิ่มในรายการโปรด');
+                    this.showError('เกิดข้อผิดพลาดในการเพิ่มในรายการโปรด');
                 }
             });
         }
@@ -495,13 +501,12 @@ export class GameDetailComponent implements OnInit {
     submitComment() {
         const user = this.authService.getCurrentUserValue();
         if (!user) {
-            alert('กรุณาเข้าสู่ระบบเพื่อแสดงความคิดเห็น');
-            this.router.navigate(['/login']);
+            this.showLogin('กรุณาเข้าสู่ระบบเพื่อแสดงความคิดเห็น', true);
             return;
         }
 
         if (!this.newComment.trim()) {
-            alert('กรุณากรอกความคิดเห็น');
+            this.showError('กรุณากรอกความคิดเห็น');
             return;
         }
 
@@ -517,7 +522,7 @@ export class GameDetailComponent implements OnInit {
             },
             error: (err) => {
                 console.error('Error adding comment:', err);
-                alert('เกิดข้อผิดพลาดในการแสดงความคิดเห็น');
+                this.showError('เกิดข้อผิดพลาดในการแสดงความคิดเห็น');
                 this.isSubmittingComment = false;
             }
         });
@@ -538,7 +543,7 @@ export class GameDetailComponent implements OnInit {
         if (!user || !this.editingCommentId) return;
 
         if (!this.editingContent.trim()) {
-            alert('กรุณากรอกความคิดเห็น');
+            this.showError('กรุณากรอกความคิดเห็น');
             return;
         }
 
@@ -550,7 +555,7 @@ export class GameDetailComponent implements OnInit {
             },
             error: (err) => {
                 console.error('Error editing comment:', err);
-                alert('เกิดข้อผิดพลาดในการแก้ไขความคิดเห็น');
+                this.showError('เกิดข้อผิดพลาดในการแก้ไขความคิดเห็น');
             }
         });
     }
@@ -572,7 +577,7 @@ export class GameDetailComponent implements OnInit {
             },
             error: (err) => {
                 console.error('Error deleting comment:', err);
-                alert('เกิดข้อผิดพลาดในการลบความคิดเห็น');
+                this.showError('เกิดข้อผิดพลาดในการลบความคิดเห็น');
                 this.showDeleteDialog = false;
             }
         });
@@ -586,8 +591,7 @@ export class GameDetailComponent implements OnInit {
     voteComment(commentId: number, voteType: 'up' | 'down') {
         const user = this.authService.getCurrentUserValue();
         if (!user) {
-            alert('กรุณาเข้าสู่ระบบเพื่อโหวต');
-            this.router.navigate(['/login']);
+            this.showLogin('กรุณาเข้าสู่ระบบเพื่อโหวต', true);
             return;
         }
 
@@ -599,7 +603,7 @@ export class GameDetailComponent implements OnInit {
                 },
                 error: (err) => {
                     console.error('Error liking comment:', err);
-                    alert('เกิดข้อผิดพลาดในการถูกใจ');
+                    this.showError('เกิดข้อผิดพลาดในการถูกใจ');
                 }
             });
         }
@@ -608,8 +612,7 @@ export class GameDetailComponent implements OnInit {
     reportComment(commentId: number) {
         const user = this.authService.getCurrentUserValue();
         if (!user) {
-            alert('กรุณาเข้าสู่ระบบเพื่อรายงาน');
-            this.router.navigate(['/login']);
+            this.showLogin('กรุณาเข้าสู่ระบบเพื่อรายงาน', true);
             return;
         }
 
@@ -623,13 +626,13 @@ export class GameDetailComponent implements OnInit {
         if (!user || !this.pendingReportCommentId) return;
 
         if (!this.reportReason.trim()) {
-            alert('กรุณาระบุเหตุผลในการรายงาน');
+            this.showError('กรุณาระบุเหตุผลในการรายงาน');
             return;
         }
 
         this.commentService.reportComment(this.pendingReportCommentId, user.id, this.reportReason).subscribe({
             next: () => {
-                alert('รายงานความคิดเห็นเรียบร้อยแล้ว');
+                this.showError('รายงานความคิดเห็นเรียบร้อยแล้ว');
                 this.showReportDialog = false;
                 this.pendingReportCommentId = null;
                 this.reportReason = '';
@@ -637,9 +640,9 @@ export class GameDetailComponent implements OnInit {
             error: (err) => {
                 console.error('Error reporting comment:', err);
                 if (err.status === 400) {
-                    alert('คุณได้รายงานความคิดเห็นนี้แล้ว');
+                    this.showError('คุณได้รายงานความคิดเห็นนี้แล้ว');
                 } else {
-                    alert('เกิดข้อผิดพลาดในการรายงาน');
+                    this.showError('เกิดข้อผิดพลาดในการรายงาน');
                 }
                 this.showReportDialog = false;
             }
@@ -678,5 +681,28 @@ export class GameDetailComponent implements OnInit {
         if (diffDays < 7) return `${diffDays} วันที่แล้ว`;
 
         return date.toLocaleDateString('th-TH');
+    }
+
+    // Helper methods for dialogs
+    showLogin(message: string, redirect: boolean = false) {
+        this.loginMessage = message;
+        this.loginRedirect = redirect;
+        this.showLoginDialog = true;
+    }
+
+    closeLoginDialog() {
+        this.showLoginDialog = false;
+        if (this.loginRedirect) {
+            this.router.navigate(['/login']);
+        }
+    }
+
+    showError(message: string) {
+        this.errorMessage = message;
+        this.showErrorDialog = true;
+    }
+
+    closeErrorDialog() {
+        this.showErrorDialog = false;
     }
 }
