@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, aliased
-from sqlalchemy import text, and_
+from sqlalchemy import text, and_, case
 from typing import List, Optional
 from .. import models, schemas
 from ..database import get_db
@@ -226,9 +226,8 @@ def search_games(
     - **limit**: Maximum number of records to return (default: 100)
     """
     games = db.query(models.Game).filter(
-        (models.Game.title.ilike(f"%{query}%")) |
-        (models.Game.description.ilike(f"%{query}%"))
-    ).offset(skip).limit(limit).all()
+        models.Game.title.ilike(f"%{query}%")
+    ).order_by(models.Game.release_date.desc()).offset(skip).limit(limit).all()
     return games
 
 
