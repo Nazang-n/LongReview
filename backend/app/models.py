@@ -168,3 +168,21 @@ class CommentReport(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
+class Tag(Base):
+    """Tag model - stores filter tags (genres, platforms, player modes)"""
+    __tablename__ = "tags"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False)
+    type = Column(String(50), nullable=False)  # 'genre', 'platform', 'player_mode'
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class GameTag(Base):
+    """GameTag model - links games to tags (many-to-many relationship)"""
+    __tablename__ = "game_tags"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    game_id = Column(Integer, nullable=False, index=True)
+    tag_id = Column(Integer, nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

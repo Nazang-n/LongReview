@@ -332,17 +332,30 @@ def get_batch_sentiment(game_ids: List[int], db: Session = Depends(get_db)):
     """Get sentiment for multiple games at once - efficient for game list"""
     from sqlalchemy import text
     
+    if not game_ids:
+        return {}
+    
     results = {}
     
-    for game_id in game_ids:
-        try:
-            result = db.execute(
-                text("SELECT COUNT(*), SUM(CASE WHEN voted_up = TRUE THEN 1 ELSE 0 END) FROM analyreview WHERE game_id = :game_id"),
-                {"game_id": game_id}
-            ).fetchone()
-            
-            total = result[0] if result else 0
-            positive = result[1] if result else 0
+    try:
+        # Optimized query using GROUP BY and IN clause
+        # This replaces N queries with just 1 query
+        query = text("""
+            SELECT game_id, COUNT(*), SUM(CASE WHEN voted_up = TRUE THEN 1 ELSE 0 END) 
+            FROM analyreview 
+            WHERE game_id IN :game_ids 
+            GROUP BY game_id
+        """)
+        
+        # Convert list to tuple for safety (though SQLAlchemy handles lists fine)
+        rows = db.execute(query, {"game_ids": tuple(game_ids)}).fetchall()
+        
+        for row in rows:
+            game_id = row[0]
+            total = row[1]
+            # SUM returns None if no rows match, but COUNT > 0 ensures rows exist.
+            # However, voted_up is boolean, so integer sum is fine.
+            positive = row[2] if row[2] is not None else 0
             
             if total > 0:
                 pos_pct = round((positive / total * 100), 1)
@@ -353,8 +366,9 @@ def get_batch_sentiment(game_ids: List[int], db: Session = Depends(get_db)):
                     "negative_percent": neg_pct,
                     "total_reviews": total
                 }
-        except Exception as e:
-            print(f"[Batch Sentiment] Error for game {game_id}: {e}")
-            continue
+                
+    except Exception as e:
+        print(f"[Batch Sentiment] Error in batch query: {e}")
+        # On error (e.g. huge list issues), we return empty or partial
     
     return results

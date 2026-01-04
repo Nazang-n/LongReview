@@ -1,4 +1,4 @@
-<app-header></app-header>
+﻿<app-header></app-header>
 
 <div class="min-h-screen bg-gray-50">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -473,31 +473,40 @@
                 <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                     <div *ngFor="let relatedGame of relatedGames" [routerLink]="['/games', relatedGame.id]"
                         class="bg-white rounded-lg overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer group border border-gray-100">
-                        <div class="relative h-40 bg-gray-200 overflow-hidden">
+                        <div class="relative h-40 overflow-hidden">
                             <img [src]="relatedGame.image" [alt]="relatedGame.title"
                                 class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                                 onerror="this.src='/games/placeholder.jpg'">
-                        </div>
-                        <div class="p-3">
-                            <h3
-                                class="font-bold text-gray-900 text-sm mb-1 line-clamp-2 group-hover:text-purple-600 transition-colors">
-                                {{ relatedGame.title }}
-                            </h3>
-                            <div class="flex items-center gap-1.5 text-gray-400 text-xs mb-2">
-                                <i class="pi pi-calendar"></i>
-                                <span>{{ relatedGame.date }}</span>
+
+                            <!-- Gradient Overlay -->
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
                             </div>
-                            <div class="flex flex-wrap gap-1">
-                                <!-- Genre Tags (Purple) -->
-                                <span *ngFor="let tag of relatedGame.tags"
-                                    class="bg-purple-100 text-purple-700 text-xs px-2 py-1 rounded font-medium">
-                                    {{ tag }}
-                                </span>
-                                <!-- Review Tags (Yellow) -->
-                                <span *ngFor="let tag of relatedGame.reviewTags"
-                                    class="bg-yellow-100 text-yellow-700 text-xs px-2 py-1 rounded font-medium">
-                                    {{ tag }}
-                                </span>
+
+                            <!-- Game Title Overlay (Bottom) -->
+                            <div class="absolute bottom-0 left-0 right-0 p-3 space-y-1.5">
+                                <h3 class="font-bold text-white text-sm drop-shadow-lg line-clamp-2">
+                                    {{ relatedGame.title }}
+                                </h3>
+
+                                <!-- Release Date -->
+                                <div class="flex items-center gap-1.5 text-white/90 text-xs">
+                                    <i class="pi pi-calendar"></i>
+                                    <span>{{ relatedGame.date }}</span>
+                                </div>
+
+                                <!-- Genre and Review Tags -->
+                                <div class="flex flex-wrap gap-1">
+                                    <!-- Genre Tags (Purple) -->
+                                    <span *ngFor="let tag of relatedGame.tags"
+                                        class="bg-purple-500/90 text-white text-xs px-1.5 py-0.5 rounded font-medium backdrop-blur-sm">
+                                        {{ tag }}
+                                    </span>
+                                    <!-- Review Tags (Yellow) -->
+                                    <span *ngFor="let tag of relatedGame.reviewTags"
+                                        class="bg-yellow-500/90 text-white text-xs px-1.5 py-0.5 rounded font-medium backdrop-blur-sm">
+                                        {{ tag }}
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -561,4 +570,49 @@
     </ng-template>
 </p-dialog>
 
+
+<!-- Login Required Dialog -->
+<p-dialog [(visible)]="showLoginDialog" [modal]="true" [style]="{width: '450px'}" [draggable]="false"
+    [resizable]="false">
+    <ng-template pTemplate="header">
+        <div class="flex items-center gap-3">
+            <i class="pi pi-sign-in text-purple-600 text-2xl"></i>
+            <span class="font-bold text-xl">กรุณาเข้าสู่ระบบ</span>
+        </div>
+    </ng-template>
+    <div class="py-4">
+        <p class="text-gray-700 text-lg">{{ loginMessage }}</p>
+    </div>
+    <ng-template pTemplate="footer">
+        <button (click)="showLoginDialog = false"
+            class="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg transition-colors font-medium">
+            ยกเลิก
+        </button>
+        <button (click)="closeLoginDialog()"
+            class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-medium">
+            <i class="pi pi-sign-in mr-2"></i>
+            เข้าสู่ระบบ
+        </button>
+    </ng-template>
+</p-dialog>
+
+<!-- Error Dialog -->
+<p-dialog [(visible)]="showErrorDialog" [modal]="true" [style]="{width: '450px'}" [draggable]="false"
+    [resizable]="false">
+    <ng-template pTemplate="header">
+        <div class="flex items-center gap-3">
+            <i class="pi pi-exclamation-circle text-red-600 text-2xl"></i>
+            <span class="font-bold text-xl">แจ้งเตือน</span>
+        </div>
+    </ng-template>
+    <div class="py-4">
+        <p class="text-gray-700 text-lg">{{ errorMessage }}</p>
+    </div>
+    <ng-template pTemplate="footer">
+        <button (click)="closeErrorDialog()"
+            class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-medium">
+            ตกลง
+        </button>
+    </ng-template>
+</p-dialog>
 <app-footer></app-footer>

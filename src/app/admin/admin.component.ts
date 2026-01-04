@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { HeaderComponent } from '../shared/header.component';
 import { FooterComponent } from '../shared/footer.component';
 import { ButtonModule } from 'primeng/button';
@@ -7,6 +8,7 @@ import { CardModule } from 'primeng/card';
 import { MessageModule } from 'primeng/message';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { NewsService } from '../services/news.service';
+import { GameService } from '../services/game.service';
 import { CommentService, CommentReport } from '../services/comment.service';
 import { AuthService } from '../services/auth.service';
 import { DialogModule } from 'primeng/dialog';
@@ -16,6 +18,7 @@ import { DialogModule } from 'primeng/dialog';
     standalone: true,
     imports: [
         CommonModule,
+        FormsModule,
         HeaderComponent,
         FooterComponent,
         ButtonModule,
@@ -32,6 +35,11 @@ export class AdminComponent implements OnInit {
     syncResult: any = null;
     error: string | null = null;
 
+    // Translation
+    isTranslating = false;
+    translateResult: any = null;
+    translateError: string | null = null;
+
     // Comment reports
     reportedComments: CommentReport[] = [];
     isLoadingReports = false;
@@ -45,6 +53,7 @@ export class AdminComponent implements OnInit {
 
     constructor(
         private newsService: NewsService,
+        private gameService: GameService,
         private commentService: CommentService,
         private authService: AuthService
     ) { }
@@ -66,6 +75,25 @@ export class AdminComponent implements OnInit {
             error: (err) => {
                 this.error = err.message || 'Failed to sync news';
                 this.isLoading = false;
+            }
+        });
+    }
+
+    translateGames() {
+        this.isTranslating = true;
+        this.translateResult = null;
+        this.translateError = null;
+
+        this.gameService.batchTranslateGames().subscribe({
+            next: (result: any) => {
+                this.translateResult = result;
+                this.isTranslating = false;
+                console.log('Translation result:', result);
+            },
+            error: (err: any) => {
+                this.translateError = err.message || 'Failed to translate games';
+                this.isTranslating = false;
+                console.error('Translation error:', err);
             }
         });
     }

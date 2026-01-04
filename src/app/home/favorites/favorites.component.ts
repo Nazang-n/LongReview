@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { HeaderComponent } from '../../shared/header.component';
 import { FooterComponent } from '../../shared/footer.component';
 import { FavoriteService } from '../../services/favorite.service';
@@ -23,14 +24,16 @@ interface Game {
 @Component({
     selector: 'app-favorites',
     standalone: true,
-    imports: [CommonModule, RouterModule, HeaderComponent, FooterComponent, DialogModule],
+    imports: [CommonModule, RouterModule, HeaderComponent, FooterComponent, DialogModule, FormsModule],
     templateUrl: './favorites.component.html',
     styleUrls: ['./favorites.component.css']
 })
 export class FavoritesComponent implements OnInit {
-    favoriteGames: Game[] = [];
+    allFavorites: Game[] = [];  // Store all favorites
+    favoriteGames: Game[] = [];  // Filtered favorites (after search)
     isLoading = true;
     error: string | null = null;
+    searchQuery: string = '';  // Search input
 
     // Dialog state
     showRemoveDialog = false;
@@ -62,8 +65,8 @@ export class FavoritesComponent implements OnInit {
 
         this.favoriteService.getUserFavorites(user.id).subscribe({
             next: (favorites) => {
-                // Map API response to Game interface
-                this.favoriteGames = favorites.map((fav: any) => ({
+                // Map API response to Game interface and store in allFavorites
+                this.allFavorites = favorites.map((fav: any) => ({
                     id: fav.id,
                     title: fav.title || 'Unknown Game',
                     description: fav.description || fav.info || 'No description available',
@@ -74,12 +77,15 @@ export class FavoritesComponent implements OnInit {
                     reviewType: undefined,  // Will be set by loadFavoriteSentiments()
                     isNew: false
                 }));
+
+                // Initially show all favorites
+                this.favoriteGames = [...this.allFavorites];
                 this.isLoading = false;
 
                 // Load sentiment data for review badges
                 this.loadFavoriteSentiments();
             },
-            error: (err) => {
+            error: (err: any) => {
                 console.error('Error loading favorites:', err);
                 this.error = 'ไม่สามารถโหลดรายการโปรดได้';
                 this.isLoading = false;
@@ -170,5 +176,19 @@ export class FavoritesComponent implements OnInit {
                 console.error('Error loading sentiment data:', err);
             }
         });
+    }
+
+    filterGames() {
+        if (!this.searchQuery.trim()) {
+            // No search query - show all favorites
+            this.favoriteGames = [...this.allFavorites];
+            return;
+        }
+
+        // Filter favorites by title (case-insensitive, partial match)
+        const query = this.searchQuery.toLowerCase();
+        this.favoriteGames = this.allFavorites.filter(game =>
+            game.title.toLowerCase().includes(query)
+        );
     }
 }
