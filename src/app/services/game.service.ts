@@ -52,12 +52,18 @@ export class GameService {
     constructor(private http: HttpClient) { }
 
     /**
-     * Get all games with optional pagination
+     * Get all games with optional pagination and tag filtering
      */
-    getGames(skip: number = 0, limit: number = 100): Observable<Game[]> {
-        const params = new HttpParams()
+    getGames(skip: number = 0, limit: number = 100, tagIds?: number[]): Observable<Game[]> {
+        let params = new HttpParams()
             .set('skip', skip.toString())
             .set('limit', limit.toString());
+
+        // Add tag filtering if provided
+        if (tagIds && tagIds.length > 0) {
+            params = params.set('tags', tagIds.join(','));
+        }
+
         return this.http.get<Game[]>(this.apiUrl, { params });
     }
 
@@ -69,10 +75,16 @@ export class GameService {
     }
 
     /**
-     * Get total count of games
+     * Get total count of games, optionally filtered by tags
      */
-    getGamesCount(): Observable<{ total: number }> {
-        return this.http.get<{ total: number }>(`${this.apiUrl}/count`);
+    getGamesCount(tagIds?: number[]): Observable<{ total: number }> {
+        let params = new HttpParams();
+
+        if (tagIds && tagIds.length > 0) {
+            params = params.set('tags', tagIds.join(','));
+        }
+
+        return this.http.get<{ total: number }>(`${this.apiUrl}/count`, { params });
     }
 
     /**

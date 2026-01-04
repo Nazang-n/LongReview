@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import text, and_
 from typing import List, Optional
 from .. import models, schemas
 from ..database import get_db
@@ -39,6 +39,7 @@ def serialize_game(game: models.Game) -> dict:
 def get_games(
     skip: int = 0,
     limit: int = 100,
+    tags: Optional[str] = Query(None, description="Comma-separated tag IDs to filter by"),
     db: Session = Depends(get_db)
 ):
     """
@@ -46,19 +47,56 @@ def get_games(
     
     - **skip**: Number of records to skip (default: 0)
     - **limit**: Maximum number of records to return (default: 100)
+    - **tags**: Comma-separated tag IDs to filter by (e.g., "1,2,3")
     """
-    games = db.query(models.Game).order_by(models.Game.release_date.desc()).offset(skip).limit(limit).all()
+    query = db.query(models.Game)
+    
+    # Apply tag filtering if provided
+    if tags:
+        tag_ids = [int(tid.strip()) for tid in tags.split(',') if tid.strip().isdigit()]
+        
+        if tag_ids:
+            # Get games that have ALL specified tags (AND logic)
+            # For each tag, join with game_tags and filter
+            for tag_id in tag_ids:
+                query = query.join(
+                    models.GameTag,
+                    and_(
+                        models.Game.id == models.GameTag.game_id,
+                        models.GameTag.tag_id == tag_id
+                    )
+                )
+    
+    # Apply ordering and pagination
+    games = query.order_by(models.Game.release_date.desc()).offset(skip).limit(limit).all()
     return [serialize_game(game) for game in games]
 
 
 @router.get("/count")
-def get_games_count(db: Session = Depends(get_db)):
+def get_games_count(
+    tags: Optional[str] = Query(None, description="Comma-separated tag IDs to filter by"),
+    db: Session = Depends(get_db)
+):
     """
-    Get total count of games in database.
+    Get total count of games in database, optionally filtered by tags.
+    """
+    query = db.query(models.Game)
     
-    Returns the total number of games for pagination.
-    """
-    count = db.query(models.Game).count()
+    # Apply tag filtering if provided (same logic as get_games)
+    if tags:
+        tag_ids = [int(tid.strip()) for tid in tags.split(',') if tid.strip().isdigit()]
+        
+        if tag_ids:
+            for tag_id in tag_ids:
+                query = query.join(
+                    models.GameTag,
+                    and_(
+                        models.Game.id == models.GameTag.game_id,
+                        models.GameTag.tag_id == tag_id
+                    )
+                )
+    
+    count = query.count()
     return {"total": count}
 
 

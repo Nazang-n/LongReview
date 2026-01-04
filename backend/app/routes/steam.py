@@ -495,6 +495,75 @@ def import_games_batch_from_steamspy(
                     )
                 
                 db.add(new_game)
+                db.flush()  # Get the game ID
+                
+                # Extract and create player mode tags from categories
+                categories = steam_details_en.get('categories', [])
+                player_mode_tags = []
+                
+                for category in categories:
+                    category_id = category.get('id')
+                    # Single-player: category 2
+                    # Multi-player: category 1
+                    # Co-op: category 9, 24, 36, 37, 38
+                    if category_id == 2:
+                        player_mode_tags.append('Single-player')
+                    elif category_id == 1:
+                        player_mode_tags.append('Multi-player')
+                    elif category_id in [9, 24, 36, 37, 38]:  # Various co-op modes
+                        if 'Co-op' not in player_mode_tags:
+                            player_mode_tags.append('Co-op')
+                
+                # Create/link player mode tags
+                for mode_name in player_mode_tags:
+                    # Check if tag exists
+                    tag = db.query(models.Tag).filter(
+                        models.Tag.name == mode_name,
+                        models.Tag.type == 'player_mode'
+                    ).first()
+                    
+                    if not tag:
+                        tag = models.Tag(name=mode_name, type='player_mode')
+                        db.add(tag)
+                        db.flush()
+                    
+                    # Link game to tag
+                    existing_link = db.query(models.GameTag).filter(
+                        models.GameTag.game_id == new_game.id,
+                        models.GameTag.tag_id == tag.id
+                    ).first()
+                    
+                    if not existing_link:
+                        game_tag = models.GameTag(game_id=new_game.id, tag_id=tag.id)
+                        db.add(game_tag)
+                
+                # Auto-link Massively Multiplayer games to Multi-player tag
+                genres = steam_details_en.get('genres', [])
+                is_massively_multiplayer = any(g.get('description') == 'Massively Multiplayer' for g in genres)
+                
+                if is_massively_multiplayer and 'Multi-player' not in player_mode_tags:
+                    # Find or create Multi-player tag
+                    multiplayer_tag = db.query(models.Tag).filter(
+                        models.Tag.name == 'Multi-player',
+                        models.Tag.type == 'player_mode'
+                    ).first()
+                    
+                    if not multiplayer_tag:
+                        multiplayer_tag = models.Tag(name='Multi-player', type='player_mode')
+                        db.add(multiplayer_tag)
+                        db.flush()
+                    
+                    # Link game to Multi-player tag
+                    existing_link = db.query(models.GameTag).filter(
+                        models.GameTag.game_id == new_game.id,
+                        models.GameTag.tag_id == multiplayer_tag.id
+                    ).first()
+                    
+                    if not existing_link:
+                        game_tag = models.GameTag(game_id=new_game.id, tag_id=multiplayer_tag.id)
+                        db.add(game_tag)
+                        print(f"   ✓ Auto-linked Massively Multiplayer game to Multi-player tag")
+                
                 imported_count += 1
                 
                 # Commit every 10 games to avoid losing progress
@@ -711,6 +780,75 @@ def import_newest_games_from_steamspy(
                     )
                 
                 db.add(new_game)
+                db.flush()  # Get the game ID
+                
+                # Extract and create player mode tags from categories
+                categories = steam_details_en.get('categories', [])
+                player_mode_tags = []
+                
+                for category in categories:
+                    category_id = category.get('id')
+                    # Single-player: category 2
+                    # Multi-player: category 1
+                    # Co-op: category 9, 24, 36, 37, 38
+                    if category_id == 2:
+                        player_mode_tags.append('Single-player')
+                    elif category_id == 1:
+                        player_mode_tags.append('Multi-player')
+                    elif category_id in [9, 24, 36, 37, 38]:  # Various co-op modes
+                        if 'Co-op' not in player_mode_tags:
+                            player_mode_tags.append('Co-op')
+                
+                # Create/link player mode tags
+                for mode_name in player_mode_tags:
+                    # Check if tag exists
+                    tag = db.query(models.Tag).filter(
+                        models.Tag.name == mode_name,
+                        models.Tag.type == 'player_mode'
+                    ).first()
+                    
+                    if not tag:
+                        tag = models.Tag(name=mode_name, type='player_mode')
+                        db.add(tag)
+                        db.flush()
+                    
+                    # Link game to tag
+                    existing_link = db.query(models.GameTag).filter(
+                        models.GameTag.game_id == new_game.id,
+                        models.GameTag.tag_id == tag.id
+                    ).first()
+                    
+                    if not existing_link:
+                        game_tag = models.GameTag(game_id=new_game.id, tag_id=tag.id)
+                        db.add(game_tag)
+                
+                # Auto-link Massively Multiplayer games to Multi-player tag
+                genres = steam_details_en.get('genres', [])
+                is_massively_multiplayer = any(g.get('description') == 'Massively Multiplayer' for g in genres)
+                
+                if is_massively_multiplayer and 'Multi-player' not in player_mode_tags:
+                    # Find or create Multi-player tag
+                    multiplayer_tag = db.query(models.Tag).filter(
+                        models.Tag.name == 'Multi-player',
+                        models.Tag.type == 'player_mode'
+                    ).first()
+                    
+                    if not multiplayer_tag:
+                        multiplayer_tag = models.Tag(name='Multi-player', type='player_mode')
+                        db.add(multiplayer_tag)
+                        db.flush()
+                    
+                    # Link game to Multi-player tag
+                    existing_link = db.query(models.GameTag).filter(
+                        models.GameTag.game_id == new_game.id,
+                        models.GameTag.tag_id == multiplayer_tag.id
+                    ).first()
+                    
+                    if not existing_link:
+                        game_tag = models.GameTag(game_id=new_game.id, tag_id=multiplayer_tag.id)
+                        db.add(game_tag)
+                        print(f"   ✓ Auto-linked Massively Multiplayer game to Multi-player tag")
+                
                 imported_count += 1
                 
                 # Commit every 10 games to avoid losing progress
@@ -818,5 +956,228 @@ def update_steam_app_ids(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error updating steam_app_ids: {str(e)}"
+        )
+
+
+@router.post("/update-player-modes")
+def update_existing_games_with_player_modes(
+    limit: int = Query(default=100, description="Maximum number of games to update"),
+    db: Session = Depends(get_db)
+):
+    """
+    Update existing games with player mode tags by fetching categories from Steam API.
+    
+    This endpoint:
+    1. Gets games that have steam_app_id
+    2. Fetches categories from Steam API
+    3. Creates player mode tags (Single-player, Multi-player, Co-op)
+    4. Links games to player mode tags
+    """
+    try:
+        import time
+        
+        # Get games with steam_app_id
+        games = db.query(models.Game).filter(
+            models.Game.steam_app_id.isnot(None)
+        ).limit(limit).all()
+        
+        if not games:
+            return {
+                "success": False,
+                "message": "No games found with steam_app_id",
+                "updated": 0
+            }
+        
+        updated_count = 0
+        failed_count = 0
+        
+        print(f"๐” Updating {len(games)} games with player mode tags...")
+        
+        for game in games:
+            try:
+                # Fetch Steam API details
+                steam_details = SteamAPIClient.get_app_details(game.steam_app_id)
+                
+                if not steam_details:
+                    print(f"โ  Could not fetch details for {game.title} (App ID: {game.steam_app_id})")
+                    failed_count += 1
+                    continue
+                
+                # Extract categories
+                categories = steam_details.get('categories', [])
+                player_mode_tags = []
+                
+                for category in categories:
+                    category_id = category.get('id')
+                    # Single-player: category 2
+                    # Multi-player: category 1
+                    # Co-op: category 9, 24, 36, 37, 38
+                    if category_id == 2:
+                        player_mode_tags.append('Single-player')
+                    elif category_id == 1:
+                        player_mode_tags.append('Multi-player')
+                    elif category_id in [9, 24, 36, 37, 38]:  # Various co-op modes
+                        if 'Co-op' not in player_mode_tags:
+                            player_mode_tags.append('Co-op')
+                
+                # Create/link player mode tags
+                for mode_name in player_mode_tags:
+                    # Check if tag exists
+                    tag = db.query(models.Tag).filter(
+                        models.Tag.name == mode_name,
+                        models.Tag.type == 'player_mode'
+                    ).first()
+                    
+                    if not tag:
+                        tag = models.Tag(name=mode_name, type='player_mode')
+                        db.add(tag)
+                        db.flush()
+                    
+                    # Check if link already exists
+                    existing_link = db.query(models.GameTag).filter(
+                        models.GameTag.game_id == game.id,
+                        models.GameTag.tag_id == tag.id
+                    ).first()
+                    
+                    if not existing_link:
+                        game_tag = models.GameTag(game_id=game.id, tag_id=tag.id)
+                        db.add(game_tag)
+                
+                # Auto-link Massively Multiplayer games to Multi-player tag
+                genres = steam_details.get('genres', [])
+                is_massively_multiplayer = any(g.get('description') == 'Massively Multiplayer' for g in genres)
+                
+                if is_massively_multiplayer and 'Multi-player' not in player_mode_tags:
+                    # Find or create Multi-player tag
+                    multiplayer_tag = db.query(models.Tag).filter(
+                        models.Tag.name == 'Multi-player',
+                        models.Tag.type == 'player_mode'
+                    ).first()
+                    
+                    if not multiplayer_tag:
+                        multiplayer_tag = models.Tag(name='Multi-player', type='player_mode')
+                        db.add(multiplayer_tag)
+                        db.flush()
+                    
+                    # Link game to Multi-player tag
+                    existing_link = db.query(models.GameTag).filter(
+                        models.GameTag.game_id == game.id,
+                        models.GameTag.tag_id == multiplayer_tag.id
+                    ).first()
+                    
+                    if not existing_link:
+                        game_tag = models.GameTag(game_id=game.id, tag_id=multiplayer_tag.id)
+                        db.add(game_tag)
+                        print(f"   ✓ Auto-linked Massively Multiplayer game to Multi-player tag")
+
+                
+                updated_count += 1
+                print(f"โ“ Updated {game.title} with {len(player_mode_tags)} player modes")
+                
+                # Commit every 10 games
+                if updated_count % 10 == 0:
+                    db.commit()
+                    print(f"๐’พ Committed {updated_count} games...")
+                
+                # Be nice to Steam API
+                time.sleep(1.5)
+                
+            except Exception as e:
+                print(f"โ Error updating {game.title}: {e}")
+                failed_count += 1
+                continue
+        
+        # Final commit
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": f"Updated {updated_count} games with player mode tags",
+            "updated": updated_count,
+            "failed": failed_count,
+            "total_processed": len(games)
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error updating player modes: {str(e)}"
+        )
+@router.post("/link-mm-to-multiplayer")
+def link_massively_multiplayer_to_multiplayer(db: Session = Depends(get_db)):
+    """
+    Link all games with 'Massively Multiplayer' genre to 'Multi-player' player mode tag.
+    
+    This is useful because Massively Multiplayer games are inherently multiplayer games,
+    so they should appear in the Multi-player filter.
+    """
+    try:
+        # Find Massively Multiplayer genre tag
+        mm_genre_tag = db.query(models.Tag).filter(
+            models.Tag.name == 'Massively Multiplayer',
+            models.Tag.type == 'genre'
+        ).first()
+        
+        if not mm_genre_tag:
+            return {
+                "success": False,
+                "message": "Massively Multiplayer genre tag not found"
+            }
+        
+        # Find or create Multi-player tag
+        multiplayer_tag = db.query(models.Tag).filter(
+            models.Tag.name == 'Multi-player',
+            models.Tag.type == 'player_mode'
+        ).first()
+        
+        if not multiplayer_tag:
+            multiplayer_tag = models.Tag(name='Multi-player', type='player_mode')
+            db.add(multiplayer_tag)
+            db.flush()
+        
+        # Find all games with Massively Multiplayer genre
+        mm_game_tags = db.query(models.GameTag).filter(
+            models.GameTag.tag_id == mm_genre_tag.id
+        ).all()
+        
+        linked_count = 0
+        already_linked_count = 0
+        
+        for game_tag in mm_game_tags:
+            game_id = game_tag.game_id
+            
+            # Check if already linked to Multi-player
+            existing_link = db.query(models.GameTag).filter(
+                models.GameTag.game_id == game_id,
+                models.GameTag.tag_id == multiplayer_tag.id
+            ).first()
+            
+            if existing_link:
+                already_linked_count += 1
+            else:
+                # Create link
+                new_link = models.GameTag(
+                    game_id=game_id,
+                    tag_id=multiplayer_tag.id
+                )
+                db.add(new_link)
+                linked_count += 1
+        
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": f"Linked {linked_count} Massively Multiplayer games to Multi-player tag",
+            "newly_linked": linked_count,
+            "already_linked": already_linked_count,
+            "total_mm_games": len(mm_game_tags)
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error linking tags: {str(e)}"
         )
 
