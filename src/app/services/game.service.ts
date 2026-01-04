@@ -177,4 +177,11 @@ export class GameService {
         const params = new HttpParams().set('refresh', refresh.toString());
         return this.http.get<any>(`${this.apiUrl}/${gameId}/review-tags`, { params });
     }
+    /**
+     * Batch translate games that don't have Thai descriptions
+     */
+    batchTranslateGames(limit: number = 10000): Observable<any> {
+        const params = new HttpParams().set('limit', limit.toString());
+        return this.http.post<any>('http://localhost:8000/api/games/translate/batch', null, { params });
+    }
 }

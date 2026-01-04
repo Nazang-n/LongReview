@@ -160,8 +160,9 @@
             </div>
 
             <!-- Game Grid (3 columns) -->
-            <div *ngIf="!isLoading && games.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div *ngFor="let game of games" [routerLink]="['/game', game.id]"
+            <div *ngIf="!isLoading && paginatedGames.length > 0"
+                class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div *ngFor="let game of paginatedGames" [routerLink]="['/game', game.id]"
                     class="game-card bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group border border-gray-100">
 
                     <!-- Game Image -->
@@ -194,6 +195,13 @@
                                 <i class="pi pi-sync text-base"></i>
                             </div>
                         </div>
+
+                        <!-- Favorite Heart Button (Top Left) - Only show on favorited games -->
+                        <button *ngIf="game.isFavorite"
+                            class="absolute top-3 left-3 w-8 h-8 bg-red-600 hover:bg-red-700 text-white rounded-full shadow-lg transition-colors z-10 flex items-center justify-center"
+                            (click)="toggleFavorite($event, game)">
+                            <i class="pi pi-heart-fill text-sm"></i>
+                        </button>
                     </div>
 
                     <!-- Card Content -->
@@ -235,7 +243,7 @@
             </div>
 
             <!-- Pagination -->
-            <div *ngIf="!isLoading && games.length > 0" class="mt-8 flex justify-center items-center gap-2">
+            <div *ngIf="!isLoading && paginatedGames.length > 0" class="mt-8 flex justify-center items-center gap-2">
                 <!-- Previous Button -->
                 <button (click)="previousPage()" [disabled]="currentPage === 1"
                     class="px-4 py-2 rounded-lg border transition-colors" [ngClass]="{
@@ -266,4 +274,31 @@
         </main>
     </div>
 </div>
+<!-- Remove Favorite Dialog -->
+<p-dialog [(visible)]="showRemoveDialog" [modal]="true" [style]="{width: '500px'}" [draggable]="false"
+    [resizable]="false">
+    <ng-template pTemplate="header">
+        <div class="flex items-center gap-3">
+            <i class="pi pi-heart-fill text-red-600 text-2xl"></i>
+            <span class="font-bold text-xl">ลบออกจากรายการโปรด</span>
+        </div>
+    </ng-template>
+    <div class="py-4">
+        <p class="text-gray-700 text-lg">
+            คุณต้องการลบ <strong class="text-purple-600">{{ pendingRemoveGameTitle }}</strong> ออกจากรายการโปรดหรือไม่?
+        </p>
+    </div>
+    <ng-template pTemplate="footer">
+        <button (click)="cancelRemove()"
+            class="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg transition-colors font-medium">
+            ยกเลิก
+        </button>
+        <button (click)="confirmRemove()"
+            class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium">
+            <i class="pi pi-heart-fill mr-2"></i>
+            ลบออกจากรายการโปรด
+        </button>
+    </ng-template>
+</p-dialog>
+
 <app-footer></app-footer>

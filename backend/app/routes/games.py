@@ -190,3 +190,104 @@ def search_games(
         (models.Game.description.ilike(f"%{query}%"))
     ).offset(skip).limit(limit).all()
     return games
+
+
+@router.post("/translate/batch")
+def batch_translate_games(
+    limit: int = Query(10000, description="Number of games to translate", ge=1, le=10000),
+    db: Session = Depends(get_db)
+):
+    """
+    Batch translate all games that don't have Thai descriptions.
+    
+    This will:
+    1. Find all games where about_game_th is NULL or empty
+    2. Translate their English description to Thai
+    3. Save the Thai translation to the database
+    """
+    from ..utils.translator import translator
+    import re
+    
+    # Find ALL games (we'll check language in the loop)
+    all_games = db.query(models.Game).limit(limit).all()
+    
+    games_to_translate = []
+    
+    # Check each game to see if about_game_th needs translation
+    for game in all_games:
+        needs_translation = False
+        
+        # Case 1: about_game_th is NULL or empty
+        if not game.about_game_th or game.about_game_th.strip() == "":
+            needs_translation = True
+        else:
+            # Case 2: about_game_th contains English text (check for common English words)
+            # Simple heuristic: if it contains mostly English characters and common English words
+            text = game.about_game_th.lower()
+            english_indicators = ['the', 'and', 'for', 'with', 'from', 'this', 'that', 'your', 'you', 'are', 'have', 'will']
+            english_word_count = sum(1 for word in english_indicators if f' {word} ' in f' {text} ')
+            
+            # If we find 2+ common English words, it's probably English
+            if english_word_count >= 2:
+                needs_translation = True
+        
+        if needs_translation:
+            games_to_translate.append(game)
+    
+    if not games_to_translate:
+        return {
+            "message": "No games need translation",
+            "translated": 0,
+            "failed": 0
+        }
+    
+    print(f"Found {len(games_to_translate)} games to translate")
+    
+    translated_count = 0
+    failed_count = 0
+    failed_games = []
+    
+    for game in games_to_translate:
+        try:
+            # Determine source text for translation
+            source_text = None
+            
+            # Priority 1: Use about_game_th if it has English text
+            if game.about_game_th and game.about_game_th.strip():
+                source_text = game.about_game_th
+                print(f"Translating game {game.id}: {game.title} (from about_game_th)")
+            # Priority 2: Use description if about_game_th is empty
+            elif game.description and game.description.strip():
+                source_text = game.description
+                print(f"Translating game {game.id}: {game.title} (from description)")
+            else:
+                print(f"Skipping game {game.id}: {game.title} - No text to translate")
+                continue
+            
+            # Translate to Thai
+            thai_translation = translator.translate_to_thai(source_text)
+            
+            # Save to database
+            if thai_translation and thai_translation != source_text:
+                game.about_game_th = thai_translation
+                db.commit()
+                translated_count += 1
+                print(f"  ✓ Translated and saved")
+            else:
+                failed_count += 1
+                failed_games.append({"id": game.id, "title": game.title, "reason": "Translation returned empty or same as original"})
+                print(f"  ✗ Translation failed or returned same text")
+                
+        except Exception as e:
+            failed_count += 1
+            failed_games.append({"id": game.id, "title": game.title, "reason": str(e)})
+            print(f"  ✗ Error: {e}")
+            db.rollback()
+    
+    return {
+        "message": f"Batch translation completed",
+        "total_found": len(games_to_translate),
+        "translated": translated_count,
+        "failed": failed_count,
+        "failed_games": failed_games[:10]  # Return first 10 failed games
+    }
