@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 from sqlalchemy import text, and_
 from typing import List, Optional
 from .. import models, schemas
@@ -59,11 +59,12 @@ def get_games(
             # Get games that have ALL specified tags (AND logic)
             # For each tag, join with game_tags and filter
             for tag_id in tag_ids:
+                game_tag_alias = aliased(models.GameTag)
                 query = query.join(
-                    models.GameTag,
+                    game_tag_alias,
                     and_(
-                        models.Game.id == models.GameTag.game_id,
-                        models.GameTag.tag_id == tag_id
+                        models.Game.id == game_tag_alias.game_id,
+                        game_tag_alias.tag_id == tag_id
                     )
                 )
     
@@ -88,11 +89,12 @@ def get_games_count(
         
         if tag_ids:
             for tag_id in tag_ids:
+                game_tag_alias = aliased(models.GameTag)
                 query = query.join(
-                    models.GameTag,
+                    game_tag_alias,
                     and_(
-                        models.Game.id == models.GameTag.game_id,
-                        models.GameTag.tag_id == tag_id
+                        models.Game.id == game_tag_alias.game_id,
+                        game_tag_alias.tag_id == tag_id
                     )
                 )
     
