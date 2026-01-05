@@ -566,6 +566,21 @@ def import_games_batch_from_steamspy(
                 
                 imported_count += 1
                 
+                # Fetch ALL reviews for newly imported game
+                try:
+                    from ..services.review_service import review_service
+                    print(f"  📊 Fetching ALL reviews for {new_game.title}...")
+                    review_result = review_service.fetch_and_store_reviews(
+                        db=db,
+                        game_id=new_game.id,
+                        steam_app_id=int(app_id)
+                        # No max_reviews limit - fetch all reviews
+                    )
+                    if review_result.get("success"):
+                        print(f"  ✓ Fetched {review_result.get('new_reviews', 0)} reviews")
+                except Exception as review_error:
+                    print(f"  ⚠ Failed to fetch reviews: {review_error}")
+                
                 # Commit every 10 games to avoid losing progress
                 if imported_count % 10 == 0:
                     db.commit()
@@ -850,6 +865,21 @@ def import_newest_games_from_steamspy(
                         print(f"   ✓ Auto-linked Massively Multiplayer game to Multi-player tag")
                 
                 imported_count += 1
+                
+                # Fetch ALL reviews for newly imported game
+                try:
+                    from ..services.review_service import review_service
+                    print(f"  📊 Fetching ALL reviews for {new_game.title}...")
+                    review_result = review_service.fetch_and_store_reviews(
+                        db=db,
+                        game_id=new_game.id,
+                        steam_app_id=int(app_id)
+                        # No max_reviews limit - fetch all reviews
+                    )
+                    if review_result.get("success"):
+                        print(f"  ✓ Fetched {review_result.get('new_reviews', 0)} reviews")
+                except Exception as review_error:
+                    print(f"  ⚠ Failed to fetch reviews: {review_error}")
                 
                 # Commit every 10 games to avoid losing progress
                 if imported_count % 10 == 0:

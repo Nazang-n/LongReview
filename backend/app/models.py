@@ -41,6 +41,7 @@ class Game(Base):
     rating = Column(Float)  # Game rating (optional)
     about_game_th = Column(Text)  # Thai translation of game details
     steam_app_id = Column(Integer, unique=True, index=True)  # Steam App ID from SteamSpy
+    last_review_fetch = Column(DateTime(timezone=True), nullable=True)  # Last time reviews were fetched
 
 
 
