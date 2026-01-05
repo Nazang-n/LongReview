@@ -330,3 +330,5 @@ def batch_translate_games(
         "failed": failed_count,
         "failed_games": failed_games[:10]  # Return first 10 failed games
     }
+
+

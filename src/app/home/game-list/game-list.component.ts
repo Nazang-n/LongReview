@@ -128,7 +128,7 @@ export class GameListComponent implements OnInit {
                 console.log('API Response:', gamesFromDb ? gamesFromDb.length : 'null');
                 if (gamesFromDb && gamesFromDb.length > 0) {
                     this.allGames = gamesFromDb.map((game: any) => {
-                        const genres = game.genre ? game.genre.split(',').slice(0, 2).map((g: string) => g.trim()) : [];
+                        const genres = game.genre ? game.genre.split(',').map((g: string) => g.trim()) : [];
                         return {
                             id: game.id,
                             title: game.title || 'Unknown Game',
@@ -251,18 +251,37 @@ export class GameListComponent implements OnInit {
             filtered = filtered.filter(game => game.title.toLowerCase().includes(query));
         }
 
-        // 2. Tag Filters (Optional - keeping functionality compatible)
-        // Note: User didn't request tag logic in snippet, but Sidebar exists.
-        // I should keep it working or it breaks Sidebar.
-        // Assuming client-side filter for tags if I have tag info?
-        // Game object has 'genres' string array.
-        // But 'platforms' and 'playerModes' are not on Game object in this snippet?
-        // Wait, User snippet ONLY had 'genres'.
-        // So I will just implement Name Search + Genre Filter (if matches).
-        // If sidebar used ID, I need ID mapping.
-        // Simplification: Search Only for now as requested? 
-        // User said "Search doesn't work". He didn't say "Filters don't work".
-        // I will leave Tag filter "empty" or minimal to avoid breaking search.
+        // 2. Genre Filter (AND Logic: Game must have ALL selected genres)
+        if (this.selectedGenreIds.length > 0) {
+            const selectedGenreNames = this.genres
+                .filter(g => this.selectedGenreIds.includes(g.id))
+                .map(g => g.name);
+
+            if (selectedGenreNames.length > 0) {
+                filtered = filtered.filter(game =>
+                    selectedGenreNames.every(name => game.genres.includes(name))
+                );
+            }
+        }
+
+        // 3. Platform Filter (OR Logic: Show games on ANY of the selected platforms)
+        // Usually users want "Show me Windows games" or "Show me Mac games". 
+        // If I select both, I probably want games available on EITHER.
+        if (this.selectedPlatformIds.length > 0) {
+            const selectedPlatformNames = this.platforms
+                .filter(p => this.selectedPlatformIds.includes(p.id))
+                .map(p => p.name.toLowerCase());
+
+            if (selectedPlatformNames.length > 0) {
+                filtered = filtered.filter(game => {
+                    const gamePlatform = (game.platform || '').toLowerCase();
+                    return selectedPlatformNames.some(p => gamePlatform.includes(p));
+                });
+            }
+        }
+
+        // 4. Player Mode Filter (Placeholder - requires backend update to map to game object)
+        // Currently not available in 'allGames' data.
 
         this.games = filtered;
         this.currentPage = 1;
