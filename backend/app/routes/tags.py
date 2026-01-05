@@ -178,9 +178,11 @@ def get_tag_stats(db: Session = Depends(get_db)):
         models.Tag.id,
         models.Tag.name,
         models.Tag.type,
-        func.count(models.GameTag.game_id).label('game_count')
+        func.count(models.Game.id).label('game_count')
     ).outerjoin(
         models.GameTag, models.Tag.id == models.GameTag.tag_id
+    ).outerjoin(
+        models.Game, models.GameTag.game_id == models.Game.id
     ).group_by(
         models.Tag.id, models.Tag.name, models.Tag.type
     ).order_by(
