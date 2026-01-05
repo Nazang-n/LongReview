@@ -87,56 +87,168 @@ def import_game_from_steam(
     - **app_id**: Steam application ID
     """
     try:
-        # Fetch app details from Steam
-        app_details = SteamAPIClient.get_app_details(app_id)
+
+        # Fetch app details from Steam (English for reliable metadata)
+        app_details_en = SteamAPIClient.get_app_details(app_id, language="english", country_code="us")
         
-        if not app_details:
+        if not app_details_en:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"App {app_id} not found on Steam"
             )
         
-        # Check if game already exists
-        existing_game = db.query(models.Game).filter(
-            models.Game.title == app_details.get("name")
+        # Check if game already exists - Explicit check by Steam App ID first
+        existing_game_by_id = db.query(models.Game).filter(
+            models.Game.steam_app_id == app_id
         ).first()
         
-        if existing_game:
+        if existing_game_by_id:
             return {
                 "success": True,
-                "message": "Game already exists",
-                "game": existing_game
+                "message": "Game already exists (Found by Steam App ID)",
+                "game": existing_game_by_id
+            }
+            
+        # Then check by Title
+        existing_game_by_title = db.query(models.Game).filter(
+            models.Game.title == app_details_en.get("name")
+        ).first()
+        
+        if existing_game_by_title:
+            # If game exists but missing steam_app_id, update it
+            if not existing_game_by_title.steam_app_id:
+                existing_game_by_title.steam_app_id = app_id
+                db.commit()
+                
+            return {
+                "success": True,
+                "message": "Game already exists (Found by Title)",
+                "game": existing_game_by_title
             }
         
-        # Import translator
+        # Fetch Thai details for description
+        app_details_th = SteamAPIClient.get_app_details(app_id, language="thai", country_code="th")
+        
+        # Import utilities
         from ..utils.translator import translator
+        from ..utils.text_cleaner import clean_html_text
+        from datetime import datetime
+        
+        # Prepare descriptions
+        english_desc = None
+        thai_desc = None
         
         # Get English description
-        english_desc = app_details.get("short_description")
+        if app_details_en.get('about_the_game'):
+            english_desc = clean_html_text(app_details_en.get('about_the_game'))
+        elif app_details_en.get('short_description'):
+            english_desc = clean_html_text(app_details_en.get('short_description'))
+            
+        # Get Thai description
+        if app_details_th:
+            about_game_th = app_details_th.get('about_the_game')
+            if about_game_th:
+                cleaned_thai = clean_html_text(about_game_th)
+                # Verify it's actually Thai
+                if translator.detect_language(cleaned_thai) == 'th':
+                    thai_desc = cleaned_thai
         
-        # Translate to Thai
-        thai_desc = None
-        if english_desc:
-            thai_desc = translator.translate_to_thai(english_desc)
-            print(f"DEBUG: English desc length: {len(english_desc) if english_desc else 0}")
-            print(f"DEBUG: Thai desc length: {len(thai_desc) if thai_desc else 0}")
-            print(f"DEBUG: Thai desc is same as English: {thai_desc == english_desc if thai_desc and english_desc else 'N/A'}")
+        # Fallback translation if needed
+        if not thai_desc and english_desc:
+            try:
+                thai_desc = translator.translate_to_thai(english_desc)
+            except Exception as e:
+                print(f"Translation failed: {e}")
+                pass
+        
+        # Extract platform info
+        platforms = app_details_en.get('platforms', {})
+        platform_list = []
+        if platforms.get('windows'): platform_list.append('Windows')
+        if platforms.get('mac'): platform_list.append('Mac')
+        if platforms.get('linux'): platform_list.append('Linux')
+        platform_str = ', '.join(platform_list) if platform_list else None
+        
+        # Extract price info
+        price_overview = app_details_en.get('price_overview', {})
+        price_str = price_overview.get('final_formatted') if price_overview else None
+        
+        # Extract video URL
+        movies = app_details_en.get('movies', [])
+        video_url = None
+        if movies:
+            video_url = movies[0].get('webm', {}).get('480') or movies[0].get('mp4', {}).get('480')
+            
+        # Parse release date securely
+        release_date_info = app_details_en.get('release_date', {})
+        release_date_str = release_date_info.get('date')
+        coming_soon = release_date_info.get('coming_soon', False)
+        release_date_obj = None
+        
+        if release_date_str and not coming_soon:
+            date_formats = [
+                '%d %b, %Y', '%b %d, %Y', '%d %B, %Y', '%B %d, %Y',
+                '%Y-%m-%d', '%d %b %Y', '%b %d %Y', '%Y'
+            ]
+            for fmt in date_formats:
+                try:
+                    release_date_obj = datetime.strptime(release_date_str, fmt).date()
+                    break
+                except ValueError:
+                    continue
         
         # Create new game
         new_game = models.Game(
-            title=app_details.get("name"),
-            description=english_desc,  # English description
-            about_game_th=thai_desc,   # Thai translation
-            genre=", ".join([g["description"] for g in app_details.get("genres", [])[:3]]),
-            image_url=app_details.get("header_image"),
-            release_date=app_details.get("release_date", {}).get("date"),
-            developer=", ".join(app_details.get("developers", [])),
-            publisher=", ".join(app_details.get("publishers", []))
+            title=app_details_en.get("name"),
+            description=english_desc,
+            about_game_th=thai_desc,
+            genre=", ".join([g["description"] for g in app_details_en.get("genres", [])[:3]]),
+            image_url=app_details_en.get("header_image"),
+            release_date=release_date_obj,
+            developer=", ".join(app_details_en.get("developers", [])),
+            publisher=", ".join(app_details_en.get("publishers", [])),
+            platform=platform_str,
+            price=price_str,
+            video=video_url,
+            steam_app_id=app_id
         )
         
         db.add(new_game)
         db.commit()
         db.refresh(new_game)
+        
+        # Auto-tag player modes (Single/Multi/Co-op)
+        try:
+            categories = app_details_en.get('categories', [])
+            player_mode_tags = []
+            
+            for category in categories:
+                cat_id = category.get('id')
+                if cat_id == 2: player_mode_tags.append('Single-player')
+                elif cat_id == 1: player_mode_tags.append('Multi-player')
+                elif cat_id in [9, 24, 36, 37, 38] and 'Co-op' not in player_mode_tags:
+                    player_mode_tags.append('Co-op')
+            
+            # Check genres for Massively Multiplayer
+            genres = app_details_en.get('genres', [])
+            if any(g.get('description') == 'Massively Multiplayer' for g in genres):
+                if 'Multi-player' not in player_mode_tags:
+                    player_mode_tags.append('Multi-player')
+
+            if player_mode_tags:
+                for mode_name in player_mode_tags:
+                    tag = db.query(models.Tag).filter(models.Tag.name == mode_name, models.Tag.type == 'player_mode').first()
+                    if not tag:
+                        tag = models.Tag(name=mode_name, type='player_mode')
+                        db.add(tag)
+                        db.flush()
+                    
+                    game_tag = models.GameTag(game_id=new_game.id, tag_id=tag.id)
+                    db.add(game_tag)
+                db.commit()
+        except Exception as e:
+            print(f"Error auto-tagging player modes: {e}")
+            # Don't fail the import just because tagging failed
         
         return {
             "success": True,
@@ -349,9 +461,10 @@ def import_games_batch_from_steamspy(
                 continue
             
             try:
-                # Check if game already exists
+                # Check if game already exists (by title OR steam_app_id)
                 existing_game = db.query(models.Game).filter(
-                    models.Game.title == game.get('name')
+                    (models.Game.title == game.get('name')) |
+                    (models.Game.steam_app_id == int(app_id))
                 ).first()
                 
                 if existing_game:
@@ -490,11 +603,95 @@ def import_games_batch_from_steamspy(
                         platform=platform_str,
                         price=price_str,
                         video=video_url,
-                        steam_app_id=str(app_id)  # Store Steam App ID
+                        steam_app_id=int(app_id)  # Store Steam App ID
                     )
                 
                 db.add(new_game)
+                db.flush()  # Get the game ID
+                
+                # Extract and create player mode tags from categories
+                categories = steam_details_en.get('categories', [])
+                player_mode_tags = []
+                
+                for category in categories:
+                    category_id = category.get('id')
+                    # Single-player: category 2
+                    # Multi-player: category 1
+                    # Co-op: category 9, 24, 36, 37, 38
+                    if category_id == 2:
+                        player_mode_tags.append('Single-player')
+                    elif category_id == 1:
+                        player_mode_tags.append('Multi-player')
+                    elif category_id in [9, 24, 36, 37, 38]:  # Various co-op modes
+                        if 'Co-op' not in player_mode_tags:
+                            player_mode_tags.append('Co-op')
+                
+                # Create/link player mode tags
+                for mode_name in player_mode_tags:
+                    # Check if tag exists
+                    tag = db.query(models.Tag).filter(
+                        models.Tag.name == mode_name,
+                        models.Tag.type == 'player_mode'
+                    ).first()
+                    
+                    if not tag:
+                        tag = models.Tag(name=mode_name, type='player_mode')
+                        db.add(tag)
+                        db.flush()
+                    
+                    # Link game to tag
+                    existing_link = db.query(models.GameTag).filter(
+                        models.GameTag.game_id == new_game.id,
+                        models.GameTag.tag_id == tag.id
+                    ).first()
+                    
+                    if not existing_link:
+                        game_tag = models.GameTag(game_id=new_game.id, tag_id=tag.id)
+                        db.add(game_tag)
+                
+                # Auto-link Massively Multiplayer games to Multi-player tag
+                genres = steam_details_en.get('genres', [])
+                is_massively_multiplayer = any(g.get('description') == 'Massively Multiplayer' for g in genres)
+                
+                if is_massively_multiplayer and 'Multi-player' not in player_mode_tags:
+                    # Find or create Multi-player tag
+                    multiplayer_tag = db.query(models.Tag).filter(
+                        models.Tag.name == 'Multi-player',
+                        models.Tag.type == 'player_mode'
+                    ).first()
+                    
+                    if not multiplayer_tag:
+                        multiplayer_tag = models.Tag(name='Multi-player', type='player_mode')
+                        db.add(multiplayer_tag)
+                        db.flush()
+                    
+                    # Link game to Multi-player tag
+                    existing_link = db.query(models.GameTag).filter(
+                        models.GameTag.game_id == new_game.id,
+                        models.GameTag.tag_id == multiplayer_tag.id
+                    ).first()
+                    
+                    if not existing_link:
+                        game_tag = models.GameTag(game_id=new_game.id, tag_id=multiplayer_tag.id)
+                        db.add(game_tag)
+                        print(f"   ✓ Auto-linked Massively Multiplayer game to Multi-player tag")
+                
                 imported_count += 1
+                
+                # Fetch ALL reviews for newly imported game
+                try:
+                    from ..services.review_service import review_service
+                    print(f"  📊 Fetching ALL reviews for {new_game.title}...")
+                    review_result = review_service.fetch_and_store_reviews(
+                        db=db,
+                        game_id=new_game.id,
+                        steam_app_id=int(app_id)
+                        # No max_reviews limit - fetch all reviews
+                    )
+                    if review_result.get("success"):
+                        print(f"  ✓ Fetched {review_result.get('new_reviews', 0)} reviews")
+                except Exception as review_error:
+                    print(f"  ⚠ Failed to fetch reviews: {review_error}")
                 
                 # Commit every 10 games to avoid losing progress
                 if imported_count % 10 == 0:
@@ -514,6 +711,309 @@ def import_games_batch_from_steamspy(
         return {
             "success": True,
             "message": f"Batch import completed",
+            "imported": imported_count,
+            "skipped": skipped_count,
+            "failed": failed_count,
+            "total_processed": imported_count + skipped_count + failed_count
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error during batch import: {str(e)}"
+        )
+
+
+@router.post("/steamspy/import/batch/newest")
+def import_newest_games_from_steamspy(
+    limit: int = Query(50, description="Number of newest games to import", ge=1, le=500),
+    db: Session = Depends(get_db)
+):
+    """
+    Import newest games from SteamSpy into the database
+    
+    - **limit**: Number of newest games to import (1-500, default: 50)
+    
+    This will fetch newest games from SteamSpy (sorted by release date), 
+    then get detailed info from Steam API, and import them into your database
+    """
+
+    try:
+        # Get newest games from Steam Store Scraper (more reliable for "Released Date")
+        print(f"Fetching newest games from Steam Store Scraper (limit={limit})...")
+        newest_games = SteamAPIClient.get_newest_games_from_steam_store(limit=limit)
+
+        
+        if not newest_games:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to fetch newest games from SteamSpy"
+            )
+        
+        imported_count = 0
+        skipped_count = 0
+        failed_count = 0
+        
+        for game in newest_games:
+            app_id = game.get('app_id')
+            
+            if not app_id:
+                continue
+            
+            try:
+                # Check if game already exists (by title OR steam_app_id)
+                existing_game = db.query(models.Game).filter(
+                    (models.Game.title == game.get('name')) |
+                    (models.Game.steam_app_id == int(app_id))
+                ).first()
+                
+                if existing_game:
+                    skipped_count += 1
+                    continue
+                
+                # Fetch detailed info from Steam API (English for reliable date parsing)
+                steam_details_en = SteamAPIClient.get_app_details(int(app_id), language="english", country_code="us")
+                
+                if not steam_details_en:
+                    # Use SteamSpy data as fallback
+                    new_game = models.Game(
+                        title=game.get('name', 'Unknown'),
+                        description=game.get('developer', ''),
+                        genre=game.get('genre', ''),
+                        image_url=None,
+                        release_date=None,
+                        developer=game.get('developer', ''),
+                        publisher=game.get('publisher', ''),
+                        platform=None,
+                        price=None,
+                        video=None
+                    )
+                else:
+                    # Also fetch Thai version for Thai description (if available)
+                    steam_details_th = SteamAPIClient.get_app_details(int(app_id), language="thai", country_code="th")
+                    
+                    # Import utilities
+                    from ..utils.translator import translator
+                    from ..utils.text_cleaner import clean_html_text
+                    
+                    # Try to get Thai description first, fallback to English + translation
+                    thai_desc = None
+                    english_desc = None
+                    
+                    # Get English description first
+                    about_game_en = steam_details_en.get('about_the_game')
+                    short_desc_en = steam_details_en.get('short_description')
+                    
+                    if about_game_en:
+                        english_desc = clean_html_text(about_game_en)
+                    elif short_desc_en:
+                        english_desc = clean_html_text(short_desc_en)
+                    
+                    if steam_details_th:
+                        # Try Thai about_the_game
+                        about_game_th = steam_details_th.get('about_the_game')
+                        if about_game_th:
+                            cleaned_thai = clean_html_text(about_game_th)
+                            # Verify it's actually Thai, not English
+                            detected_lang = translator.detect_language(cleaned_thai)
+                            if detected_lang == 'th':
+                                thai_desc = cleaned_thai
+                                print(f"   ✓ Using native Thai description")
+                            else:
+                                print(f"   ⚠ Steam Thai API returned {detected_lang}, not Thai. Will translate.")
+                    
+                    # If no Thai description, translate English
+                    if not thai_desc and english_desc:
+                        thai_desc = translator.translate_to_thai(english_desc)
+                        print(f"   ⚡ Translated English description to Thai")
+                    
+                    # Extract platform info
+                    platforms = steam_details_en.get('platforms', {})
+                    platform_list = []
+                    if platforms.get('windows'): platform_list.append('Windows')
+                    if platforms.get('mac'): platform_list.append('Mac')
+                    if platforms.get('linux'): platform_list.append('Linux')
+                    platform_str = ', '.join(platform_list) if platform_list else None
+                    
+                    # Extract price info
+                    price_overview = steam_details_en.get('price_overview', {})
+                    price_str = price_overview.get('final_formatted') if price_overview else None
+                    
+                    # Extract video URL (first movie)
+                    movies = steam_details_en.get('movies', [])
+                    video_url = movies[0].get('webm', {}).get('480') if movies else None
+                    if not video_url and movies:
+                        video_url = movies[0].get('mp4', {}).get('480')
+                    
+                    # Parse release date (from English API for reliable parsing)
+                    release_date_info = steam_details_en.get('release_date', {})
+                    release_date_str = release_date_info.get('date')
+                    coming_soon = release_date_info.get('coming_soon', False)
+                    
+                    # Debug: Print raw release date info
+                    print(f"🔍 Game: {steam_details_en.get('name')}")
+                    print(f"   Release date info: {release_date_info}")
+                    print(f"   Date string: '{release_date_str}'")
+                    print(f"   Coming soon: {coming_soon}")
+                    
+                    release_date_obj = None
+                    if release_date_str and not coming_soon:
+                        try:
+                            from datetime import datetime
+                            # Try different date formats that Steam uses
+                            date_formats = [
+                                '%d %b, %Y',      # "9 Jul, 2013"
+                                '%b %d, %Y',      # "Jul 9, 2013"
+                                '%d %B, %Y',      # "9 July, 2013"
+                                '%B %d, %Y',      # "July 9, 2013"
+                                '%Y-%m-%d',       # "2013-07-09"
+                                '%d %b %Y',       # "9 Jul 2013" (without comma)
+                                '%b %d %Y',       # "Jul 9 2013" (without comma)
+                                '%Y',             # "2013" (year only)
+                            ]
+                            
+                            for fmt in date_formats:
+                                try:
+                                    release_date_obj = datetime.strptime(release_date_str, fmt).date()
+                                    print(f"   ✓ Parsed date '{release_date_str}' using format '{fmt}' -> {release_date_obj}")
+                                    break
+                                except ValueError:
+                                    continue
+                            
+                            if not release_date_obj:
+                                print(f"   ⚠ Failed to parse date: '{release_date_str}'")
+                        except Exception as e:
+                            print(f"   ⚠ Error parsing date '{release_date_str}': {e}")
+                            pass
+                    elif coming_soon:
+                        print(f"   ⏳ Game is coming soon, skipping date")
+                    else:
+                        print(f"   ⚠ No release date string found")
+                    
+                    # Use Steam API data (English in description, Thai in about_game_th)
+                    new_game = models.Game(
+                        title=steam_details_en.get('name'),
+                        description=english_desc,  # English description
+                        about_game_th=thai_desc,   # Thai description (native or translated)
+                        genre=", ".join([g["description"] for g in steam_details_en.get("genres", [])[:3]]),
+                        image_url=steam_details_en.get('header_image'),
+                        release_date=release_date_obj,
+                        developer=", ".join(steam_details_en.get('developers', [])),
+                        publisher=", ".join(steam_details_en.get('publishers', [])),
+                        platform=platform_str,
+                        price=price_str,
+                        video=video_url,
+                        steam_app_id=int(app_id)  # Store Steam App ID
+                    )
+                
+                db.add(new_game)
+                db.flush()  # Get the game ID
+                
+                # Extract and create player mode tags from categories
+                categories = steam_details_en.get('categories', [])
+                player_mode_tags = []
+                
+                for category in categories:
+                    category_id = category.get('id')
+                    # Single-player: category 2
+                    # Multi-player: category 1
+                    # Co-op: category 9, 24, 36, 37, 38
+                    if category_id == 2:
+                        player_mode_tags.append('Single-player')
+                    elif category_id == 1:
+                        player_mode_tags.append('Multi-player')
+                    elif category_id in [9, 24, 36, 37, 38]:  # Various co-op modes
+                        if 'Co-op' not in player_mode_tags:
+                            player_mode_tags.append('Co-op')
+                
+                # Create/link player mode tags
+                for mode_name in player_mode_tags:
+                    # Check if tag exists
+                    tag = db.query(models.Tag).filter(
+                        models.Tag.name == mode_name,
+                        models.Tag.type == 'player_mode'
+                    ).first()
+                    
+                    if not tag:
+                        tag = models.Tag(name=mode_name, type='player_mode')
+                        db.add(tag)
+                        db.flush()
+                    
+                    # Link game to tag
+                    existing_link = db.query(models.GameTag).filter(
+                        models.GameTag.game_id == new_game.id,
+                        models.GameTag.tag_id == tag.id
+                    ).first()
+                    
+                    if not existing_link:
+                        game_tag = models.GameTag(game_id=new_game.id, tag_id=tag.id)
+                        db.add(game_tag)
+                
+                # Auto-link Massively Multiplayer games to Multi-player tag
+                genres = steam_details_en.get('genres', [])
+                is_massively_multiplayer = any(g.get('description') == 'Massively Multiplayer' for g in genres)
+                
+                if is_massively_multiplayer and 'Multi-player' not in player_mode_tags:
+                    # Find or create Multi-player tag
+                    multiplayer_tag = db.query(models.Tag).filter(
+                        models.Tag.name == 'Multi-player',
+                        models.Tag.type == 'player_mode'
+                    ).first()
+                    
+                    if not multiplayer_tag:
+                        multiplayer_tag = models.Tag(name='Multi-player', type='player_mode')
+                        db.add(multiplayer_tag)
+                        db.flush()
+                    
+                    # Link game to Multi-player tag
+                    existing_link = db.query(models.GameTag).filter(
+                        models.GameTag.game_id == new_game.id,
+                        models.GameTag.tag_id == multiplayer_tag.id
+                    ).first()
+                    
+                    if not existing_link:
+                        game_tag = models.GameTag(game_id=new_game.id, tag_id=multiplayer_tag.id)
+                        db.add(game_tag)
+                        print(f"   ✓ Auto-linked Massively Multiplayer game to Multi-player tag")
+                
+                imported_count += 1
+                
+                # Fetch ALL reviews for newly imported game
+                try:
+                    from ..services.review_service import review_service
+                    print(f"  📊 Fetching ALL reviews for {new_game.title}...")
+                    review_result = review_service.fetch_and_store_reviews(
+                        db=db,
+                        game_id=new_game.id,
+                        steam_app_id=int(app_id)
+                        # No max_reviews limit - fetch all reviews
+                    )
+                    if review_result.get("success"):
+                        print(f"  ✓ Fetched {review_result.get('new_reviews', 0)} reviews")
+                except Exception as review_error:
+                    print(f"  ⚠ Failed to fetch reviews: {review_error}")
+                
+                # Commit every 10 games to avoid losing progress
+                if imported_count % 10 == 0:
+                    db.commit()
+                
+                # Be nice to APIs - add delay
+                time.sleep(1.5)
+                
+            except Exception as e:
+                print(f"Error importing game {app_id}: {e}")
+                failed_count += 1
+                continue
+        
+        # Final commit
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": f"Batch import of newest games completed",
             "imported": imported_count,
             "skipped": skipped_count,
             "failed": failed_count,
@@ -601,5 +1101,228 @@ def update_steam_app_ids(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error updating steam_app_ids: {str(e)}"
+        )
+
+
+@router.post("/update-player-modes")
+def update_existing_games_with_player_modes(
+    limit: int = Query(default=100, description="Maximum number of games to update"),
+    db: Session = Depends(get_db)
+):
+    """
+    Update existing games with player mode tags by fetching categories from Steam API.
+    
+    This endpoint:
+    1. Gets games that have steam_app_id
+    2. Fetches categories from Steam API
+    3. Creates player mode tags (Single-player, Multi-player, Co-op)
+    4. Links games to player mode tags
+    """
+    try:
+        import time
+        
+        # Get games with steam_app_id
+        games = db.query(models.Game).filter(
+            models.Game.steam_app_id.isnot(None)
+        ).limit(limit).all()
+        
+        if not games:
+            return {
+                "success": False,
+                "message": "No games found with steam_app_id",
+                "updated": 0
+            }
+        
+        updated_count = 0
+        failed_count = 0
+        
+        print(f"๐” Updating {len(games)} games with player mode tags...")
+        
+        for game in games:
+            try:
+                # Fetch Steam API details
+                steam_details = SteamAPIClient.get_app_details(game.steam_app_id)
+                
+                if not steam_details:
+                    print(f"โ  Could not fetch details for {game.title} (App ID: {game.steam_app_id})")
+                    failed_count += 1
+                    continue
+                
+                # Extract categories
+                categories = steam_details.get('categories', [])
+                player_mode_tags = []
+                
+                for category in categories:
+                    category_id = category.get('id')
+                    # Single-player: category 2
+                    # Multi-player: category 1
+                    # Co-op: category 9, 24, 36, 37, 38
+                    if category_id == 2:
+                        player_mode_tags.append('Single-player')
+                    elif category_id == 1:
+                        player_mode_tags.append('Multi-player')
+                    elif category_id in [9, 24, 36, 37, 38]:  # Various co-op modes
+                        if 'Co-op' not in player_mode_tags:
+                            player_mode_tags.append('Co-op')
+                
+                # Create/link player mode tags
+                for mode_name in player_mode_tags:
+                    # Check if tag exists
+                    tag = db.query(models.Tag).filter(
+                        models.Tag.name == mode_name,
+                        models.Tag.type == 'player_mode'
+                    ).first()
+                    
+                    if not tag:
+                        tag = models.Tag(name=mode_name, type='player_mode')
+                        db.add(tag)
+                        db.flush()
+                    
+                    # Check if link already exists
+                    existing_link = db.query(models.GameTag).filter(
+                        models.GameTag.game_id == game.id,
+                        models.GameTag.tag_id == tag.id
+                    ).first()
+                    
+                    if not existing_link:
+                        game_tag = models.GameTag(game_id=game.id, tag_id=tag.id)
+                        db.add(game_tag)
+                
+                # Auto-link Massively Multiplayer games to Multi-player tag
+                genres = steam_details.get('genres', [])
+                is_massively_multiplayer = any(g.get('description') == 'Massively Multiplayer' for g in genres)
+                
+                if is_massively_multiplayer and 'Multi-player' not in player_mode_tags:
+                    # Find or create Multi-player tag
+                    multiplayer_tag = db.query(models.Tag).filter(
+                        models.Tag.name == 'Multi-player',
+                        models.Tag.type == 'player_mode'
+                    ).first()
+                    
+                    if not multiplayer_tag:
+                        multiplayer_tag = models.Tag(name='Multi-player', type='player_mode')
+                        db.add(multiplayer_tag)
+                        db.flush()
+                    
+                    # Link game to Multi-player tag
+                    existing_link = db.query(models.GameTag).filter(
+                        models.GameTag.game_id == game.id,
+                        models.GameTag.tag_id == multiplayer_tag.id
+                    ).first()
+                    
+                    if not existing_link:
+                        game_tag = models.GameTag(game_id=game.id, tag_id=multiplayer_tag.id)
+                        db.add(game_tag)
+                        print(f"   ✓ Auto-linked Massively Multiplayer game to Multi-player tag")
+
+                
+                updated_count += 1
+                print(f"โ“ Updated {game.title} with {len(player_mode_tags)} player modes")
+                
+                # Commit every 10 games
+                if updated_count % 10 == 0:
+                    db.commit()
+                    print(f"๐’พ Committed {updated_count} games...")
+                
+                # Be nice to Steam API
+                time.sleep(1.5)
+                
+            except Exception as e:
+                print(f"โ Error updating {game.title}: {e}")
+                failed_count += 1
+                continue
+        
+        # Final commit
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": f"Updated {updated_count} games with player mode tags",
+            "updated": updated_count,
+            "failed": failed_count,
+            "total_processed": len(games)
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error updating player modes: {str(e)}"
+        )
+@router.post("/link-mm-to-multiplayer")
+def link_massively_multiplayer_to_multiplayer(db: Session = Depends(get_db)):
+    """
+    Link all games with 'Massively Multiplayer' genre to 'Multi-player' player mode tag.
+    
+    This is useful because Massively Multiplayer games are inherently multiplayer games,
+    so they should appear in the Multi-player filter.
+    """
+    try:
+        # Find Massively Multiplayer genre tag
+        mm_genre_tag = db.query(models.Tag).filter(
+            models.Tag.name == 'Massively Multiplayer',
+            models.Tag.type == 'genre'
+        ).first()
+        
+        if not mm_genre_tag:
+            return {
+                "success": False,
+                "message": "Massively Multiplayer genre tag not found"
+            }
+        
+        # Find or create Multi-player tag
+        multiplayer_tag = db.query(models.Tag).filter(
+            models.Tag.name == 'Multi-player',
+            models.Tag.type == 'player_mode'
+        ).first()
+        
+        if not multiplayer_tag:
+            multiplayer_tag = models.Tag(name='Multi-player', type='player_mode')
+            db.add(multiplayer_tag)
+            db.flush()
+        
+        # Find all games with Massively Multiplayer genre
+        mm_game_tags = db.query(models.GameTag).filter(
+            models.GameTag.tag_id == mm_genre_tag.id
+        ).all()
+        
+        linked_count = 0
+        already_linked_count = 0
+        
+        for game_tag in mm_game_tags:
+            game_id = game_tag.game_id
+            
+            # Check if already linked to Multi-player
+            existing_link = db.query(models.GameTag).filter(
+                models.GameTag.game_id == game_id,
+                models.GameTag.tag_id == multiplayer_tag.id
+            ).first()
+            
+            if existing_link:
+                already_linked_count += 1
+            else:
+                # Create link
+                new_link = models.GameTag(
+                    game_id=game_id,
+                    tag_id=multiplayer_tag.id
+                )
+                db.add(new_link)
+                linked_count += 1
+        
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": f"Linked {linked_count} Massively Multiplayer games to Multi-player tag",
+            "newly_linked": linked_count,
+            "already_linked": already_linked_count,
+            "total_mm_games": len(mm_game_tags)
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error linking tags: {str(e)}"
         )
 

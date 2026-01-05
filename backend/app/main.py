@@ -1,7 +1,7 @@
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from .database import engine, Base
-from .routes import games, reviews, steam, auth, news, steam_reviews
+from .routes import games, reviews, steam, auth, news, review_tags, favorites, comments, profile, tags
 import os
 from dotenv import load_dotenv
 
@@ -25,21 +25,27 @@ app = FastAPI(
 
 # Start background tasks
 from app.services.news_sync import NewsSyncService
+from app.services.game_sync import GameSyncService
+from app.services.review_scheduler import start_review_scheduler, stop_review_scheduler
 
 @app.on_event("startup")
 async def startup_event():
     NewsSyncService.start_scheduler()
+    GameSyncService.start_scheduler()
+    start_review_scheduler()  # Start daily review update scheduler
 
 @app.on_event("shutdown")
 async def shutdown_event():
     NewsSyncService.stop_scheduler()
+    GameSyncService.stop_scheduler()
+    stop_review_scheduler()  # Stop review scheduler
 
 # Configure CORS
-origins = os.getenv("CORS_ORIGINS", "http://localhost:4200").split(",")
+origins = os.getenv("CORS_ORIGINS", "http://localhost:4200,http://127.0.0.1:4200").split(",")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -50,8 +56,12 @@ app.include_router(auth.router)
 app.include_router(games.router)
 app.include_router(reviews.router)
 app.include_router(steam.router)
-app.include_router(steam_reviews.router)
 app.include_router(news.router)
+app.include_router(review_tags.router)
+app.include_router(favorites.router)
+app.include_router(comments.router)
+app.include_router(profile.router)
+app.include_router(tags.router)
 
 
 @app.get("/", tags=["root"])

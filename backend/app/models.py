@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Float, DateTime, Boolean, Date
+from sqlalchemy import Column, Integer, String, Text, Float, DateTime, Boolean, Date, text
 from sqlalchemy.sql import func
 from .database import Base
 
@@ -12,6 +12,7 @@ class User(Base):
     email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column("password", String(255), nullable=False)
     user_role = Column(String(50), nullable=False, default="User")
+    avatar_url = Column(Text)  # Store avatar as base64 or URL
     created_at = Column("created_date", DateTime(timezone=True), server_default=func.now())
 
 
@@ -39,7 +40,8 @@ class Game(Base):
     publisher = Column(String(255))  # Publisher name
     rating = Column(Float)  # Game rating (optional)
     about_game_th = Column(Text)  # Thai translation of game details
-    steam_app_id = Column(String(50), unique=True, index=True)  # Steam App ID from SteamSpy
+    steam_app_id = Column(Integer, unique=True, index=True)  # Steam App ID from SteamSpy
+    last_review_fetch = Column(DateTime(timezone=True), nullable=True)  # Last time reviews were fetched
 
 
 
@@ -56,11 +58,25 @@ class Review(Base):
     content = Column(Text, nullable=False)
     owner = Column(String(255))
     
-    # New columns added for Steam reviews
+    # Steam review columns
     steam_id = Column(String(255), unique=True, index=True)
     voted_up = Column("voted_up", Boolean)  # Column has trailing space in DB
     created_at = Column("created_at", DateTime(timezone=True))  # Column has trailing space in DB
+    
+    # New Steam review fields added by migration
+    is_steam_review = Column(Boolean, default=False, nullable=False, index=True)
+    steam_author = Column(String(255))
+    helpful_count = Column(Integer, default=0)
+    playtime_hours = Column(Float)
 
+
+class AnalyReview(Base):
+    """Sentiment analysis - stores only voted_up from Steam reviews"""
+    __tablename__ = "analyreview"
+    id = Column(Integer, primary_key=True, index=True)
+    game_id = Column(Integer, nullable=False, index=True)
+    voted_up = Column(Boolean, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=text('NOW()'))
 
 
 
@@ -81,3 +97,93 @@ class News(Base):
     is_active = Column(Boolean, default=True, nullable=False, index=True)  # Soft delete
 
 
+class GameReviewTag(Base):
+    """Game review tags - stores analyzed tags from Thai reviews"""
+    __tablename__ = "game_review_tags"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    game_id = Column(Integer, nullable=False, index=True)
+    tag_type = Column(String(20), nullable=False)  # 'positive' or 'negative'
+    tag_word = Column(String(100), nullable=False)
+    tag_count = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class Favorite(Base):
+    """Favorite model - tracks user's favorite games"""
+    __tablename__ = "favorite"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    game_id = Column(Integer, nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Ensure a user can only favorite a game once
+    __table_args__ = (
+        {'mysql_engine': 'InnoDB', 'mysql_charset': 'utf8mb4'}
+    )
+
+
+class Comment(Base):
+    """Comment model - user comments on games"""
+    __tablename__ = "comment"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    game_id = Column(Integer, nullable=False, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    content = Column(Text, nullable=False)
+    is_edited = Column(Boolean, default=False, nullable=False)
+    upvotes = Column(Integer, default=0, nullable=False)  # Store upvotes directly
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class CommentVote(Base):
+    """CommentVote model - tracks thumbs up/down votes on comments"""
+    __tablename__ = "comment_vote"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    comment_id = Column(Integer, nullable=False, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    vote_type = Column(String(10), nullable=False)  # 'up' or 'down'
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Ensure a user can only vote once per comment
+    __table_args__ = (
+        {'mysql_engine': 'InnoDB', 'mysql_charset': 'utf8mb4'}
+    )
+
+
+class CommentReport(Base):
+    """CommentReport model - user reports for inappropriate comments"""
+    __tablename__ = "comment_report"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    comment_id = Column(Integer, nullable=False, index=True)
+    reporter_id = Column(Integer, nullable=False, index=True)
+    reason = Column(Text, nullable=False)
+    status = Column(String(20), default='pending', nullable=False)  # 'pending', 'reviewed', 'dismissed'
+    reviewed_by = Column(Integer)  # Admin user ID who reviewed
+    reviewed_at = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class Tag(Base):
+    """Tag model - stores filter tags (genres, platforms, player modes)"""
+    __tablename__ = "tags"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False)
+    type = Column(String(50), nullable=False)  # 'genre', 'platform', 'player_mode'
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class GameTag(Base):
+    """GameTag model - links games to tags (many-to-many relationship)"""
+    __tablename__ = "game_tags"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    game_id = Column(Integer, nullable=False, index=True)
+    tag_id = Column(Integer, nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

@@ -1,4 +1,4 @@
-<app-header></app-header>
+﻿<app-header></app-header>
 
 <div class="min-h-screen bg-gray-50">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -44,8 +44,11 @@
                 <div class="lg:col-span-1 mt-22">
                     <div class="bg-white rounded-lg shadow-md p-6 space-y-4">
                         <!-- Add to Favorites Button -->
-                        <p-button label="เพิ่มในรายการโปรด" icon="pi pi-heart" styleClass="p-button-danger w-full mb-4"
-                            size="large"></p-button>
+                        <p-button [label]="isFavorited ? 'ลบออกจากรายการโปรด' : 'เพิ่มในรายการโปรด'"
+                            [icon]="isFavorited ? 'pi pi-heart-fill' : 'pi pi-heart'"
+                            [styleClass]="isFavorited ? 'p-button-success w-full mb-4' : 'p-button-danger w-full mb-4'"
+                            [loading]="isTogglingFavorite" size="large" (onClick)="toggleFavorite()">
+                        </p-button>
 
                         <!-- Release Date -->
                         <div class="flex flex-row">
@@ -100,34 +103,53 @@
                 <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
                     <i class="pi pi-chart-bar text-red-600"></i>
                     การวิเคราะห์ความรู้สึก
+                    <!-- <button (click)="refreshTags()" [disabled]="isLoadingTags" title="วิเคราะห์ใหม่ (AI Polish)"
+                        class="ml-auto text-sm bg-purple-100 text-purple-700 hover:bg-purple-200 px-3 py-1 rounded-full transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="pi" [ngClass]="isLoadingTags ? 'pi-spin pi-spinner' : 'pi-sparkles'"></i>
+                        <span>{{ isLoadingTags ? 'Analyzing...' : 'AI Polish' }}</span>
+                    </button> -->
                 </h3>
 
-                <!-- Sentiment Bars -->
-                <div class="space-y-4 mb-6">
-                    <div>
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="text-sm font-medium text-green-700 mt-5">
-                                <i class="pi pi-thumbs-up-fill"></i>
-                                แง่บวก (Positive)</span>
-                            <span class="text-sm font-bold text-green-700">{{ game.sentiment.positive }}%</span>
-                        </div>
-                        <p-progressBar [value]="game.sentiment.positive" [showValue]="false"
-                            styleClass="h-3 progress-positive" [style]="{'background': '#e5e7eb'}"></p-progressBar>
-                    </div>
+                <!-- Loading State -->
+                <div *ngIf="loadingSentiment" class="text-center py-12">
+                    <i class="pi pi-spin pi-spinner text-5xl text-purple-500 mb-4"></i>
+                    <p class="text-gray-700 font-semibold text-lg">กำลังวิเคราะห์รีวิวจาก Steam...</p>
+                    <p class="text-sm text-gray-500 mt-2">กำลังดึงข้อมูลรีวิวทั้งหมด กรุณารอสักครู่...</p>
+                </div>
 
-                    <div>
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="text-sm font-medium text-red-700">
-                                <i class="pi pi-thumbs-down-fill"></i>
-                                แง่ลบ (Negative)</span>
-                            <span class="text-sm font-bold text-red-700">{{ game.sentiment.negative }}%</span>
+                <!-- Sentiment Bars (only show when not loading) -->
+                <div *ngIf="!loadingSentiment">
+                    <div class="space-y-4 mb-6">
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-sm font-medium text-green-700 mt-5">
+                                    <i class="pi pi-thumbs-up-fill"></i>
+                                    แง่บวก (Positive)</span>
+                                <span class="text-sm font-bold text-green-700">{{ game.sentiment.positive }}%</span>
+                            </div>
+                            <p-progressBar [value]="game.sentiment.positive" [showValue]="false"
+                                styleClass="h-3 progress-positive" [style]="{'background': '#e5e7eb'}"></p-progressBar>
                         </div>
-                        <p-progressBar [value]="game.sentiment.negative" [showValue]="false"
-                            styleClass="h-3 progress-negative" [style]="{'background': '#e5e7eb'}"></p-progressBar>
-                    </div>
 
-                    <div class="text-sm text-gray-600 mt-5">
-                        วิเคราะห์จาก 2,350 รีวิว
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-sm font-medium text-red-700">
+                                    <i class="pi pi-thumbs-down-fill"></i>
+                                    แง่ลบ (Negative)</span>
+                                <span class="text-sm font-bold text-red-700">{{ game.sentiment.negative }}%</span>
+                            </div>
+                            <p-progressBar [value]="game.sentiment.negative" [showValue]="false"
+                                styleClass="h-3 progress-negative" [style]="{'background': '#e5e7eb'}"></p-progressBar>
+                        </div>
+
+                        <div class="text-sm text-gray-600 mt-5">
+                            <span *ngIf="totalReviewsAnalyzed > 0">
+                                วิเคราะห์จาก {{ totalReviewsAnalyzed | number }} รีวิวจาก Steam
+                            </span>
+                            <span *ngIf="totalReviewsAnalyzed === 0">
+                                ไม่มีข้อมูลรีวิว
+                            </span>
+                        </div>
                     </div>
                 </div>
 
@@ -165,6 +187,7 @@
                 </div>
             </div>
 
+
             <!-- Thai Game Details Section (เกี่ยวกับเกม) - Always shown -->
             <div class="bg-white rounded-lg shadow-md p-6 mb-8">
                 <h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -176,49 +199,157 @@
                 </div>
             </div>
 
+            <!-- Steam Reviews Section (รีวิวจาก Steam) -->
+            <div *ngIf="game.appId" class="bg-white rounded-lg shadow-md p-6 mb-8">
+                <h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <i class="pi pi-comments text-red-600"></i>
+                    รีวิวจาก Steam (ภาษาไทย)
+                </h2>
 
-            <!-- Reviews Carousel Section -->
-            <div class="bg-white rounded-lg shadow-md p-6 mb-8">
-                <div class="flex items-center justify-between mb-6">
-                    <h2 class="text-2xl font-bold text-gray-900">รีวิว</h2>
-                    <div class="flex items-center gap-2">
-                        <button (click)="scrollReviews('left')"
-                            class="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors">
-                            <i class="pi pi-chevron-left text-gray-700"></i>
-                        </button>
-                        <button (click)="scrollReviews('right')"
-                            class="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors">
-                            <i class="pi pi-chevron-right text-gray-700"></i>
-                        </button>
+                <!-- Loading State -->
+                <div *ngIf="loadingSteamReviews" class="flex items-center justify-center py-8">
+                    <div class="text-center">
+                        <i class="pi pi-spin pi-spinner text-3xl text-purple-500 mb-3"></i>
+                        <p class="text-gray-600">กำลังโหลดรีวิวจาก Steam...</p>
                     </div>
                 </div>
 
-                <div #reviewsContainer class="overflow-x-auto scrollbar-hide scroll-smooth"
-                    style="scrollbar-width: none; -ms-overflow-style: none;">
-                    <div class="inline-grid grid-rows-2 grid-flow-col gap-4 pb-2">
-                        <div *ngFor="let review of reviews"
-                            class="w-96 bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <!-- Error State -->
+                <div *ngIf="steamReviewsError && !loadingSteamReviews"
+                    class="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div class="flex items-center gap-2">
+                        <i class="pi pi-exclamation-triangle text-red-500"></i>
+                        <p class="text-red-600 text-sm">{{ steamReviewsError }}</p>
+                    </div>
+                </div>
+
+                <!-- Reviews List -->
+                <div *ngIf="!loadingSteamReviews && !steamReviewsError">
+                    <!-- No Reviews Message -->
+                    <div *ngIf="steamReviews.length === 0" class="text-center py-8 text-gray-500">
+                        <i class="pi pi-inbox text-4xl mb-3"></i>
+                        <p>ยังไม่มีรีวิวภาษาไทยบน Steam</p>
+                    </div>
+
+                    <!-- Reviews Grid -->
+                    <div *ngIf="steamReviews.length > 0" class="space-y-4">
+                        <div *ngFor="let review of steamReviews"
+                            class="border border-gray-200 rounded-lg p-5 hover:bg-gray-50 transition-colors">
                             <!-- Review Header -->
-                            <div class="flex items-start justify-between mb-2">
-                                <div class="flex items-center gap-2">
-                                    <i class="pi pi-user-circle text-xl text-gray-400"></i>
+                            <div class="flex items-start justify-between mb-3">
+                                <div class="flex items-center gap-3">
+                                    <i class="pi pi-user-circle text-3xl text-gray-400"></i>
                                     <div>
-                                        <div class="font-bold text-gray-900 text-xs">{{ review.username }}</div>
-                                        <div class="text-xs text-gray-500">{{ review.date }}</div>
+                                        <div class="font-bold text-gray-900">{{ review.author || 'Steam User' }}</div>
+                                        <div class="text-sm text-gray-500">
+                                            {{ review.created_at ? (review.created_at | date: 'dd MMM yyyy') : 'Unknown
+                                            date' }}
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="flex items-center gap-1">
-                                    <i
-                                        [class]="'pi ' + getRatingIcon(review.rating) + ' ' + getRatingColor(review.rating) + ' text-xs'"></i>
+                                <div class="flex items-center gap-2">
+                                    <i [class]="review.voted_up ? 'pi pi-thumbs-up text-green-600' : 'pi pi-thumbs-down text-red-600'"
+                                        class="text-xl"></i>
+                                    <span
+                                        [class]="review.voted_up ? 'text-green-700 font-semibold' : 'text-red-700 font-semibold'">
+                                        {{ review.voted_up ? 'แนะนำ' : 'ไม่แนะนำ' }}
+                                    </span>
                                 </div>
                             </div>
 
+                            <!-- Review Content -->
+                            <p class="text-gray-700 leading-relaxed mb-4">{{ review.content }}</p>
 
+                            <!-- Review Footer -->
+                            <div class="flex items-center gap-4 text-sm text-gray-600">
+                                <div class="flex items-center gap-1">
+                                    <i class="pi pi-clock"></i>
+                                    <span>เล่นมา {{ formatPlaytime(review.playtime_hours) }}</span>
+                                </div>
+                                <div class="flex items-center gap-1">
+                                    <i class="pi pi-thumbs-up"></i>
+                                    <span>{{ review.helpful_count || 0 }} คนเห็นว่ามีประโยชน์</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- Steam Reviews Section -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+                <h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <i class="pi pi-comments text-red-600"></i>
+                    รีวิวจาก Steam (ภาษาไทย)
+                </h2>
+
+                <!-- Loading State -->
+                <div *ngIf="loadingSteamReviews" class="flex items-center justify-center py-8">
+                    <div class="text-center">
+                        <i class="pi pi-spin pi-spinner text-3xl text-purple-500 mb-3"></i>
+                        <p class="text-gray-600">กำลังโหลดรีวิวจาก Steam...</p>
+                    </div>
+                </div>
+
+                <!-- Error State -->
+                <div *ngIf="steamReviewsError && !loadingSteamReviews"
+                    class="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div class="flex items-center gap-2">
+                        <i class="pi pi-exclamation-triangle text-red-500"></i>
+                        <p class="text-red-600 text-sm">{{ steamReviewsError }}</p>
+                    </div>
+                </div>
+
+                <!-- Reviews List -->
+                <div *ngIf="!loadingSteamReviews && !steamReviewsError">
+                    <!-- No Reviews Message -->
+                    <div *ngIf="steamReviews.length === 0" class="text-center py-8 text-gray-500">
+                        <i class="pi pi-inbox text-4xl mb-3"></i>
+                        <p>ยังไม่มีรีวิวภาษาไทยบน Steam</p>
+                    </div>
+
+                    <!-- Reviews Grid -->
+                    <div *ngIf="steamReviews.length > 0" class="space-y-4">
+                        <div *ngFor="let review of steamReviews"
+                            class="border border-gray-200 rounded-lg p-5 hover:bg-gray-50 transition-colors">
+                            <!-- Review Header -->
+                            <div class="flex items-start justify-between mb-3">
+                                <div class="flex items-center gap-3">
+                                    <i class="pi pi-user-circle text-3xl text-gray-400"></i>
+                                    <div>
+                                        <div class="font-bold text-gray-900">{{ review.author || 'Steam
+                                            User' }}</div>
+                                        <div class="text-sm text-gray-500">
+                                            {{ review.created_at ? (review.created_at | date: 'dd MMM
+                                            yyyy') : 'Unknown date' }}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <i [class]="review.voted_up ? 'pi pi-thumbs-up text-green-600' : 'pi pi-thumbs-down text-red-600'"
+                                        class="text-xl"></i>
+                                    <span
+                                        [class]="review.voted_up ? 'text-green-700 font-semibold' : 'text-red-700 font-semibold'">
+                                        {{ review.voted_up ? 'แนะนำ' : 'ไม่แนะนำ' }}
+                                    </span>
+                                </div>
+                            </div>
 
                             <!-- Review Content -->
-                            <p class="text-gray-700 text-xs leading-relaxed mb-2 line-clamp-3">{{ review.content }}</p>
+                            <p class="text-gray-700 leading-relaxed mb-4">{{ review.content }}</p>
 
-
+                            <!-- Review Footer -->
+                            <div class="flex items-center gap-4 text-sm text-gray-600">
+                                <div class="flex items-center gap-1">
+                                    <i class="pi pi-clock"></i>
+                                    <span>เล่นมา {{ formatPlaytime(review.playtime_hours) }}</span>
+                                </div>
+                                <div class="flex items-center gap-1">
+                                    <i class="pi pi-thumbs-up"></i>
+                                    <span>{{ review.helpful_count || 0 }} คนเห็นว่ามีประโยชน์</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -238,61 +369,95 @@
                 <div class=" rounded-lg p-6 mb-6 border border-gray-200 mb-2">
                     <h3 class="text-lg font-semibold text-gray-900 mb-4">เขียนความคิดเห็นของคุณ</h3>
 
-                    <!-- <textarea rows="5" cols="30" pTextarea [autoResize]="true">test</textarea> -->
-
-
-
-                    <textarea
+                    <textarea [(ngModel)]="newComment"
                         class="w-full border border-gray-200  p-4 bg-gray-50 mt-5 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
-                        rows="4" placeholder="แสดงความคิดเห็นเกี่ยวกับเกมนี้..."></textarea>
+                        rows="4" placeholder="แสดงความคิดเห็นเกี่ยวกับเกมนี้..."
+                        [disabled]="isSubmittingComment"></textarea>
                     <div class="flex items-center justify-end gap-3 mt-4">
-                        <button
-                            class="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-medium text-sm">
-                            <i class="pi pi-send"></i>
-                            <span>โพสต์ความคิดเห็น</span>
+                        <button (click)="submitComment()" [disabled]="isSubmittingComment || !newComment.trim()"
+                            class="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i class="pi" [ngClass]="isSubmittingComment ? 'pi-spin pi-spinner' : 'pi-send'"></i>
+                            <span>{{ isSubmittingComment ? 'กำลังโพสต์...' : 'โพสต์ความคิดเห็น' }}</span>
                         </button>
                     </div>
                 </div>
 
+                <!-- Comments List -->
                 <div class="space-y-4">
+                    <!-- Empty State -->
+                    <div *ngIf="comments.length === 0" class="text-center py-12 text-gray-500">
+                        <i class="pi pi-comments text-5xl mb-3 text-gray-300"></i>
+                        <p>ยังไม่มีความคิดเห็น เป็นคนแรกที่แสดงความคิดเห็น!</p>
+                    </div>
 
-                    <div *ngFor="let review of reviews.slice(0, displayedReviewsCount)"
+                    <!-- Comment Item -->
+                    <div *ngFor="let comment of comments"
                         class="border border-gray-200 rounded-lg p-5 hover:bg-gray-50 transition-colors">
-                        <!-- Review Header -->
+                        <!-- Comment Header -->
                         <div class="flex items-start justify-between mb-3">
                             <div class="flex items-center gap-3">
                                 <i class="pi pi-user-circle text-3xl text-gray-400"></i>
                                 <div>
-                                    <div class="font-bold text-gray-900">{{ review.username }}</div>
-                                    <div class="text-sm text-gray-500">{{ review.date }}</div>
+                                    <div class="font-bold text-gray-900">
+                                        {{ comment.username }}
+                                        <span *ngIf="comment.is_edited"
+                                            class="text-xs text-gray-500 font-normal ml-2">(แก้ไขแล้ว)</span>
+                                    </div>
+                                    <div class="text-sm text-gray-500">{{ formatCommentDate(comment.created_at) }}</div>
                                 </div>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="flex items-center gap-2">
+                                <button *ngIf="isOwnComment(comment)" (click)="startEdit(comment)"
+                                    class="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                                    <i class="pi pi-pencil"></i>
+                                </button>
+                                <button *ngIf="canDeleteComment(comment)" (click)="deleteComment(comment.id)"
+                                    class="text-red-600 hover:text-red-700 text-sm font-medium">
+                                    <i class="pi pi-trash"></i>
+                                </button>
+                                <button *ngIf="!isOwnComment(comment)" (click)="reportComment(comment.id)"
+                                    class="text-orange-600 hover:text-orange-700 text-sm font-medium"
+                                    title="รายงานความคิดเห็น">
+                                    <i class="pi pi-flag"></i>
+                                </button>
                             </div>
                         </div>
 
-                        <!-- Review Content -->
-                        <p class="text-gray-700 leading-relaxed mb-4">{{ review.content }}</p>
+                        <!-- Comment Content (Normal View) -->
+                        <div *ngIf="editingCommentId !== comment.id">
+                            <p class="text-gray-700 leading-relaxed mb-4">{{ comment.content }}</p>
+                        </div>
 
-                        <!-- Review Footer -->
+                        <!-- Comment Content (Edit Mode) -->
+                        <div *ngIf="editingCommentId === comment.id" class="mb-4">
+                            <textarea [(ngModel)]="editingContent"
+                                class="w-full border border-gray-200 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
+                                rows="3"></textarea>
+                            <div class="flex gap-2 mt-2">
+                                <button (click)="saveEdit()"
+                                    class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm">
+                                    บันทึก
+                                </button>
+                                <button (click)="cancelEdit()"
+                                    class="px-3 py-1 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded text-sm">
+                                    ยกเลิก
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Comment Footer (Voting) -->
                         <div class="flex items-center gap-4 text-sm">
-                            <button
-                                class="flex items-center gap-2 text-gray-600 hover:text-green-600 transition-colors">
-                                <i class="pi pi-thumbs-up"></i>
-                                <span class="font-semibold">{{ review.helpful }}</span>
-                            </button>
-                            <button class="flex items-center gap-2 text-gray-600 hover:text-red-600 transition-colors">
-                                <i class="pi pi-thumbs-down"></i>
+                            <button (click)="voteComment(comment.id, 'up')"
+                                [ngClass]="comment.user_vote === 'up' ? 'text-green-600' : 'text-gray-600 hover:text-green-600'"
+                                class="flex items-center gap-2 transition-colors">
+                                <i class="pi"
+                                    [ngClass]="comment.user_vote === 'up' ? 'pi-thumbs-up-fill' : 'pi-thumbs-up'"></i>
+                                <span class="font-semibold">{{ comment.upvotes }}</span>
                             </button>
                         </div>
                     </div>
-                </div>
-
-                <!-- Load More Button -->
-                <div *ngIf="displayedReviewsCount < reviews.length" class="flex justify-center mt-6">
-                    <button (click)="loadMoreReviews()"
-                        class="w-12 h-12 rounded-full bg-gray-100 hover:bg-purple-100 transition-all hover:shadow-md group flex items-center justify-center">
-                        <i
-                            class="pi pi-chevron-down text-gray-700 group-hover:text-purple-600 transition-colors text-lg"></i>
-                    </button>
                 </div>
             </div>
 
@@ -308,31 +473,40 @@
                 <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                     <div *ngFor="let relatedGame of relatedGames" [routerLink]="['/games', relatedGame.id]"
                         class="bg-white rounded-lg overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer group border border-gray-100">
-                        <div class="relative h-40 bg-gray-200 overflow-hidden">
+                        <div class="relative h-40 overflow-hidden">
                             <img [src]="relatedGame.image" [alt]="relatedGame.title"
                                 class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                                 onerror="this.src='/games/placeholder.jpg'">
-                        </div>
-                        <div class="p-3">
-                            <h3
-                                class="font-bold text-gray-900 text-sm mb-1 line-clamp-2 group-hover:text-purple-600 transition-colors">
-                                {{ relatedGame.title }}
-                            </h3>
-                            <div class="flex items-center gap-1.5 text-gray-400 text-xs mb-2">
-                                <i class="pi pi-calendar"></i>
-                                <span>{{ relatedGame.date }}</span>
+
+                            <!-- Gradient Overlay -->
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
                             </div>
-                            <div class="flex flex-wrap gap-1">
-                                <!-- Genre Tags (Purple) -->
-                                <span *ngFor="let tag of relatedGame.tags"
-                                    class="bg-purple-100 text-purple-700 text-xs px-2 py-1 rounded font-medium">
-                                    {{ tag }}
-                                </span>
-                                <!-- Review Tags (Yellow) -->
-                                <span *ngFor="let tag of relatedGame.reviewTags"
-                                    class="bg-yellow-100 text-yellow-700 text-xs px-2 py-1 rounded font-medium">
-                                    {{ tag }}
-                                </span>
+
+                            <!-- Game Title Overlay (Bottom) -->
+                            <div class="absolute bottom-0 left-0 right-0 p-3 space-y-1.5">
+                                <h3 class="font-bold text-white text-sm drop-shadow-lg line-clamp-2">
+                                    {{ relatedGame.title }}
+                                </h3>
+
+                                <!-- Release Date -->
+                                <div class="flex items-center gap-1.5 text-white/90 text-xs">
+                                    <i class="pi pi-calendar"></i>
+                                    <span>{{ relatedGame.date }}</span>
+                                </div>
+
+                                <!-- Genre and Review Tags -->
+                                <div class="flex flex-wrap gap-1">
+                                    <!-- Genre Tags (Purple) -->
+                                    <span *ngFor="let tag of relatedGame.tags"
+                                        class="bg-purple-500/90 text-white text-xs px-1.5 py-0.5 rounded font-medium backdrop-blur-sm">
+                                        {{ tag }}
+                                    </span>
+                                    <!-- Review Tags (Yellow) -->
+                                    <span *ngFor="let tag of relatedGame.reviewTags"
+                                        class="bg-yellow-500/90 text-white text-xs px-1.5 py-0.5 rounded font-medium backdrop-blur-sm">
+                                        {{ tag }}
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -342,4 +516,103 @@
     </div>
 </div>
 
+<!-- Delete Confirmation Dialog -->
+<p-dialog [(visible)]="showDeleteDialog" [modal]="true" [style]="{width: '450px'}" [draggable]="false"
+    [resizable]="false">
+    <ng-template pTemplate="header">
+        <div class="flex items-center gap-3">
+            <i class="pi pi-exclamation-triangle text-red-600 text-2xl"></i>
+            <span class="font-bold text-xl">ยืนยันการลบ</span>
+        </div>
+    </ng-template>
+    <div class="py-4">
+        <p class="text-gray-700 text-lg">คุณต้องการลบความคิดเห็นนี้หรือไม่?</p>
+        <p class="text-gray-500 text-sm mt-2">การลบจะไม่สามารถกู้คืนได้</p>
+    </div>
+    <ng-template pTemplate="footer">
+        <button (click)="cancelDelete()"
+            class="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg transition-colors font-medium">
+            ยกเลิก
+        </button>
+        <button (click)="confirmDelete()"
+            class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium">
+            ลบความคิดเห็น
+        </button>
+    </ng-template>
+</p-dialog>
+
+<!-- Report Dialog -->
+<p-dialog [(visible)]="showReportDialog" [modal]="true" [style]="{width: '500px'}" [draggable]="false"
+    [resizable]="false">
+    <ng-template pTemplate="header">
+        <div class="flex items-center gap-3">
+            <i class="pi pi-flag text-orange-600 text-2xl"></i>
+            <span class="font-bold text-xl">รายงานความคิดเห็น</span>
+        </div>
+    </ng-template>
+    <div class="py-4">
+        <label for="reportReason" class="block text-gray-700 font-medium mb-2">
+            กรุณาระบุเหตุผลในการรายงาน:
+        </label>
+        <textarea id="reportReason" [(ngModel)]="reportReason" rows="4"
+            class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none"
+            placeholder="เช่น: เนื้อหาไม่เหมาะสม, ใช้ภาษาหยาบคาย, สแปม..."></textarea>
+    </div>
+    <ng-template pTemplate="footer">
+        <button (click)="cancelReport()"
+            class="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg transition-colors font-medium">
+            ยกเลิก
+        </button>
+        <button (click)="confirmReport()" [disabled]="!reportReason.trim()"
+            class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+            ส่งรายงาน
+        </button>
+    </ng-template>
+</p-dialog>
+
+
+<!-- Login Required Dialog -->
+<p-dialog [(visible)]="showLoginDialog" [modal]="true" [style]="{width: '450px'}" [draggable]="false"
+    [resizable]="false">
+    <ng-template pTemplate="header">
+        <div class="flex items-center gap-3">
+            <i class="pi pi-sign-in text-purple-600 text-2xl"></i>
+            <span class="font-bold text-xl">กรุณาเข้าสู่ระบบ</span>
+        </div>
+    </ng-template>
+    <div class="py-4">
+        <p class="text-gray-700 text-lg">{{ loginMessage }}</p>
+    </div>
+    <ng-template pTemplate="footer">
+        <button (click)="showLoginDialog = false"
+            class="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg transition-colors font-medium">
+            ยกเลิก
+        </button>
+        <button (click)="closeLoginDialog()"
+            class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-medium">
+            <i class="pi pi-sign-in mr-2"></i>
+            เข้าสู่ระบบ
+        </button>
+    </ng-template>
+</p-dialog>
+
+<!-- Error Dialog -->
+<p-dialog [(visible)]="showErrorDialog" [modal]="true" [style]="{width: '450px'}" [draggable]="false"
+    [resizable]="false">
+    <ng-template pTemplate="header">
+        <div class="flex items-center gap-3">
+            <i class="pi pi-exclamation-circle text-red-600 text-2xl"></i>
+            <span class="font-bold text-xl">แจ้งเตือน</span>
+        </div>
+    </ng-template>
+    <div class="py-4">
+        <p class="text-gray-700 text-lg">{{ errorMessage }}</p>
+    </div>
+    <ng-template pTemplate="footer">
+        <button (click)="closeErrorDialog()"
+            class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-medium">
+            ตกลง
+        </button>
+    </ng-template>
+</p-dialog>
 <app-footer></app-footer>

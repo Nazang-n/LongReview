@@ -15,103 +15,68 @@
                 <!-- Filter Categories -->
                 <div class="p-4 space-y-1">
 
-                    <!-- Platform Section (Expanded) -->
+                    <!-- Platform Section -->
                     <div class="filter-section">
-                        <div
+                        <div (click)="toggleSection('platform')"
                             class="filter-item py-2 px-3 bg-purple-50 border-l-2 border-purple-500 rounded cursor-pointer">
                             <div class="flex items-center justify-between">
                                 <span class="text-sm text-gray-900 font-semibold">แพลตฟอร์ม</span>
-                                <i class="pi pi-chevron-down text-purple-500 text-xs"></i>
+                                <i class="pi text-purple-500 text-xs"
+                                    [ngClass]="expandedSections.platform ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
                             </div>
                         </div>
-                        <div class="pl-4 mt-1 space-y-1">
-                            <div
-                                class="filter-item py-2 px-3 hover:bg-gray-50 rounded cursor-pointer transition-colors">
-                                <span class="text-xs text-gray-600">PC</span>
-                            </div>
-                            <div
-                                class="filter-item py-2 px-3 hover:bg-gray-50 rounded cursor-pointer transition-colors">
-                                <span class="text-xs text-gray-600">PlayStation 4</span>
-                            </div>
-                            <div
-                                class="filter-item py-2 px-3 hover:bg-gray-50 rounded cursor-pointer transition-colors">
-                                <span class="text-xs text-gray-600">PlayStation 5</span>
-                            </div>
-                            <div
-                                class="filter-item py-2 px-3 hover:bg-gray-50 rounded cursor-pointer transition-colors">
-                                <span class="text-xs text-gray-600">Xbox</span>
-                            </div>
-                            <div
-                                class="filter-item py-2 px-3 hover:bg-gray-50 rounded cursor-pointer transition-colors">
-                                <span class="text-xs text-gray-600">All Platform</span>
+                        <div *ngIf="expandedSections.platform" class="pl-4 mt-1 space-y-1">
+                            <div *ngFor="let platform of platforms" (click)="togglePlatform(platform.id)"
+                                class="filter-item py-2 px-3 rounded cursor-pointer transition-colors"
+                                [ngClass]="isPlatformSelected(platform.id) ? 'bg-purple-100 text-purple-700 font-semibold' : 'hover:bg-gray-50'">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs text-gray-600">{{ platform.name_th }}</span>
+                                    <span class="text-xs text-gray-400">({{ platform.game_count }})</span>
+                                </div>
                             </div>
                         </div>
                     </div>
 
+                    <!-- Player Mode Section -->
                     <div class="filter-section">
-                        <div
+                        <div (click)="toggleSection('player')"
                             class="filter-item py-2 px-3 bg-purple-50 border-l-2 border-purple-500 rounded cursor-pointer">
                             <div class="flex items-center justify-between">
                                 <span class="text-sm text-gray-900 font-semibold">ผู้เล่น</span>
-                                <i class="pi pi-chevron-down text-purple-500 text-xs"></i>
+                                <i class="pi text-purple-500 text-xs"
+                                    [ngClass]="expandedSections.player ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
                             </div>
                         </div>
-                        <div class="pl-4 mt-1 space-y-1">
-                            <div
-                                class="filter-item py-2 px-3 hover:bg-gray-50 rounded cursor-pointer transition-colors">
-                                <span class="text-xs text-gray-600">ผู้เล่นคนเดียว</span>
-                            </div>
-                            <div
-                                class="filter-item py-2 px-3 hover:bg-gray-50 rounded cursor-pointer transition-colors">
-                                <span class="text-xs text-gray-600">ผู้เล่นหลายคน</span>
-                            </div>
-                            <div
-                                class="filter-item py-2 px-3 hover:bg-gray-50 rounded cursor-pointer transition-colors">
-                                <span class="text-xs text-gray-600">ร่วมมือกัน</span>
+                        <div *ngIf="expandedSections.player" class="pl-4 mt-1 space-y-1">
+                            <div *ngFor="let playerMode of playerModes" (click)="togglePlayerMode(playerMode.id)"
+                                class="filter-item py-2 px-3 rounded cursor-pointer transition-colors"
+                                [ngClass]="isPlayerModeSelected(playerMode.id) ? 'bg-purple-100 text-purple-700 font-semibold' : 'hover:bg-gray-50'">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs text-gray-600">{{ playerMode.name_th }}</span>
+                                    <span class="text-xs text-gray-400">({{ playerMode.game_count }})</span>
+                                </div>
                             </div>
                         </div>
                     </div>
 
+                    <!-- Genre Section -->
                     <div class="filter-section">
-                        <div
+                        <div (click)="toggleSection('genre')"
                             class="filter-item py-2 px-3 bg-purple-50 border-l-2 border-purple-500 rounded cursor-pointer">
                             <div class="flex items-center justify-between">
                                 <span class="text-sm text-gray-900 font-semibold">ประเภท</span>
-                                <i class="pi pi-chevron-down text-purple-500 text-xs"></i>
+                                <i class="pi text-purple-500 text-xs"
+                                    [ngClass]="expandedSections.genre ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
                             </div>
                         </div>
-                        <div class="pl-4 mt-1 space-y-1">
-                            <div
-                                class="filter-item py-2 px-3 hover:bg-gray-50 rounded cursor-pointer transition-colors">
-                                <span class="text-xs text-gray-600">แอคชัน</span>
-                            </div>
-                            <div
-                                class="filter-item py-2 px-3 hover:bg-gray-50 rounded cursor-pointer transition-colors">
-                                <span class="text-xs text-gray-600">ผจญภัย</span>
-                            </div>
-                            <div
-                                class="filter-item py-2 px-3 hover:bg-gray-50 rounded cursor-pointer transition-colors">
-                                <span class="text-xs text-gray-600">อินดี้</span>
-                            </div>
-                            <div
-                                class="filter-item py-2 px-3 hover:bg-gray-50 rounded cursor-pointer transition-colors">
-                                <span class="text-xs text-gray-600">แข่งความเร็ว</span>
-                            </div>
-                            <div
-                                class="filter-item py-2 px-3 hover:bg-gray-50 rounded cursor-pointer transition-colors">
-                                <span class="text-xs text-gray-600">เกมสวมบทบาท</span>
-                            </div>
-                            <div
-                                class="filter-item py-2 px-3 hover:bg-gray-50 rounded cursor-pointer transition-colors">
-                                <span class="text-xs text-gray-600">จำลองสถานการณ์</span>
-                            </div>
-                            <div
-                                class="filter-item py-2 px-3 hover:bg-gray-50 rounded cursor-pointer transition-colors">
-                                <span class="text-xs text-gray-600">กีฬา</span>
-                            </div>
-                            <div
-                                class="filter-item py-2 px-3 hover:bg-gray-50 rounded cursor-pointer transition-colors">
-                                <span class="text-xs text-gray-600">กลยุทธ์</span>
+                        <div *ngIf="expandedSections.genre" class="pl-4 mt-1 space-y-1">
+                            <div *ngFor="let genre of genres" (click)="toggleGenre(genre.id)"
+                                class="filter-item py-2 px-3 rounded cursor-pointer transition-colors"
+                                [ngClass]="isGenreSelected(genre.id) ? 'bg-purple-100 text-purple-700 font-semibold' : 'hover:bg-gray-50'">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs text-gray-600">{{ genre.name_th }}</span>
+                                    <span class="text-xs text-gray-400">({{ genre.game_count }})</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -122,11 +87,21 @@
 
         <!-- Main Content Area -->
         <main class="flex-1">
+            <!-- Search Bar -->
+            <div class="mb-6">
+                <div class="relative">
+                    <i class="pi pi-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg"></i>
+                    <input type="text" [ngModel]="searchQuery" (ngModelChange)="onSearchChange($event)"
+                        placeholder="ค้นหาเกม... (เช่น Grand Theft Auto)"
+                        class="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-700 placeholder-gray-400" />
+                </div>
+            </div>
+
             <!-- Loading State -->
             <div *ngIf="isLoading" class="flex items-center justify-center py-20">
                 <div class="text-center">
                     <i class="pi pi-spin pi-spinner text-4xl text-purple-500 mb-4"></i>
-                    <p class="text-gray-600">กำลังโหลดเกมจาก SteamSpy...</p>
+                    <p class="text-gray-600">กำลังโหลดเกม...</p>
                 </div>
             </div>
 
@@ -142,30 +117,40 @@
                 </div>
             </div>
 
+
+
+            <!-- No Results Message -->
+            <div *ngIf="!isLoading && games.length === 0 && searchQuery" class="text-center py-20">
+                <i class="pi pi-search text-6xl text-gray-300 mb-4"></i>
+                <p class="text-gray-600 text-lg font-semibold">ไม่พบเกมที่ค้นหา "{{ searchQuery }}"</p>
+                <p class="text-gray-400 text-sm mt-2">ลองค้นหาด้วยคำอื่นหรือตรวจสอบการสะกดคำ</p>
+            </div>
+
             <!-- Game Grid (3 columns) -->
-            <div *ngIf="!isLoading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div *ngFor="let game of games" [routerLink]="['/game', game.id]"
+            <div *ngIf="!isLoading && paginatedGames.length > 0"
+                class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div *ngFor="let game of paginatedGames" [routerLink]="['/game', game.id]"
                     class="game-card bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group border border-gray-100">
 
-                    <!-- Game Image -->
+                    <!-- Game Image with Title Overlay -->
                     <div class="relative h-64 overflow-hidden">
                         <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
                             [style.backgroundImage]="'url(' + game.image + ')'">
                         </div>
 
                         <!-- Gradient Overlay -->
-                        <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
                         </div>
 
-                        <!-- Review Badge (Top Right) - Single badge based on review type -->
+                        <!-- Review Badge (Top Right) -->
                         <div class="absolute top-3 right-3">
-                            <!-- Positive Reviews Only -->
+                            <!-- Positive Reviews -->
                             <div *ngIf="game.reviewType === 'positive'"
                                 class="bg-green-500 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-lg">
                                 <i class="pi pi-thumbs-up text-base"></i>
                             </div>
 
-                            <!-- Negative Reviews Only -->
+                            <!-- Negative Reviews -->
                             <div *ngIf="game.reviewType === 'negative'"
                                 class="bg-red-500 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-lg">
                                 <i class="pi pi-thumbs-down text-base"></i>
@@ -177,38 +162,36 @@
                                 <i class="pi pi-sync text-base"></i>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- Card Content -->
-                    <div class="p-4">
-                        <!-- Game Title -->
-                        <h3 class="text-lg font-bold text-gray-900 mb-2 group-hover:text-purple-600 transition-colors">
-                            {{ game.title }}
-                        </h3>
+                        <!-- Favorite Heart Button (Top Left) -->
+                        <button *ngIf="game.isFavorite"
+                            class="absolute top-3 left-3 w-8 h-8 bg-red-600 hover:bg-red-700 text-white rounded-full shadow-lg transition-colors z-10 flex items-center justify-center"
+                            (click)="toggleFavorite($event, game)">
+                            <i class="pi pi-heart-fill text-sm"></i>
+                        </button>
 
-                        <!-- Description -->
-                        <p class="text-sm text-gray-500 mb-3 line-clamp-2 leading-relaxed">
-                            {{ game.description }}
-                        </p>
+                        <!-- Game Title Overlay (Bottom) -->
+                        <div class="absolute bottom-0 left-0 right-0 p-4 space-y-2">
+                            <h3 class="text-xl font-bold text-white drop-shadow-lg">
+                                {{ game.title }}
+                            </h3>
 
-                        <!-- Footer: Date, Genres and Review Tags -->
-                        <div class="pt-3 border-t border-gray-100 space-y-2">
                             <!-- Release Date -->
-                            <div class="flex items-center gap-1.5 text-gray-400 text-xs">
+                            <div class="flex items-center gap-1.5 text-white/90 text-xs">
                                 <i class="pi pi-calendar"></i>
                                 <span>{{ game.releaseDate }}</span>
                             </div>
 
-                            <!-- Genre and Review Tags Combined -->
+                            <!-- Genre and Review Tags -->
                             <div class="flex flex-wrap gap-1.5">
                                 <!-- Genre Tags (Purple) -->
-                                <span *ngFor="let genre of game.genres"
-                                    class="bg-purple-100 text-purple-700 text-xs px-2 py-1 rounded font-medium">
+                                <span *ngFor="let genre of game.genres | slice:0:2"
+                                    class="bg-purple-500/90 text-white text-xs px-2 py-1 rounded font-medium backdrop-blur-sm">
                                     {{ genre }}
                                 </span>
-                                <!-- Review Tags (Blue) -->
+                                <!-- Review Tags (Yellow) -->
                                 <span *ngFor="let tag of game.reviewTags"
-                                    class="bg-yellow-100 text-yellow-700 text-xs px-2 py-1 rounded font-medium">
+                                    class="bg-yellow-500/90 text-white text-xs px-2 py-1 rounded font-medium backdrop-blur-sm">
                                     {{ tag }}
                                 </span>
                             </div>
@@ -216,7 +199,64 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Pagination -->
+            <div *ngIf="!isLoading && paginatedGames.length > 0" class="mt-8 flex justify-center items-center gap-2">
+                <!-- Previous Button -->
+                <button (click)="previousPage()" [disabled]="currentPage === 1"
+                    class="px-4 py-2 rounded-lg border transition-colors" [ngClass]="{
+                        'bg-gray-100 text-gray-400 cursor-not-allowed': currentPage === 1,
+                        'bg-white text-gray-700 hover:bg-purple-50 hover:border-purple-500': currentPage !== 1
+                    }">
+                    <i class="pi pi-chevron-left"></i>
+                </button>
+
+                <!-- Page Numbers -->
+                <button *ngFor="let page of pageNumbers" (click)="goToPage(page)"
+                    class="px-4 py-2 rounded-lg border transition-colors min-w-[40px]" [ngClass]="{
+                        'bg-purple-500 text-white border-purple-500': page === currentPage,
+                        'bg-white text-gray-700 hover:bg-purple-50 hover:border-purple-500': page !== currentPage
+                    }">
+                    {{ page }}
+                </button>
+
+                <!-- Next Button -->
+                <button (click)="nextPage()" [disabled]="currentPage === totalPages"
+                    class="px-4 py-2 rounded-lg border transition-colors" [ngClass]="{
+                        'bg-gray-100 text-gray-400 cursor-not-allowed': currentPage === totalPages,
+                        'bg-white text-gray-700 hover:bg-purple-50 hover:border-purple-500': currentPage !== totalPages
+                    }">
+                    <i class="pi pi-chevron-right"></i>
+                </button>
+            </div>
         </main>
     </div>
 </div>
+<!-- Remove Favorite Dialog -->
+<p-dialog [(visible)]="showRemoveDialog" [modal]="true" [style]="{width: '500px'}" [draggable]="false"
+    [resizable]="false">
+    <ng-template pTemplate="header">
+        <div class="flex items-center gap-3">
+            <i class="pi pi-heart-fill text-red-600 text-2xl"></i>
+            <span class="font-bold text-xl">ลบออกจากรายการโปรด</span>
+        </div>
+    </ng-template>
+    <div class="py-4">
+        <p class="text-gray-700 text-lg">
+            คุณต้องการลบ <strong class="text-purple-600">{{ pendingRemoveGameTitle }}</strong> ออกจากรายการโปรดหรือไม่?
+        </p>
+    </div>
+    <ng-template pTemplate="footer">
+        <button (click)="cancelRemove()"
+            class="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg transition-colors font-medium">
+            ยกเลิก
+        </button>
+        <button (click)="confirmRemove()"
+            class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium">
+            <i class="pi pi-heart-fill mr-2"></i>
+            ลบออกจากรายการโปรด
+        </button>
+    </ng-template>
+</p-dialog>
+
 <app-footer></app-footer>

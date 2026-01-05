@@ -1,6 +1,7 @@
 import requests
 from typing import Optional, Dict, Any, List
 import time
+import re
 
 
 class SteamAPIClient:
@@ -78,10 +79,10 @@ class SteamAPIClient:
                 cursor=cursor
             )
             
-            print(f"🔍 Steam API response: success={data.get('success') if data else None}, reviews={len(data.get('reviews', [])) if data else 0}")
+            print(f"[DEBUG] Steam API response: success={data.get('success') if data else None}, reviews={len(data.get('reviews', [])) if data else 0}")
             
             if not data or data.get("success") != 1:
-                print(f"⚠️ Steam API failed or returned no data")
+                print(f"[WARNING] Steam API failed or returned no data")
                 break
             
             reviews = data.get("reviews", [])
@@ -104,11 +105,11 @@ class SteamAPIClient:
             
             # Get next cursor for pagination
             new_cursor = data.get("cursor")
-            if not new_cursor or new_cursor == previous_cursor:
+            if not new_cursor or new_cursor == cursor:
                 # No more pages or cursor didn't change (prevent infinite loop)
+                print(f"🛑 Pagination complete or cursor unchanged")
                 break
             
-            previous_cursor = cursor
             cursor = new_cursor
             
             # Be nice to Steam API - add small delay
@@ -233,3 +234,192 @@ class SteamAPIClient:
         )
         
         return sorted_games[:limit]
+    
+    @staticmethod
+    def get_newest_games_from_steamspy(limit: int = 100) -> Optional[List[Dict[str, Any]]]:
+        """
+        Fetch newest games by release date from SteamSpy
+        
+        Args:
+            limit: Number of newest games to fetch
+            
+        Returns:
+            List of game dictionaries sorted by release date (newest first)
+        """
+        all_games = SteamAPIClient.get_all_games_from_steamspy()
+        
+        if not all_games:
+            return None
+        
+        # Convert to list
+        games_list = []
+        for app_id, game_data in all_games.items():
+            game_data['app_id'] = app_id
+            games_list.append(game_data)
+        
+        # Filter out games without initialprice and convert to int
+        games_with_date = []
+        for game in games_list:
+            initialprice = game.get('initialprice', 0)
+            # Convert to int if it's a string
+            try:
+                if isinstance(initialprice, str):
+                    initialprice = int(initialprice)
+                if initialprice > 0:
+                    game['initialprice_int'] = initialprice
+                    games_with_date.append(game)
+            except (ValueError, TypeError):
+                # Skip games with invalid initialprice
+                continue
+        
+        # Sort by initialprice (Unix timestamp) in descending order (newest first)
+        sorted_games = sorted(
+            games_with_date,
+            key=lambda x: x.get('initialprice_int', 0),
+            reverse=True
+        )
+        
+        return sorted_games[:limit]
+
+    @staticmethod
+    def get_newest_games_from_steam_store(limit: int = 50) -> Optional[List[Dict[str, Any]]]:
+        """
+        Fetch newest games by scraping Steam Store Search
+        Url: https://store.steampowered.com/search/?sort_by=Released_DESC&category1=998&os=win
+        
+        Args:
+            limit: Number of games to fetch
+            
+        Returns:
+            List of game dictionaries with 'app_id', 'name', 'release_date_str'
+        """
+        base_url = "https://store.steampowered.com/search/"
+        games_list = []
+        page = 1
+        
+        while len(games_list) < limit:
+            params = {
+                "sort_by": "Released_DESC",
+                "category1": "998", # Games
+                "os": "win",
+                "page": page
+            }
+            
+            try:
+                print(f"Scraping Steam Store Search page {page}...")
+                headers = {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+                }
+                response = requests.get(base_url, params=params, headers=headers, timeout=10)
+                response.raise_for_status()
+                html = response.text
+                
+                # Optimization: Split by 'search_result_row' to avoid catastrophic backtracking
+                # Each game is in a <a ... class="search_result_row ..."> container
+                
+                rows = html.split('class="search_result_row')
+                
+                # Skip the first chunk (header/nav before first result)
+                for row_html in rows[1:]:
+                    # Check if this row is actually a game (has appid)
+                    # Pattern to extract app_id, Name, and Date from the row chunk
+                    # Note: We don't need DOTALL as much if we just match within the chunk, 
+                    # but newlines might still exist.
+                    
+                    app_match = re.search(r'data-ds-appid="(\d+)"', row_html)
+                    title_match = re.search(r'<span class="title">(.*?)</span>', row_html, re.DOTALL)
+                    # Relaxed regex to handle potential extra classes or whitespace
+                    date_match = re.search(r'<div class="[^"]*search_released[^"]*">(.*?)</div>', row_html, re.DOTALL)
+                    
+                    if app_match and title_match:
+                        app_id = int(app_match.group(1))
+                        title = title_match.group(1).strip()
+                        date_str = date_match.group(1).strip() if date_match else "Unknown"
+                        
+                        # Filter duplicates
+                        if any(g['app_id'] == app_id for g in games_list):
+                            continue
+                            
+                        # Add to list
+                        games_list.append({
+                            'app_id': app_id,
+                            'name': title,
+                            'release_date_str': date_str,
+                            'developer': '',
+                            'publisher': '',
+                            'score_rank': '',
+                            'owners': '0 .. 20,000'
+                        })
+                        
+                        if len(games_list) >= limit:
+                            break
+                            
+                if not games_list:
+                    print(f"No games found on page {page}")
+                
+                page += 1
+                time.sleep(1) # Be clean
+                
+            except Exception as e:
+                print(f"Error scraping Steam Store: {e}")
+                break
+
+                
+        return games_list[:limit]
+
+    @staticmethod
+    def get_all_games_list() -> Optional[List[Dict[str, Any]]]:
+        """
+        Fetch complete list of apps from Steam
+        Url: https://api.steampowered.com/IStoreService/GetAppList/v1/
+        """
+        # User provided API Key: 925DACE9202850368554F7061C00EDCD
+        # NOTE: Using a hardcoded key in code is generally bad practice, 
+        # but requested by user for this specific implementation.
+        # Should ideally be in env vars.
+        
+        url = "https://api.steampowered.com/IStoreService/GetAppList/v1/"
+        params = {
+            "key": "925DACE9202850368554F7061C00EDCD",
+            "max_results": 50000,
+            "last_appid": 0,
+            "include_games": "true",
+            "include_dlc": "false"
+        }
+        
+        try:
+            # We might need to paginate if > 50k results?
+            # Standard GetAppList v2 usually returns everything or truncated.
+            # v1 with max_results might need pagination.
+            # But for "getting started" let's just fetch the first batch or implement simple loop.
+            
+            all_apps = []
+            
+            while True:
+                response = requests.get(url, params=params, timeout=30)
+                response.raise_for_status()
+                data = response.json()
+                
+                apps = data.get('response', {}).get('apps', [])
+                if not apps:
+                    break
+                    
+                all_apps.extend(apps)
+                
+                # Check pagination logic usually involves 'last_appid'
+                # Use the last appid from the current batch for the next request
+                if len(apps) < params['max_results']:
+                    break
+                    
+                last_app = apps[-1]
+                params['last_appid'] = last_app.get('appid')
+                
+                print(f"Fetched {len(all_apps)} apps so far...")
+                time.sleep(1) # Be nice
+                
+            return all_apps
+            
+        except Exception as e:
+            print(f"Error fetching all games list: {e}")
+            return None
+

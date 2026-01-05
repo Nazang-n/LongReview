@@ -43,14 +43,14 @@
           class="game-card bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group border border-gray-100"
           style="min-width: 350px; max-width: 350px;">
 
-          <!-- Game Image -->
+          <!-- Game Image with Title Overlay -->
           <div class="relative h-48 overflow-hidden">
             <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
               [style.backgroundImage]="'url(' + game.image + ')'">
             </div>
 
             <!-- Gradient Overlay -->
-            <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent">
+            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
             </div>
 
             <!-- Review Badge (Top Right) -->
@@ -70,28 +70,18 @@
               <!-- Mixed Reviews -->
               <div *ngIf="game.reviewType === 'mixed'"
                 class="bg-yellow-500 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-lg">
-                <i class="pi pi-sync textbase"></i>
-              </div>-
+                <i class="pi pi-sync text-base"></i>
+              </div>
             </div>
-          </div>
 
-          <!-- Card Content -->
-          <div class="p-4">
-            <!-- Game Title -->
-            <h3
-              class="text-base font-bold text-gray-900 mb-2 group-hover:text-purple-600 transition-colors line-clamp-1">
-              {{ game.title }}
-            </h3>
+            <!-- Game Title Overlay (Bottom) -->
+            <div class="absolute bottom-0 left-0 right-0 p-3 space-y-1.5">
+              <h3 class="text-base font-bold text-white drop-shadow-lg line-clamp-1">
+                {{ game.title }}
+              </h3>
 
-            <!-- Description
-            <p class="text-xs text-gray-500 mb-3 line-clamp-2 leading-relaxed">
-              {{ game.description }}
-            </p> -->
-
-            <!-- Footer: Date and Tags -->
-            <div class="space-y-2">
               <!-- Release Date -->
-              <div class="flex items-center gap-1.5 text-gray-400 text-xs">
+              <div class="flex items-center gap-1.5 text-white/90 text-xs">
                 <i class="pi pi-calendar"></i>
                 <span>{{ game.releaseDate }}</span>
               </div>
@@ -100,12 +90,12 @@
               <div class="flex flex-wrap gap-1">
                 <!-- Genre Tags (Purple) - show max 2 -->
                 <span *ngFor="let genre of game.genres.slice(0, 2)"
-                  class="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded font-medium">
+                  class="bg-purple-500/90 text-white text-xs px-1.5 py-0.5 rounded font-medium backdrop-blur-sm">
                   {{ genre }}
                 </span>
                 <!-- Review Tags (Yellow) - show max 2 -->
                 <span *ngFor="let tag of game.reviewTags.slice(0, 2)"
-                  class="bg-yellow-100 text-yellow-700 text-xs px-2 py-0.5 rounded font-medium">
+                  class="bg-yellow-500/90 text-white text-xs px-1.5 py-0.5 rounded font-medium backdrop-blur-sm">
                   {{ tag }}
                 </span>
               </div>

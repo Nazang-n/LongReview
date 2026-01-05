@@ -27,11 +27,6 @@ import { isPlatformBrowser } from '@angular/common';
       </nav>
 
       <div class="user-actions">
-        <div class="search-box">
-          <input type="text" placeholder="ค้นหา">
-          <i class="pi pi-search"></i>
-        </div>
-        
         <ng-container *ngIf="currentUser$ | async as user; else loginLink">
            <div class="user-info">
              <span class="username">{{ user.username }}</span>
