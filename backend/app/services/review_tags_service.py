@@ -59,61 +59,71 @@ class ReviewTagsService:
         
         return result
     
-    def generate_tags_for_game(self, game_id: int, top_n: int = 7, language: str = "english", max_reviews: int = 1500) -> Dict:
+    def generate_tags_for_game(self, game_id: int, top_n: int = 7, language: str = "english") -> Dict:
         """
-        Generate review tags for a game by fetching and analyzing Steam reviews
+        Generate review tags for a game by analyzing ALL reviews from database
         
         Args:
             game_id: Game ID
             top_n: Number of top tags to generate for each sentiment
-            language: Review language ('english', 'thai', 'all')
-            max_reviews: Maximum number of reviews to fetch from Steam
+            language: Review language filter ('english', 'thai', 'all')
             
         Returns:
             Dict with generated tags and metadata
         """
-        from ..steam_api import SteamAPIClient
         from sqlalchemy import text
         
         try:
-            # Get game's steam_app_id and name from database
+            # Get game's name from database
             result = self.db.execute(
-                text("SELECT steam_app_id, name FROM game WHERE id = :game_id"),
+                text("SELECT name FROM game WHERE id = :game_id"),
                 {"game_id": game_id}
             )
             game_row = result.fetchone()
             
-            if not game_row or not game_row[0]:
+            if not game_row:
                 return {
                     'success': False,
-                    'error': f'Game {game_id} not found or has no steam_app_id',
+                    'error': f'Game {game_id} not found',
                     'game_id': game_id
                 }
             
-            steam_app_id = int(game_row[0])
-            game_name = game_row[1]
-            print(f"[ReviewTags] Processing game: {game_name} (AppID: {steam_app_id})")
+            game_name = game_row[0]
+            print(f"[ReviewTags] Processing game: {game_name} (ID: {game_id})")
             
-            # Fetch reviews directly from Steam API
-            print(f"[ReviewTags] Fetching {max_reviews} {language} reviews for app {steam_app_id}...")
-            steam_reviews = SteamAPIClient.get_all_reviews(
-                app_id=steam_app_id,
-                language=language,
-                max_reviews=max_reviews
-            )
+            # Fetch ALL reviews from database (analyreview table)
+            print(f"[ReviewTags] Fetching ALL reviews from database...")
             
-            if not steam_reviews:
+            # Build language filter
+            language_filter = ""
+            if language == "english":
+                language_filter = "AND language = 'english'"
+            elif language == "thai":
+                language_filter = "AND language = 'thai'"
+            # If 'all', no filter
+            
+            query = text(f"""
+                SELECT review_text, voted_up 
+                FROM analyreview 
+                WHERE game_id = :game_id 
+                {language_filter}
+            """)
+            
+            result = self.db.execute(query, {"game_id": game_id})
+            db_reviews = result.fetchall()
+            
+            if not db_reviews:
                 return {
                     'success': False,
-                    'error': f'No {language} reviews found on Steam',
+                    'error': f'No reviews found in database for game {game_id}. Please fetch reviews first.',
                     'game_id': game_id
                 }
             
-            print(f"[ReviewTags] Got {len(steam_reviews)} reviews from Steam")
+            print(f"[ReviewTags] Got {len(db_reviews)} reviews from database")
             
             # Separate reviews by sentiment (voted_up)
-            positive_reviews = [r.get('review', '') for r in steam_reviews if r.get('voted_up') == True]
-            negative_reviews = [r.get('review', '') for r in steam_reviews if r.get('voted_up') == False]
+            positive_reviews = [r[0] for r in db_reviews if r[1] == True]
+            negative_reviews = [r[0] for r in db_reviews if r[1] == False]
             
             print(f"[ReviewTags] Positive: {len(positive_reviews)}, Negative: {len(negative_reviews)}")
             
@@ -263,11 +273,11 @@ class ReviewTagsService:
                 'game_id': game_id,
                 'positive_tags': positive_tags,
                 'negative_tags': negative_tags,
-                'total_reviews_analyzed': len(steam_reviews),
+                'total_reviews_analyzed': len(db_reviews),
                 'positive_reviews': len(positive_reviews),
                 'negative_reviews': len(negative_reviews),
                 'language': language,
-                'source': 'steam_api',
+                'source': 'database',  # Changed from 'steam_api' to 'database'
                 'last_updated': datetime.now()
             }
             
