@@ -31,7 +31,7 @@ from app.services.review_scheduler import start_review_scheduler, stop_review_sc
 @app.on_event("startup")
 async def startup_event():
     NewsSyncService.start_scheduler()
-    GameSyncService.start_scheduler()
+    # GameSyncService.start_scheduler()
     start_review_scheduler()  # Start daily review update scheduler
 
 @app.on_event("shutdown")

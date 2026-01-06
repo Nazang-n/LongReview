@@ -4,6 +4,7 @@ English Text Analyzer
 Analyzes English game reviews to extract meaningful phrases and tags
 Uses NLTK for POS tagging and phrase extraction
 """
+import re
 from typing import List, Counter, Dict, Set, Tuple
 import nltk
 from nltk.corpus import stopwords
@@ -21,11 +22,13 @@ class EnglishTextAnalyzer:
             import nltk
             from nltk import pos_tag, word_tokenize
             from nltk.corpus import stopwords
+            from nltk.stem import WordNetLemmatizer
             
             # Store NLTK functions
             self.nltk = nltk
             self.pos_tag = pos_tag
             self.word_tokenize = word_tokenize
+            self.lemmatizer = WordNetLemmatizer()
             
             # Download required data (silently)
             try:
@@ -45,6 +48,12 @@ class EnglishTextAnalyzer:
             except LookupError:
                 print("[EnglishAnalyzer] Downloading NLTK stopwords...")
                 nltk.download('stopwords', quiet=True)
+                
+            try:
+                nltk.data.find('corpora/wordnet')
+            except LookupError:
+                print("[EnglishAnalyzer] Downloading NLTK wordnet...")
+                nltk.download('wordnet', quiet=True)
             
             # Get NLTK stopwords
             self.nltk_stopwords = set(stopwords.words('english'))
@@ -91,6 +100,10 @@ class EnglishTextAnalyzer:
             'want', 'wanted', 'need', 'needed', 'give', 'giving', 'gave',
             'take', 'taking', 'took', 'come', 'coming', 'came',
             'go', 'going', 'went', 'know', 'knowing', 'knew',
+            
+            # Foreign particles (Portuguese/Spanish/French) commonly found in "English" reviews
+            'uma', 'para', 'con', 'les', 'des', 'por', 'que', 'muito', 'bom', 'jogo',
+            'mais', 'mas', 'como', 'est', 'sur', 'pour', 'une', 'qui', 'dans'
         }
         
         # Combine NLTK and custom stopwords
@@ -111,11 +124,15 @@ class EnglishTextAnalyzer:
             'long time', 'first time', 'bad thing', 'good thing',
             'much time', 'many times', 'last year', 'next year',
             'pokemon fan', 'huge pokemon fan', 'fan base',
-            'pokemon fan', 'huge pokemon fan', 'fan base',
             'huge pokemon', 'progression feels', 'pokemon company',
             'cant wait',
+
+            # Meme Tags (User Feedback)
+            'ask nasa', 'spare computer', 'spare money', 
+            'indian scammers', 'dll files', 'simple dll file',
+            'pro public servers', 'server owners', 'private files',
+            'app doesnt work', 'inferiority complexes',
             
-            # Generic Status/Genre (Filtered to show detailed features instead)
             # Generic Status/Genre (Filtered to show detailed features instead)
             'open world', 'new content',
             'single player', 'multi player', 'multiplayer', 'co op',
@@ -140,7 +157,12 @@ class EnglishTextAnalyzer:
             'disconnect', 'connection', 'ping', 'server issues',
             'broken', 'unplayable', 'terrible', 'worst', 'bad'
         }
-    
+
+    def _is_english_only(self, text: str) -> bool:
+        """Check if text contains only English characters (ASCII + common punctuation)"""
+        # Allow a-z, 0-9, space, hyphen, apostrophe
+        return bool(re.match(r'^[a-zA-Z0-9\s\-\']+$', text))
+
     def extract_phrases(self, text: str) -> List[str]:
         """
         Extract meaningful phrases from English text
@@ -184,6 +206,10 @@ class EnglishTextAnalyzer:
             if not word.isalpha():
                 continue
             
+            # VALIDATION 1: Strict English Check
+            if not self._is_english_only(word):
+                continue
+            
             # Check for generic or filtered words first
             if word in self.generic_phrases:
                 continue
@@ -191,7 +217,7 @@ class EnglishTextAnalyzer:
             # 1. Capture Important Single Words (Unigrams)
             # If this word is a key feature (e.g. "story", "graphics"), add it immediately
             if word in self.feature_keywords:
-                phrases.append(word)
+                phrases.append(self._normalize_word(word))
 
             # 2. Try to build trigram first (3 words)
             if i >= 2:
@@ -217,8 +243,13 @@ class EnglishTextAnalyzer:
                         is_valid_trigram = True
                     
                     if is_valid_trigram:
-                        phrase = f"{word1} {word2} {word}"
-                        phrases.append(phrase)
+                        # Normalize specifically the head noun (last word)
+                        # e.g. "rare items" -> "rare item"
+                        norm_word = self._normalize_word(word)
+                        phrase = f"{word1} {word2} {norm_word}"
+                        
+                        if self._is_english_only(phrase):
+                            phrases.append(phrase)
                         continue  # Skip bigram check
             
             # 3. Try bigram (2 words) if trigram didn't match
@@ -226,18 +257,24 @@ class EnglishTextAnalyzer:
                 prev_word, prev_pos = pos_tagged[i-1]
                 if (prev_word not in self.stopwords and
                     len(prev_word) >= 3 and
-                    prev_word.isalpha()):
+                    prev_word.isalpha() and
+                    self._is_english_only(prev_word)):
                     
                     # ADJ + NOUN or NOUN + NOUN
                     if prev_pos in ['JJ', 'JJR', 'JJS', 'NN', 'NNS', 'NNP', 'NNPS']:
-                        phrase = f"{prev_word} {word}"
-                        phrases.append(phrase)
+                        # Singularize the head noun (last word)
+                        norm_word = self._normalize_word(word)
+                        phrase = f"{prev_word} {norm_word}"
+                        
+                        if self._is_english_only(phrase):
+                            phrases.append(phrase)
         
         return phrases
     
     def _normalize_word(self, word: str) -> str:
         """
-        Simple normalization to handle plural forms
+        Normalize word using WordNet Lemmatization
+        Handles plural forms better than simple slicing
         
         Args:
             word: Word to normalize
@@ -245,17 +282,20 @@ class EnglishTextAnalyzer:
         Returns:
             Normalized word (singular form)
         """
-        # Simple plural handling
-        if word.endswith('ies') and len(word) > 4:
-            return word[:-3] + 'y'  # cities -> city
-        elif word.endswith('ses') and len(word) > 4:
-            #bases → base (just remove 's')
-            return word[:-1]  # bases -> base
-        elif word.endswith('es') and len(word) > 3:
-            return word[:-2]  # boxes -> box
-        elif word.endswith('s') and len(word) > 2:
-            return word[:-1]  # pals -> pal, updates -> update
-        return word
+        # Lowercase first
+        word = word.lower()
+        
+        # Use WordNet Lemmatizer
+        # 'n' noun is default, which handles plurals well
+        try:
+            return self.lemmatizer.lemmatize(word, pos='n')
+        except Exception:
+            # Fallback to simple rules if lemmatizer fails
+            if word.endswith('ies') and len(word) > 4:
+                return word[:-3] + 'y'
+            elif word.endswith('s') and len(word) > 2:
+                return word[:-1]
+            return word
     
     def analyze_texts(self, texts: List[str], top_n: int = 10, min_count: int = 3, game_name: str = None, min_count_ratio: float = 0.1, exclude_negative_keywords: bool = False) -> List[Dict[str, any]]:
         """

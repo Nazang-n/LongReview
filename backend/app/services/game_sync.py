@@ -40,7 +40,7 @@ class GameSyncService:
             IntervalTrigger(hours=1),
             id='sync_games',
             replace_existing=True,
-            next_run_time=datetime.now()
+            # next_run_time=datetime.now()
         )
         
         cls._scheduler.start()
