@@ -1211,3 +1211,29 @@ def link_massively_multiplayer_to_multiplayer(db: Session = Depends(get_db)):
             detail=f"Error linking tags: {str(e)}"
         )
 
+
+@router.post("/admin/trigger-review-update")
+def admin_trigger_review_update():
+    """
+    Manually trigger the daily review update job (Admin only)
+    
+    This endpoint allows admins to manually run the review update scheduler
+    without waiting for the scheduled 12 AM run.
+    """
+    try:
+        from ..services.review_scheduler import trigger_manual_update
+        
+        print("🔧 Admin manually triggered review update")
+        trigger_manual_update()
+        
+        return {
+            "success": True,
+            "message": "Review update job triggered successfully. Check console logs for progress."
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error triggering review update: {str(e)}"
+        )
+

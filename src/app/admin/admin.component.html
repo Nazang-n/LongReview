@@ -86,6 +86,38 @@
             </div>
         </p-card>
 
+        <!-- Review Scheduler Section -->
+        <p-card header="Review Scheduler" subheader="Manage automated review updates" class="mt-4">
+            <div class="sync-section">
+                <h3>Manual Review Update</h3>
+                <p>Manually trigger the daily review update job to fetch new reviews for all games. This normally runs
+                    automatically at 12:00 AM.</p>
+
+                <button pButton type="button" label="Update Reviews Now" icon="pi pi-refresh"
+                    [loading]="isUpdatingReviews" [disabled]="isUpdatingReviews" (click)="triggerReviewUpdate()"
+                    class="sync-button">
+                </button>
+
+                <!-- Loading Spinner -->
+                <div *ngIf="isUpdatingReviews" class="loading-container">
+                    <p-progressSpinner styleClass="custom-spinner" strokeWidth="4" animationDuration="1s">
+                    </p-progressSpinner>
+                    <p>Updating reviews... Check console logs for progress.</p>
+                </div>
+
+                <!-- Success Result -->
+                <div *ngIf="reviewUpdateResult && !isUpdatingReviews" class="result-container success">
+                    <p-message severity="success" text="Review update triggered successfully!"></p-message>
+                    <p class="mt-2">{{ reviewUpdateResult.message }}</p>
+                </div>
+
+                <!-- Error Message -->
+                <div *ngIf="reviewUpdateError && !isUpdatingReviews" class="result-container error">
+                    <p-message severity="error" [text]="reviewUpdateError"></p-message>
+                </div>
+            </div>
+        </p-card>
+
         <!-- Reported Comments Section -->
         <div class="bg-white rounded-lg shadow-md p-6 mb-8">
             <h2 class="text-2xl font-bold text-gray-900 mb-6">รายงานความคิดเห็น</h2>
