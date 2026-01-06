@@ -196,4 +196,11 @@ export class GameService {
         const params = new HttpParams().set('limit', limit.toString());
         return this.http.post<any>('http://localhost:8000/api/games/translate/batch', null, { params });
     }
+
+    /**
+     * Manually trigger review update scheduler
+     */
+    triggerReviewUpdate(): Observable<any> {
+        return this.http.post<any>(`${this.steamApiUrl}/admin/trigger-review-update`, {});
+    }
 }

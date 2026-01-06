@@ -51,6 +51,11 @@ export class AdminComponent implements OnInit {
     pendingReportId: number | null = null;
     pendingCommentId: number | null = null;
 
+    // Review scheduler
+    isUpdatingReviews = false;
+    reviewUpdateResult: any = null;
+    reviewUpdateError: string | null = null;
+
     constructor(
         private newsService: NewsService,
         private gameService: GameService,
@@ -175,5 +180,22 @@ export class AdminComponent implements OnInit {
     cancelDeleteComment() {
         this.showDeleteCommentDialog = false;
         this.pendingCommentId = null;
+    }
+
+    triggerReviewUpdate() {
+        this.isUpdatingReviews = true;
+        this.reviewUpdateResult = null;
+        this.reviewUpdateError = null;
+
+        this.gameService.triggerReviewUpdate().subscribe({
+            next: (result) => {
+                this.reviewUpdateResult = result;
+                this.isUpdatingReviews = false;
+            },
+            error: (err) => {
+                this.reviewUpdateError = err.message || 'Failed to trigger review update';
+                this.isUpdatingReviews = false;
+            }
+        });
     }
 }

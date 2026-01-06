@@ -126,4 +126,11 @@ def trigger_manual_update():
     Manually trigger a review update (for testing)
     """
     logger.info("Manual review update triggered")
-    update_game_reviews()
+    try:
+        update_game_reviews()
+        logger.info("Manual review update completed successfully")
+    except Exception as e:
+        logger.error(f"Error in manual review update: {e}")
+        import traceback
+        traceback.print_exc()
+        raise

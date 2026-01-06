@@ -70,46 +70,21 @@ class ReviewService:
                     print(f"  ℹ No more reviews found")
                     break
                 
-                # Store reviews in database
+                # Store reviews in database (simple schema: just game_id and voted_up)
                 for review_data in reviews:
-                    # Check if review already exists
-                    steam_review_id = review_data.get("recommendationid")
-                    existing = db.query(models.AnalyReview).filter(
-                        models.AnalyReview.steam_review_id == str(steam_review_id)
-                    ).first()
+                    # Just store the vote (positive/negative)
+                    voted_up = review_data.get("voted_up", False)
                     
-                    if existing:
-                        continue  # Skip duplicate
-                    
-                    # Analyze sentiment
-                    review_text = review_data.get("review", "")
-                    sentiment_result = self.sentiment_analyzer.analyze(review_text)
-                    
-                    # Create review record
+                    # Create simple review record
                     new_review = models.AnalyReview(
                         game_id=game_id,
-                        steam_review_id=str(steam_review_id),
-                        author=review_data.get("author", {}).get("steamid", "unknown"),
-                        review_text=review_text,
-                        voted_up=review_data.get("voted_up", False),
-                        votes_up=review_data.get("votes_up", 0),
-                        votes_funny=review_data.get("votes_funny", 0),
-                        weighted_vote_score=review_data.get("weighted_vote_score", 0.0),
-                        comment_count=review_data.get("comment_count", 0),
-                        steam_purchase=review_data.get("steam_purchase", False),
-                        received_for_free=review_data.get("received_for_free", False),
-                        written_during_early_access=review_data.get("written_during_early_access", False),
-                        language=review_data.get("language", "english"),
-                        timestamp_created=datetime.fromtimestamp(review_data.get("timestamp_created", 0)),
-                        timestamp_updated=datetime.fromtimestamp(review_data.get("timestamp_updated", 0)),
-                        sentiment=sentiment_result.get("sentiment", "neutral"),
-                        sentiment_score=sentiment_result.get("score", 0.0)
+                        voted_up=voted_up
                     )
                     
                     db.add(new_review)
                     new_count += 1
                     
-                    if review_data.get("voted_up"):
+                    if voted_up:
                         positive_count += 1
                     else:
                         negative_count += 1
