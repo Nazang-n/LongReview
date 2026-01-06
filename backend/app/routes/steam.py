@@ -250,6 +250,10 @@ def import_game_from_steam(
             print(f"Error auto-tagging player modes: {e}")
             # Don't fail the import just because tagging failed
         
+        # Reviews will be fetched automatically by hourly scheduler
+        # Disabled synchronous fetching to prevent page freezing during import
+        print(f"✓ Game imported. Reviews will be fetched by hourly scheduler.")
+        
         return {
             "success": True,
             "message": "Game imported successfully",
@@ -678,20 +682,8 @@ def import_games_batch_from_steamspy(
                 
                 imported_count += 1
                 
-                # Fetch ALL reviews for newly imported game
-                try:
-                    from ..services.review_service import review_service
-                    print(f"  📊 Fetching ALL reviews for {new_game.title}...")
-                    review_result = review_service.fetch_and_store_reviews(
-                        db=db,
-                        game_id=new_game.id,
-                        steam_app_id=int(app_id)
-                        # No max_reviews limit - fetch all reviews
-                    )
-                    if review_result.get("success"):
-                        print(f"  ✓ Fetched {review_result.get('new_reviews', 0)} reviews")
-                except Exception as review_error:
-                    print(f"  ⚠ Failed to fetch reviews: {review_error}")
+                # Reviews will be fetched automatically by hourly scheduler
+                # Disabled synchronous fetching to prevent page freezing during batch import
                 
                 # Commit every 10 games to avoid losing progress
                 if imported_count % 10 == 0:
@@ -981,20 +973,8 @@ def import_newest_games_from_steamspy(
                 
                 imported_count += 1
                 
-                # Fetch ALL reviews for newly imported game
-                try:
-                    from ..services.review_service import review_service
-                    print(f"  📊 Fetching ALL reviews for {new_game.title}...")
-                    review_result = review_service.fetch_and_store_reviews(
-                        db=db,
-                        game_id=new_game.id,
-                        steam_app_id=int(app_id)
-                        # No max_reviews limit - fetch all reviews
-                    )
-                    if review_result.get("success"):
-                        print(f"  ✓ Fetched {review_result.get('new_reviews', 0)} reviews")
-                except Exception as review_error:
-                    print(f"  ⚠ Failed to fetch reviews: {review_error}")
+                # Reviews will be fetched automatically by hourly scheduler
+                # Disabled synchronous fetching to prevent page freezing during batch import
                 
                 # Commit every 10 games to avoid losing progress
                 if imported_count % 10 == 0:
@@ -1350,5 +1330,76 @@ def admin_trigger_review_update():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error triggering review update: {str(e)}"
+        )
+
+
+@router.post("/games/{game_id}/fetch-reviews")
+def fetch_reviews_for_existing_game(
+    game_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Fetch reviews for an existing game
+    
+    - **game_id**: Game ID to fetch reviews for
+    
+    This endpoint fetches ALL reviews for a game that's already in the database.
+    Useful for games imported before the automated review system was added.
+    """
+    try:
+        from ..services.review_service import review_service
+        from sqlalchemy import text
+        
+        # Get game info
+        result = db.execute(
+            text("SELECT id, name, steam_app_id FROM game WHERE id = :game_id"),
+            {"game_id": game_id}
+        )
+        game_row = result.fetchone()
+        
+        if not game_row:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Game {game_id} not found"
+            )
+        
+        game_id, game_name, steam_app_id = game_row
+        
+        if not steam_app_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Game '{game_name}' has no steam_app_id"
+            )
+        
+        print(f"📥 Fetching reviews for: {game_name} (ID: {game_id}, Steam App ID: {steam_app_id})")
+        
+        # Fetch reviews
+        result = review_service.fetch_and_store_reviews(
+            db=db,
+            game_id=game_id,
+            steam_app_id=steam_app_id
+        )
+        
+        if result.get("success"):
+            return {
+                "success": True,
+                "game_id": game_id,
+                "game_name": game_name,
+                "new_reviews": result.get("new_reviews", 0),
+                "total_fetched": result.get("total_fetched", 0),
+                "message": f"Fetched {result.get('new_reviews', 0)} new reviews for {game_name}"
+            }
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=result.get("error", "Unknown error")
+            )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching reviews: {str(e)}"
         )
 
