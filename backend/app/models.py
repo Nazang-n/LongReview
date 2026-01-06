@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, String, Text, Float, DateTime, Boolean, Date, text
+from sqlalchemy import Column, Integer, String, Text, Float, DateTime, Boolean, Date, text, ForeignKey, BigInteger
 from sqlalchemy.sql import func
+from datetime import datetime
 from .database import Base
 
 
@@ -71,12 +72,13 @@ class Review(Base):
 
 
 class AnalyReview(Base):
-    """Sentiment analysis - stores only voted_up from Steam reviews"""
     __tablename__ = "analyreview"
+    
     id = Column(Integer, primary_key=True, index=True)
-    game_id = Column(Integer, nullable=False, index=True)
+    game_id = Column(Integer, ForeignKey("game.id"), nullable=False)
+    steam_review_id = Column(BigInteger, unique=True, index=True)  # Steam's recommendationid for duplicate detection
     voted_up = Column(Boolean, nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=text('NOW()'))
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 
 

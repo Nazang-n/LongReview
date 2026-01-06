@@ -30,7 +30,8 @@ def update_game_reviews():
     db = SessionLocal()
     try:
         # Get games that need review updates (not fetched or > 24 hours old)
-        games_to_update = review_service.get_games_needing_review_update(db, limit=100)
+        # Reduced to 10 games per run for faster processing
+        games_to_update = review_service.get_games_needing_review_update(db, limit=10)
         
         if not games_to_update:
             logger.info("No games need review updates")
@@ -83,8 +84,8 @@ def update_game_reviews():
 
 def start_review_scheduler():
     """
-    Start the background scheduler for daily review updates
-    Runs at 12:00 AM (midnight) every day
+    Start the background scheduler for hourly review updates
+    Runs every hour to fetch reviews for newly imported games
     """
     global scheduler
     
@@ -94,20 +95,20 @@ def start_review_scheduler():
     
     scheduler = BackgroundScheduler()
     
-    # Schedule daily review update at 12:00 AM
+    # Schedule hourly review update (every hour at minute 0)
     scheduler.add_job(
         update_game_reviews,
-        trigger=CronTrigger(hour=0, minute=0),  # 12:00 AM
-        id='daily_review_update',
-        name='Daily Review Update',
+        trigger=CronTrigger(minute=0),  # Every hour at :00
+        id='hourly_review_update',
+        name='Hourly Review Update',
         replace_existing=True
     )
     
     scheduler.start()
-    logger.info("✓ Review scheduler started - Daily updates at 12:00 AM")
+    logger.info("✓ Review scheduler started - Hourly updates every hour")
     
     # Log next run time
-    next_run = scheduler.get_job('daily_review_update').next_run_time
+    next_run = scheduler.get_job('hourly_review_update').next_run_time
     logger.info(f"  Next review update scheduled for: {next_run}")
 
 
