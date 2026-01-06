@@ -2,7 +2,7 @@
 Review Tags Routes
 API endpoints for game review tags
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import Dict
 from ..database import get_db
@@ -16,28 +16,35 @@ router = APIRouter(prefix="/api/games", tags=["review-tags"])
 async def get_review_tags(
     game_id: int,
     refresh: bool = False,
+    background_tasks: BackgroundTasks = None,
     db: Session = Depends(get_db)
 ) -> Dict:
     """
     Get review tags for a game
-    
-    Args:
-        game_id: Game ID
-        refresh: Force refresh tags from reviews (default: False)
-        db: Database session
-        
-    Returns:
-        Dict with positive_tags, negative_tags, and metadata
     """
     try:
         service = ReviewTagsService(db)
         
         if refresh:
             # Force regenerate tags
-            result = service.generate_tags_for_game(game_id, top_n=10)
+            # If explicit refresh, user expects new data, but maybe fast?
+            # Let's do fast then background deep
+            result = service.generate_tags_for_game(game_id, top_n=10, max_reviews=300)
+            if background_tasks:
+                 background_tasks.add_task(service.generate_tags_for_game, game_id, top_n=10, max_reviews=1500)
         else:
             # Get from cache or generate if needed
-            result = service.refresh_tags_if_needed(game_id, max_age_days=7)
+            # Use 300 for synchronous generation (Fast First Load: ~3-5s)
+            result = service.refresh_tags_if_needed(game_id, max_age_days=7, max_reviews=300)
+            
+            # If the result was newly generated (or even if cached but old?), we could trigger deep update.
+            # But simpler: If we just generated (how do we know?), trigger deep.
+            # Actually, just ALWAYS trigger deep update in background if we returned result.
+            # Use a check?
+            # Let's just trigger deep optimization in background to be safe/ensured.
+            # This ensures eventually it becomes 1500.
+            if background_tasks:
+                background_tasks.add_task(service.generate_tags_for_game, game_id, top_n=10, max_reviews=1500)
         
         return result
         

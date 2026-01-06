@@ -182,6 +182,7 @@ def sync_steam_reviews(
             }
         
         # Fetch from Steam API
+        # Fetch Thai reviews for display in the "Read Reviews" section
         steam_reviews = SteamAPIClient.get_all_reviews(
             app_id=int(steam_app_id),
             language="thai",

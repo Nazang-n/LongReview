@@ -59,7 +59,7 @@ class ReviewTagsService:
         
         return result
     
-    def generate_tags_for_game(self, game_id: int, top_n: int = 7, language: str = "english") -> Dict:
+    def generate_tags_for_game(self, game_id: int, top_n: int = 7, language: str = "english", max_reviews: int = 1500) -> Dict:
         """
         Generate review tags for a game by analyzing ALL reviews from database
         
@@ -67,6 +67,7 @@ class ReviewTagsService:
             game_id: Game ID
             top_n: Number of top tags to generate for each sentiment
             language: Review language filter ('english', 'thai', 'all')
+            max_reviews: Maximum number of reviews to analyze (default: 1500)
             
         Returns:
             Dict with generated tags and metadata
@@ -74,9 +75,9 @@ class ReviewTagsService:
         from sqlalchemy import text
         
         try:
-            # Get game's name from database
+            # Get game's name AND steam_app_id from database
             result = self.db.execute(
-                text("SELECT name FROM game WHERE id = :game_id"),
+                text("SELECT name, steam_app_id FROM game WHERE id = :game_id"),
                 {"game_id": game_id}
             )
             game_row = result.fetchone()
@@ -89,37 +90,46 @@ class ReviewTagsService:
                 }
             
             game_name = game_row[0]
-            print(f"[ReviewTags] Processing game: {game_name} (ID: {game_id})")
+            steam_app_id = game_row[1]
             
-            # Fetch ALL reviews from database (analyreview table)
-            print(f"[ReviewTags] Fetching ALL reviews from database...")
-            
-            # Build language filter
-            language_filter = ""
-            if language == "english":
-                language_filter = "AND language = 'english'"
-            elif language == "thai":
-                language_filter = "AND language = 'thai'"
-            # If 'all', no filter
-            
-            query = text(f"""
-                SELECT review_text, voted_up 
-                FROM analyreview 
-                WHERE game_id = :game_id 
-                {language_filter}
-            """)
-            
-            result = self.db.execute(query, {"game_id": game_id})
-            db_reviews = result.fetchall()
-            
-            if not db_reviews:
+            if not steam_app_id:
                 return {
                     'success': False,
-                    'error': f'No reviews found in database for game {game_id}. Please fetch reviews first.',
+                    'error': f'Game {game_id} has no Steam App ID',
                     'game_id': game_id
                 }
+
+            print(f"[ReviewTags] Processing game: {game_name} (ID: {game_id}, SteamID: {steam_app_id})")
             
-            print(f"[ReviewTags] Got {len(db_reviews)} reviews from database")
+            # Fetch English reviews DIRECTLY from Steam API for analysis
+            # We do this to ensure we have high-quality English text for NLP,
+            # regardless of what language is stored in the local DB for display (which might be Thai).
+            from ..steam_api import SteamAPIClient
+            print(f"[ReviewTags] Fetching English reviews from Steam API for analysis (limit={max_reviews})...")
+            
+            steam_reviews = SteamAPIClient.get_all_reviews(
+                app_id=int(steam_app_id),
+                language="english",
+                max_reviews=max_reviews # Use parameterized limit
+            )
+            
+            if not steam_reviews:
+                 return {
+                    'success': False,
+                    'error': f'No English reviews found on Steam for analysis.',
+                    'game_id': game_id
+                }
+
+            print(f"[ReviewTags] Got {len(steam_reviews)} reviews from Steam API")
+            
+            # Format reviews for analyzer: (text, voted_up)
+            # Steam API returns dict with 'review' key for text and 'voted_up' boolean
+            db_reviews = []
+            for r in steam_reviews:
+                content = r.get('review', '')
+                voted = r.get('voted_up', True)
+                if content:
+                    db_reviews.append((content, voted))
             
             # Separate reviews by sentiment (voted_up)
             positive_reviews = [r[0] for r in db_reviews if r[1] == True]
@@ -129,13 +139,17 @@ class ReviewTagsService:
             
             # Select analyzer based on language
             if language == "english":
-                # Use updated min_count (5) and game_name filter for English
-                print(f"[ReviewTags] Using EnglishTextAnalyzer (min_count=5, filtering '{game_name}')")
+                # Dynamic min_count based on volume
+                # For batches < 200 reviews, we use min_count=2 to ensure we get plenty of tags.
+                # Only use strict filtering (5+) for very large datasets.
+                base_min_count = 2 if len(positive_reviews) < 200 else 5
+                
+                print(f"[ReviewTags] Using EnglishTextAnalyzer (min_count={base_min_count}, filtering '{game_name}')")
                 positive_tags, negative_tags = self.english_analyzer.analyze_reviews_by_sentiment(
                     positive_reviews,
                     negative_reviews,
                     top_n,
-                    min_count=5,  # Increased threshold as requested
+                    min_count=base_min_count,
                     game_name=game_name
                 )
             else:
@@ -235,8 +249,34 @@ class ReviewTagsService:
                         for tag in negative_tags:
                             tag['word'] = polished_map.get(tag['word'], tag['word'])
                         print("[ReviewTags] AI Polishing complete.")
+                        
+
+                        
+                        print("[ReviewTags] Translating tags to Thai (Google Translate)...")
+                        from ..utils.tag_translator import translate_tag
+                        from ..utils.translator import translator
+                        
+                        # Helper to translate a list of tags
+                        def process_translations_google(tags_list):
+                            for tag in tags_list:
+                                original = tag['word']
+                                # 1. Try static dictionary first (Fast & Accurate)
+                                translated = translate_tag(original, "review_tag")
+                                
+                                # 2. If no change, use Google Translate (Automated & Fast)
+                                # [REMOVED] Google Translate causing "Old School" -> "โรงเรียนเก่า"
+                                # We stick to Manual Dictionary only. English fallback is improved.
+                                # if translated == original:
+                                #    pass 
+                                
+                                tag['word'] = translated
+                                
+                        process_translations_google(positive_tags)
+                        process_translations_google(negative_tags)
+                        print("[ReviewTags] Translation complete.")
+
                 except Exception as e:
-                    print(f"[ReviewTags] AI Polishing failed (skipping): {e}")
+                    print(f"[ReviewTags] AI Polishing/Translation failed (skipping): {e}")
             # -------------------------------
 
             # Delete existing tags for this game
@@ -290,13 +330,14 @@ class ReviewTagsService:
                 'game_id': game_id
             }
     
-    def refresh_tags_if_needed(self, game_id: int, max_age_days: int = 7) -> Dict:
+    def refresh_tags_if_needed(self, game_id: int, max_age_days: int = 7, max_reviews: int = 1500) -> Dict:
         """
         Refresh tags if they are older than max_age_days or don't exist
         
         Args:
             game_id: Game ID
             max_age_days: Maximum age of tags in days before refresh
+            max_reviews: limit reviews for generation if needed
             
         Returns:
             Dict with tags (either from cache or newly generated)
@@ -313,4 +354,4 @@ class ReviewTagsService:
                 return self.get_tags_for_game(game_id)
         
         # Tags don't exist or are old, generate new ones
-        return self.generate_tags_for_game(game_id)
+        return self.generate_tags_for_game(game_id, max_reviews=max_reviews)
