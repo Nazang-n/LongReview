@@ -31,7 +31,9 @@ def serialize_game(game: models.Game) -> dict:
         "price": game.price,
         "video": game.video,
         "about_game_th": game.about_game_th,
-        "app_id": steam_app_id
+        "about_game_th": game.about_game_th,
+        "app_id": steam_app_id,
+        "player_modes": []  # Default empty list
     }
 
 
@@ -70,7 +72,33 @@ def get_games(
     
     # Apply ordering and pagination
     games = query.order_by(models.Game.release_date.desc()).offset(skip).limit(limit).all()
-    return [serialize_game(game) for game in games]
+    
+    # Fetch player modes for these games
+    results = []
+    if games:
+        game_ids = [g.id for g in games]
+        
+        # Query player mode tags
+        pm_tags = db.query(models.GameTag.game_id, models.Tag.name)\
+            .join(models.Tag, models.GameTag.tag_id == models.Tag.id)\
+            .filter(models.GameTag.game_id.in_(game_ids))\
+            .filter(models.Tag.type == 'player_mode')\
+            .all()
+            
+        # Group by game_id
+        pm_map = {}
+        for gid, tname in pm_tags:
+            if gid not in pm_map:
+                pm_map[gid] = []
+            pm_map[gid].append(tname)
+            
+        # Serialize and attach
+        for game in games:
+            g_dict = serialize_game(game)
+            g_dict['player_modes'] = pm_map.get(game.id, [])
+            results.append(g_dict)
+            
+    return results
 
 
 @router.get("/count")

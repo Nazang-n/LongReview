@@ -25,6 +25,7 @@ interface Game {
     isFavorite?: boolean;
     platform?: string;
     price?: number;
+    playerModes?: string[];
 }
 
 @Component({
@@ -145,7 +146,8 @@ export class GameListComponent implements OnInit {
                             reviewType: undefined,
                             isNew: false,
                             platform: game.platform,
-                            price: game.price
+                            price: game.price,
+                            playerModes: game.player_modes || []
                         };
                     });
 
@@ -283,8 +285,18 @@ export class GameListComponent implements OnInit {
             }
         }
 
-        // 4. Player Mode Filter (Placeholder - requires backend update to map to game object)
-        // Currently not available in 'allGames' data.
+        // 4. Player Mode Filter (AND Logic)
+        if (this.selectedPlayerModeIds.length > 0) {
+            const selectedModeNames = this.playerModes
+                .filter(p => this.selectedPlayerModeIds.includes(p.id))
+                .map(p => p.name);
+
+            if (selectedModeNames.length > 0) {
+                filtered = filtered.filter(game =>
+                    selectedModeNames.every(name => (game.playerModes || []).includes(name))
+                );
+            }
+        }
 
         this.games = filtered;
         this.updateTagCounts(); // Update counts based on current filters
@@ -337,6 +349,36 @@ export class GameListComponent implements OnInit {
             }
         }
 
+        // For Player Mode Counts: Filter by Platform AND Genre (Refined)
+        let gamesForPlayerModes = searchFiltered;
+
+        // Apply Platform Filter
+        if (this.selectedPlatformIds.length > 0) {
+            const selectedPlatformNames = this.platforms
+                .filter(p => this.selectedPlatformIds.includes(p.id))
+                .map(p => p.name.toLowerCase());
+
+            if (selectedPlatformNames.length > 0) {
+                gamesForPlayerModes = gamesForPlayerModes.filter(game => {
+                    const gamePlatform = (game.platform || '').toLowerCase();
+                    return selectedPlatformNames.some(p => gamePlatform.includes(p));
+                });
+            }
+        }
+
+        // Apply Genre Filter
+        if (this.selectedGenreIds.length > 0) {
+            const selectedGenreNames = this.genres
+                .filter(g => this.selectedGenreIds.includes(g.id))
+                .map(g => g.name);
+
+            if (selectedGenreNames.length > 0) {
+                gamesForPlayerModes = gamesForPlayerModes.filter(game =>
+                    selectedGenreNames.every(name => game.genres.includes(name))
+                );
+            }
+        }
+
         // 3. Update Counts
 
         // Update Genres
@@ -350,6 +392,11 @@ export class GameListComponent implements OnInit {
             const pName = platform.name.toLowerCase();
             // Match logic must match filter logic (substring check)
             platform.game_count = gamesForPlatforms.filter(g => (g.platform || '').toLowerCase().includes(pName)).length;
+        });
+
+        // Update Player Modes
+        this.playerModes.forEach(mode => {
+            mode.game_count = gamesForPlayerModes.filter(g => (g.playerModes || []).includes(mode.name)).length;
         });
     }
 
