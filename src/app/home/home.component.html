@@ -5,120 +5,108 @@
   <section class="section">
     <!-- Section Title Area -->
     <div class="mt-20 mb-5">
-      <h2 class="section-title">มาใหม่</h2>
+      <h2 class="section-title">เกมยอดนิยม</h2>
     </div>
     <div class="hero-slider">
-      <button
-        class="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/20 hover:bg-white/40 backdrop-blur-md border border-white/30 text-white rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 z-50 group"
-        (click)="prevSlide()">
-        <i class="pi pi-chevron-left text-xl group-hover:-translate-x-0.5 transition-transform"></i>
-      </button>
+      <div class="slider-btn prev" (click)="prevSlide()">
+        <i class="pi pi-chevron-left text-xl"></i>
+      </div>
 
-      <div class="slide-content" *ngIf="newArrivals.length > 0" [routerLink]="['/game', newArrivals[currentSlide].id]"
-        style="cursor: pointer;"> <img [src]="newArrivals[currentSlide].image" class="hero-img" alt="New Game">
+      <div class="slide-content" *ngIf="popularGames.length > 0"
+        [routerLink]="['/game', popularGames[currentSlide].id]">
+        <img [src]="popularGames[currentSlide].image" class="hero-img" alt="Popular Game">
         <div class="hero-overlay">
-          <h3>{{newArrivals[currentSlide].title}}</h3>
+          <div class="flex flex-wrap gap-2 mb-2">
+            <span *ngFor="let genre of popularGames[currentSlide].genresTh"
+              class="bg-purple-600 text-white px-2 py-1 rounded text-xs font-bold uppercase tracking-wider">
+              {{ genre }}
+            </span>
+          </div>
+          <h3>{{popularGames[currentSlide].title}}</h3>
+          <p class="text-gray-300 text-sm mt-2 line-clamp-2 max-w-2xl">{{popularGames[currentSlide].description}}</p>
         </div>
       </div>
 
-      <button
-        class="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/20 hover:bg-white/40 backdrop-blur-md border border-white/30 text-white rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 z-50 group"
-        (click)="manualNext()">
-        <i class="pi pi-chevron-right text-xl group-hover:translate-x-0.5 transition-transform"></i>
-      </button>
+      <div class="slider-btn next" (click)="manualNext()">
+        <i class="pi pi-chevron-right text-xl"></i>
+      </div>
     </div>
   </section>
 
   <section class="section">
-    <h2 class="section-title">เกมที่ได้รีวิวแง่บวก</h2>
+    <h2 class="section-title">10 อันดับเกมมาใหม่</h2>
     <div class="scroll-container-wrapper">
-      <button
-        class="absolute left-0 top-1/2 -translate-y-1/2 -ml-5 w-10 h-10 bg-white hover:bg-gray-50 text-gray-800 shadow-lg rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 z-10 border border-gray-100"
-        (click)="scrollList(-400)">
+      <div class="scroll-btn left" (click)="scrollList(-400)">
         <i class="pi pi-chevron-left"></i>
-      </button>
+      </div>
 
       <div class="card-list" #cardList>
-        <div *ngFor="let game of highRatedGames" [routerLink]="['/game', game.id]"
-          class="game-card bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group border border-gray-100"
-          style="min-width: 350px; max-width: 350px;">
-
-          <!-- Game Image -->
-          <div class="relative h-48 overflow-hidden">
+        <div *ngFor="let game of newArrivals" [routerLink]="['/game', game.id]"
+          class="game-card bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group border border-gray-100 h-[250px] relative">
+          <div class="absolute inset-0">
             <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
-              [style.backgroundImage]="'url(' + game.image + ')'">
-            </div>
-
-            <!-- Gradient Overlay -->
-            <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent">
-            </div>
-
-            <!-- Review Badge (Top Right) -->
-            <div class="absolute top-3 right-3">
-              <!-- Positive Reviews -->
+              [style.backgroundImage]="'url(' + game.image + ')'"></div>
+            <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
+            <div class="absolute top-3 right-3 z-10">
               <div *ngIf="game.reviewType === 'positive'"
-                class="bg-green-500 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-lg">
-                <i class="pi pi-thumbs-up text-base"></i>
-              </div>
-
-              <!-- Negative Reviews -->
-              <div *ngIf="game.reviewType === 'negative'"
-                class="bg-red-500 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-lg">
-                <i class="pi pi-thumbs-down text-base"></i>
-              </div>
-
-              <!-- Mixed Reviews -->
-              <div *ngIf="game.reviewType === 'mixed'"
-                class="bg-yellow-500 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-lg">
-                <i class="pi pi-sync textbase"></i>
-              </div>-
+                class="bg-green-500 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-lg"><i
+                  class="pi pi-thumbs-up text-base"></i></div>
             </div>
-          </div>
-
-          <!-- Card Content -->
-          <div class="p-4">
-            <!-- Game Title -->
-            <h3
-              class="text-base font-bold text-gray-900 mb-2 group-hover:text-purple-600 transition-colors line-clamp-1">
-              {{ game.title }}
-            </h3>
-
-            <!-- Description
-            <p class="text-xs text-gray-500 mb-3 line-clamp-2 leading-relaxed">
-              {{ game.description }}
-            </p> -->
-
-            <!-- Footer: Date and Tags -->
-            <div class="space-y-2">
-              <!-- Release Date -->
-              <div class="flex items-center gap-1.5 text-gray-400 text-xs">
-                <i class="pi pi-calendar"></i>
-                <span>{{ game.releaseDate }}</span>
-              </div>
-
-              <!-- Genre and Review Tags -->
-              <div class="flex flex-wrap gap-1">
-                <!-- Genre Tags (Purple) - show max 2 -->
-                <span *ngFor="let genre of game.genres.slice(0, 2)"
-                  class="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded font-medium">
-                  {{ genre }}
-                </span>
-                <!-- Review Tags (Yellow) - show max 2 -->
-                <span *ngFor="let tag of game.reviewTags.slice(0, 2)"
-                  class="bg-yellow-100 text-yellow-700 text-xs px-2 py-0.5 rounded font-medium">
-                  {{ tag }}
-                </span>
+            <div class="absolute bottom-0 left-0 right-0 p-4 space-y-2 z-10">
+              <h3 class="text-lg font-bold text-white drop-shadow-lg leading-tight line-clamp-2">{{ game.title }}</h3>
+              <div class="flex items-center gap-1.5 text-white/90 text-xs"><i class="pi pi-calendar"></i><span>{{
+                  game.releaseDate | slice:0:10 }}</span></div>
+              <div class="flex flex-wrap gap-1.5 pt-1">
+                <span *ngFor="let genre of game.genresTh?.slice(0, 2)"
+                  class="bg-purple-500/90 text-white text-xs px-2 py-1 rounded font-medium backdrop-blur-sm">{{ genre
+                  }}</span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <button
-        class="absolute right-0 top-1/2 -translate-y-1/2 -mr-5 w-10 h-10 bg-white hover:bg-gray-50 text-gray-800 shadow-lg rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 z-10 border border-gray-100"
-        (click)="scrollList(400)">
+      <div class="scroll-btn right" (click)="scrollList(400)">
         <i class="pi pi-chevron-right"></i>
-      </button>
+      </div>
+    </div>
+  </section>
+
+  <section class="section mt-10">
+    <h2 class="section-title">เกมที่ได้รีวิวแง่บวก</h2>
+    <div class="scroll-container-wrapper">
+      <div class="scroll-btn left" (click)="scrollList2(-400)">
+        <i class="pi pi-chevron-left"></i>
+      </div>
+
+      <div class="card-list" #cardList2>
+        <div *ngFor="let game of positiveGames" [routerLink]="['/game', game.id]"
+          class="game-card bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group border border-gray-100 h-[250px] relative">
+          <div class="absolute inset-0">
+            <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
+              [style.backgroundImage]="'url(' + game.image + ')'"></div>
+            <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
+            <div class="absolute top-3 right-3 z-10">
+              <div class="bg-green-500 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-lg"><i
+                  class="pi pi-thumbs-up text-base"></i></div>
+            </div>
+            <div class="absolute bottom-0 left-0 right-0 p-4 space-y-2 z-10">
+              <h3 class="text-lg font-bold text-white drop-shadow-lg leading-tight line-clamp-2">{{ game.title }}</h3>
+              <div class="flex items-center gap-1.5 text-white/90 text-xs"><i class="pi pi-calendar"></i><span>{{
+                  game.releaseDate | slice:0:10 }}</span></div>
+              <div class="flex flex-wrap gap-1.5 pt-1">
+                <span *ngFor="let genre of game.genresTh?.slice(0, 2)"
+                  class="bg-purple-500/90 text-white text-xs px-2 py-1 rounded font-medium backdrop-blur-sm">{{ genre
+                  }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="scroll-btn right" (click)="scrollList2(400)">
+        <i class="pi pi-chevron-right"></i>
+      </div>
     </div>
   </section>
 

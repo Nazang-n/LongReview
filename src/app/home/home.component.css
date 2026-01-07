@@ -1,18 +1,14 @@
-/* --- Global Reset & Fonts --- */
+/* --- Global Reset for Home Component --- */
 :host {
     display: block;
-    /* font-family: 'Sarabun', sans-serif;  <-- Removed to use global font */
     background-color: #f9f9f9;
     color: #333;
     min-height: 100vh;
 }
 
-/* header/footer moved to global styles (src/styles.css) */
-
 /* --- Main Content Layout --- */
 .main-content {
     margin-top: var(--header-height);
-    /* align content under fixed header with no inner gap */
     padding-top: 0;
     padding-bottom: 50px;
     width: 90%;
@@ -32,6 +28,14 @@
     border-bottom: 2px solid #ddd;
     padding-bottom: 10px;
     font-weight: 800;
+    text-transform: none;
+    letter-spacing: normal;
+    color: #333;
+    display: block;
+}
+
+.section-title::before {
+    display: none;
 }
 
 /* --- 2. Hero Slider Styles --- */
@@ -43,12 +47,14 @@
     border-radius: 10px;
     overflow: hidden;
     box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+    border: none;
 }
 
 .slide-content {
     width: 100%;
     height: 100%;
     position: relative;
+    cursor: pointer;
 }
 
 .hero-img {
@@ -56,6 +62,11 @@
     height: 100%;
     object-fit: cover;
     opacity: 0.9;
+    transition: none;
+}
+
+.hero-slider:hover .hero-img {
+    transform: none;
 }
 
 .hero-overlay {
@@ -63,20 +74,58 @@
     bottom: 0;
     left: 0;
     width: 100%;
+    height: auto;
     background: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
     padding: 40px 20px 20px;
     color: white;
+    justify-content: flex-start;
 }
 
 .hero-overlay h3 {
     font-size: 2rem;
+    font-weight: bold;
     margin: 0;
     text-shadow: 2px 2px 4px black;
+    letter-spacing: normal;
+    line-height: normal;
 }
 
+/* Slider Buttons - Restore simple style */
+.slider-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 50px;
+    height: 50px;
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    z-index: 20;
+}
 
+.slider-btn:hover {
+    background: rgba(255, 255, 255, 0.4);
+    scale: 1.1;
+    box-shadow: none;
+}
 
-/* --- 3. High Rated (Card List) Styles --- */
+.slider-btn.prev {
+    left: 20px;
+}
+
+.slider-btn.next {
+    right: 20px;
+}
+
+/* --- 3. Card List Styles (Light Mode) --- */
+/* --- 3. Card List Styles (Clone of Game List) --- */
 .scroll-container-wrapper {
     position: relative;
     display: flex;
@@ -85,102 +134,108 @@
 
 .card-list {
     display: flex;
-    gap: 25px;
+    gap: 24px;
     overflow-x: auto;
-    /* Scroll แนวนอน */
     scroll-behavior: smooth;
-    padding: 10px 5px;
+    padding: 20px 5px;
     scrollbar-width: none;
-    /* Firefox hide scrollbar */
 }
 
-.card-list::-webkit-scrollbar {
-    display: none;
-    /* Chrome/Safari hide scrollbar */
-}
-
+/* Game Card Design - Exact Match to Game List */
+/* Game Card Design - Smaller Size */
 .game-card {
-    min-width: 220px;
-    max-width: 220px;
-    background: transparent;
-    transition: transform 0.3s;
-    cursor: pointer;
-}
-
-.game-card:hover {
-    transform: translateY(-8px);
-}
-
-.card-img-wrapper {
-    height: 300px;
-    border-radius: 10px;
+    min-width: 260px;
+    max-width: 260px;
+    background: white;
+    border-radius: 0.75rem;
     overflow: hidden;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    border: 1px solid #f3f4f6;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    position: relative;
+}
+
+/* Specific Hover Effect from Game List CSS */
+.game-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px rgba(168, 85, 247, 0.15);
+}
+
+/* Image Wrapper Structure */
+.card-img-wrapper {
+    position: relative;
+    height: 13rem;
+    /* Reduced height */
+    overflow: hidden;
 }
 
 .card-img-wrapper img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    transition: transform 0.5s;
 }
 
-.card-body {
-    padding: 10px 0;
+.game-card:hover .card-img-wrapper img {
+    transform: scale(1.1);
 }
 
-.card-body h3 {
-    font-size: 1rem;
-    margin: 10px 0 5px;
-    font-weight: bold;
-}
-
-.rating-row {
+/* Scroll Buttons */
+.scroll-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 45px;
+    height: 45px;
+    background: white;
+    color: #374151;
+    border: 1px solid #e5e7eb;
+    border-radius: 50%;
     display: flex;
-    justify-content: space-between;
-    font-size: 0.85rem;
-    color: #666;
-    margin-bottom: 5px;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 20;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s;
 }
 
-.rating {
-    color: #8e24aa;
-    font-weight: bold;
+.scroll-btn:hover {
+    background: #f9fafb;
+    transform: translateY(-50%) scale(1.1);
+    color: #9333ea;
 }
 
-.tags {
-    display: flex;
-    gap: 5px;
-    flex-wrap: wrap;
+.scroll-btn.left {
+    left: -20px;
 }
 
-.tag {
-    background: #e0e0e0;
-    color: #333;
-    font-size: 0.7rem;
-    padding: 3px 8px;
-    border-radius: 4px;
-    font-weight: 600;
+.scroll-btn.right {
+    right: -20px;
 }
 
-/* footer moved to global styles (src/styles.css) */
-
-/* --- Responsive (Optional) --- */
+/* Responsive adjustments */
 @media (max-width: 768px) {
-    .nav-links {
-        display: none;
+    .main-content {
+        width: 95%;
     }
 
-    /* ซ่อนเมนูบนมือถือเพื่อความง่าย */
     .hero-slider {
         height: 250px;
     }
 
-    .card-img-wrapper {
-        height: 220px;
+    .game-card {
+        min-width: 260px;
+        max-width: 260px;
     }
 
-    .game-card {
-        min-width: 160px;
-        max-width: 160px;
+    .card-img-wrapper {
+        height: 14rem;
+    }
+
+    .scroll-btn {
+        width: 35px;
+        height: 35px;
     }
 }

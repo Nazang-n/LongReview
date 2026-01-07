@@ -2,7 +2,7 @@
 Review Tags Routes
 API endpoints for game review tags
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import Dict
 from ..database import get_db
@@ -13,31 +13,27 @@ router = APIRouter(prefix="/api/games", tags=["review-tags"])
 
 
 @router.get("/{game_id}/review-tags")
-async def get_review_tags(
+def get_review_tags(
     game_id: int,
     refresh: bool = False,
+    background_tasks: BackgroundTasks = None,
     db: Session = Depends(get_db)
 ) -> Dict:
     """
     Get review tags for a game
-    
-    Args:
-        game_id: Game ID
-        refresh: Force refresh tags from reviews (default: False)
-        db: Database session
-        
-    Returns:
-        Dict with positive_tags, negative_tags, and metadata
     """
     try:
         service = ReviewTagsService(db)
         
+
         if refresh:
             # Force regenerate tags
-            result = service.generate_tags_for_game(game_id, top_n=10)
+            # User requested 1500 reviews even if slow
+            result = service.generate_tags_for_game(game_id, top_n=10, max_reviews=1500)
         else:
             # Get from cache or generate if needed
-            result = service.refresh_tags_if_needed(game_id, max_age_days=7)
+            # User requested 1500 reviews (Note: Will take ~30s if not cached)
+            result = service.refresh_tags_if_needed(game_id, max_age_days=7, max_reviews=1500)
         
         return result
         
