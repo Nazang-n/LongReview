@@ -41,7 +41,12 @@ def serialize_game(game: models.Game) -> dict:
         "video": game.video,
         "about_game_th": game.about_game_th,
         "app_id": steam_app_id,
-        "player_modes": []  # Default empty list
+        "price": game.price,
+        "video": game.video,
+        "about_game_th": game.about_game_th,
+        "app_id": steam_app_id,
+        "player_modes": [],  # Default empty list
+        "review_type": "positive" if game.rating and game.rating >= 7 else "mixed" if game.rating and game.rating >= 4 else "negative"
     }
 
 
@@ -50,6 +55,7 @@ def get_games(
     skip: int = 0,
     limit: int = 100,
     tags: Optional[str] = Query(None, description="Comma-separated tag IDs to filter by"),
+    sort_by: Optional[str] = Query("newest", description="Sort by: newest, popular, rating"),
     db: Session = Depends(get_db)
 ):
     """
@@ -58,6 +64,7 @@ def get_games(
     - **skip**: Number of records to skip (default: 0)
     - **limit**: Maximum number of records to return (default: 100)
     - **tags**: Comma-separated tag IDs to filter by (e.g., "1,2,3")
+    - **sort_by**: Sort order ("newest", "popular", "rating")
     """
     query = db.query(models.Game)
     
@@ -79,7 +86,14 @@ def get_games(
                 )
     
     # Apply ordering and pagination
-    games = query.order_by(models.Game.release_date.desc()).offset(skip).limit(limit).all()
+    if sort_by == "popular" or sort_by == "rating":
+        # Sort by rating descending (nulls last)
+        query = query.order_by(models.Game.rating.desc().nullslast())
+    else:
+        # Default: newest first
+        query = query.order_by(models.Game.release_date.desc().nullslast())
+        
+    games = query.offset(skip).limit(limit).all()
     
     # Fetch player modes for these games
     results = []

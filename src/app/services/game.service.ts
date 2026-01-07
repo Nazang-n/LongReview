@@ -54,10 +54,11 @@ export class GameService {
     /**
      * Get all games with optional pagination and tag filtering
      */
-    getGames(skip: number = 0, limit: number = 100, tagIds?: number[]): Observable<Game[]> {
+    getGames(skip: number = 0, limit: number = 100, tagIds?: number[], sortBy: string = 'newest'): Observable<Game[]> {
         let params = new HttpParams()
             .set('skip', skip.toString())
-            .set('limit', limit.toString());
+            .set('limit', limit.toString())
+            .set('sort_by', sortBy);
 
         // Add tag filtering if provided
         if (tagIds && tagIds.length > 0) {

@@ -15,6 +15,7 @@ class SteamAPIClient:
         app_id: int,
         language: str = "thai",
         filter_type: str = "all",
+        purchase_type: str = "all",
         cursor: str = "*",
         num_per_page: int = 100
     ) -> Optional[Dict[str, Any]]:
@@ -25,6 +26,7 @@ class SteamAPIClient:
             app_id: Steam application ID
             language: Language filter (e.g., 'thai', 'english')
             filter_type: Filter type ('all', 'recent', 'updated')
+            purchase_type: Purchase type ('all', 'steam_purchase', 'non_steam_purchase')
             cursor: Pagination cursor
             num_per_page: Number of reviews per page
             
@@ -37,6 +39,7 @@ class SteamAPIClient:
             "json": "1",
             "filter": filter_type,
             "language": language,
+            "purchase_type": purchase_type,
             "cursor": cursor,
             "num_per_page": num_per_page
         }
@@ -68,6 +71,7 @@ class SteamAPIClient:
     def get_all_reviews(
         app_id: int,
         language: str = "thai",
+        purchase_type: str = "all",
         max_reviews: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         """
@@ -76,6 +80,7 @@ class SteamAPIClient:
         Args:
             app_id: Steam application ID
             language: Language filter
+            purchase_type: Purchase type filter
             max_reviews: Maximum number of reviews to fetch (None = all)
             
         Returns:
@@ -91,6 +96,7 @@ class SteamAPIClient:
             data = SteamAPIClient.get_app_reviews(
                 app_id=app_id,
                 language=language,
+                purchase_type=purchase_type,
                 cursor=cursor
             )
             
