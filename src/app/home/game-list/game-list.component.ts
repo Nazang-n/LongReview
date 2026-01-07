@@ -21,6 +21,8 @@ interface Game {
     reviewTags: string[];
     image: string;
     reviewType?: 'positive' | 'negative' | 'mixed';
+    sentimentPercent?: number;
+    reviewScoreDesc?: string;
     isNew?: boolean;
     appId?: string;
     isFavorite?: boolean;
@@ -241,11 +243,30 @@ export class GameListComponent implements OnInit {
             next: (sentiments) => {
                 this.paginatedGames.forEach(game => {
                     const sentiment = sentiments[game.id];
-                    if (sentiment) {
-                        const diff = Math.abs(sentiment.positive_percent - sentiment.negative_percent);
-                        if (diff <= 10) game.reviewType = 'mixed';
-                        else if (sentiment.positive_percent > sentiment.negative_percent) game.reviewType = 'positive';
-                        else game.reviewType = 'negative';
+                    if (sentiment && sentiment.review_score_desc) {
+                        const desc = sentiment.review_score_desc.toLowerCase();
+
+                        // Store percentage and description for display
+                        (game as any).sentimentPercent = sentiment.positive_percent;
+                        (game as any).reviewScoreDesc = sentiment.review_score_desc;
+
+                        // Positive reviews (Green thumbs up)
+                        if (desc.includes('positive')) {
+                            game.reviewType = 'positive';
+                        }
+                        // Mixed reviews (Yellow spin icon)
+                        else if (desc.includes('mixed')) {
+                            game.reviewType = 'mixed';
+                        }
+                        // Negative reviews (Red thumbs down)
+                        else if (desc.includes('negative')) {
+                            game.reviewType = 'negative';
+                            (game as any).sentimentPercent = sentiment.negative_percent;
+                        }
+                        // No reviews or unknown
+                        else {
+                            game.reviewType = undefined;
+                        }
                     }
                 });
             }

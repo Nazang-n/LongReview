@@ -118,6 +118,38 @@
             </div>
         </p-card>
 
+        <!-- Sentiment Cache Update Section -->
+        <p-card header="Sentiment Cache" subheader="Manage game sentiment data cache" class="mt-4">
+            <div class="sync-section">
+                <h3>Update Sentiment Cache</h3>
+                <p>Manually trigger sentiment cache update to fetch latest review data from Steam for all games. This
+                    normally runs automatically every hour.</p>
+
+                <button pButton type="button" label="Update Sentiment Now" icon="pi pi-chart-bar"
+                    [loading]="isUpdatingSentiment" [disabled]="isUpdatingSentiment" (click)="triggerSentimentUpdate()"
+                    class="sync-button">
+                </button>
+
+                <!-- Loading Spinner -->
+                <div *ngIf="isUpdatingSentiment" class="loading-container">
+                    <p-progressSpinner styleClass="custom-spinner" strokeWidth="4" animationDuration="1s">
+                    </p-progressSpinner>
+                    <p>Updating sentiment cache... This may take a few minutes.</p>
+                </div>
+
+                <!-- Success Result -->
+                <div *ngIf="sentimentUpdateResult && !isUpdatingSentiment" class="result-container success">
+                    <p-message severity="success" text="Sentiment update triggered successfully!"></p-message>
+                    <p class="mt-2">{{ sentimentUpdateResult.message }}</p>
+                </div>
+
+                <!-- Error Message -->
+                <div *ngIf="sentimentUpdateError && !isUpdatingSentiment" class="result-container error">
+                    <p-message severity="error" [text]="sentimentUpdateError"></p-message>
+                </div>
+            </div>
+        </p-card>
+
         <!-- Reported Comments Section -->
         <div class="bg-white rounded-lg shadow-md p-6 mb-8">
             <h2 class="text-2xl font-bold text-gray-900 mb-6">รายงานความคิดเห็น</h2>

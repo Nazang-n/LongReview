@@ -366,46 +366,41 @@ def get_steam_sentiment(game_id: int, db: Session = Depends(get_db)):
 
 @router.post("/sentiment/batch")
 def get_batch_sentiment(game_ids: List[int], db: Session = Depends(get_db)):
-    """Get sentiment for multiple games at once - efficient for game list"""
-    from sqlalchemy import text
-    
+    """Get sentiment from cached data in GameSentiment table"""
     if not game_ids:
         return {}
     
     results = {}
     
     try:
-        # Optimized query using GROUP BY and IN clause
-        # This replaces N queries with just 1 query
-        query = text("""
-            SELECT game_id, COUNT(*), SUM(CASE WHEN voted_up = TRUE THEN 1 ELSE 0 END) 
-            FROM analyreview 
-            WHERE game_id IN :game_ids 
-            GROUP BY game_id
-        """)
+        # Get sentiment records from game_sentiment table
+        sentiments = db.query(models.GameSentiment).filter(
+            models.GameSentiment.game_id.in_(game_ids)
+        ).all()
         
-        # Convert list to tuple for safety (though SQLAlchemy handles lists fine)
-        rows = db.execute(query, {"game_ids": tuple(game_ids)}).fetchall()
-        
-        for row in rows:
-            game_id = row[0]
-            total = row[1]
-            # SUM returns None if no rows match, but COUNT > 0 ensures rows exist.
-            # However, voted_up is boolean, so integer sum is fine.
-            positive = row[2] if row[2] is not None else 0
-            
-            if total > 0:
-                pos_pct = round((positive / total * 100), 1)
-                neg_pct = round(((total - positive) / total * 100), 1)
-                
-                results[game_id] = {
-                    "positive_percent": pos_pct,
-                    "negative_percent": neg_pct,
-                    "total_reviews": total
-                }
+        for sentiment in sentiments:
+            results[sentiment.game_id] = {
+                "positive_percent": float(sentiment.positive_percent) if sentiment.positive_percent else 0,
+                "negative_percent": float(sentiment.negative_percent) if sentiment.negative_percent else 0,
+                "total_reviews": sentiment.total_reviews or 0,
+                "review_score_desc": sentiment.review_score_desc or "No user reviews"
+            }
                 
     except Exception as e:
-        print(f"[Batch Sentiment] Error in batch query: {e}")
-        # On error (e.g. huge list issues), we return empty or partial
+        print(f"[Batch Sentiment] Error: {e}")
     
     return results
+
+
+@router.post("/sentiment/update-all")
+def trigger_sentiment_update():
+    """Manually trigger sentiment update for all games (Admin endpoint)"""
+    from ..scheduler import update_all_sentiments
+    import threading
+    
+    # Run in background thread
+    thread = threading.Thread(target=update_all_sentiments)
+    thread.daemon = True
+    thread.start()
+    
+    return {"success": True, "message": "Sentiment update started in background"}
