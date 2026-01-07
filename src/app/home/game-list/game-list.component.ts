@@ -161,6 +161,7 @@ export class GameListComponent implements OnInit {
 
                     // Initial filter (if any tags selected)
                     this.filterGames();
+                    this.updateTagCounts(); // Calculate initial static counts
 
                     this.isLoading = false;
                     this.updateFavoriteStatus();
@@ -324,105 +325,33 @@ export class GameListComponent implements OnInit {
         }
 
         this.games = filtered;
-        this.updateTagCounts(); // Update counts based on current filters
+        // this.updateTagCounts(); // Counts are now static (updated only on load)
         this.currentPage = 1;
         this.getPaginatedGames();
     }
 
     updateTagCounts() {
-        // 1. Base Search Filter
-        let searchFiltered = this.allGames;
-        if (this.searchQuery.trim()) {
-            const query = this.searchQuery.toLowerCase();
-            searchFiltered = searchFiltered.filter(game => game.title.toLowerCase().includes(query));
-        }
-
-        // 2. Prepare Sets for Counting
-
-        // For Genre Counts: Filter by Platform ONLY (ignore current genre selection to show potential count)
-        // Actually, users usually expect "Refined Count" (Intersection).
-        // But for AND logic filter (Genre), showing "0" for unselected means "If you click this, you get 0 result".
-        // This is correct. So we applied platform filter.
-        let gamesForGenres = searchFiltered;
-
-        if (this.selectedPlatformIds.length > 0) {
-            const selectedPlatformNames = this.platforms
-                .filter(p => this.selectedPlatformIds.includes(p.id))
-                .map(p => p.name.toLowerCase());
-
-            if (selectedPlatformNames.length > 0) {
-                gamesForGenres = gamesForGenres.filter(game => {
-                    const gamePlatform = (game.platform || '').toLowerCase();
-                    return selectedPlatformNames.some(p => gamePlatform.includes(p));
-                });
-            }
-        }
-
-        // For Platform Counts: Filter by Genre ONLY (ignore current platform selection)
-        // Because Platform is OR logic, we usually want to show "How many games match this platform" 
-        // within the current Genre/Search scope.
-        let gamesForPlatforms = searchFiltered;
-        if (this.selectedGenreIds.length > 0) {
-            const selectedGenreNames = this.genres
-                .filter(g => this.selectedGenreIds.includes(g.id))
-                .map(g => g.name);
-
-            if (selectedGenreNames.length > 0) {
-                gamesForPlatforms = gamesForPlatforms.filter(game =>
-                    selectedGenreNames.every(name => game.genres.includes(name))
-                );
-            }
-        }
-
-        // For Player Mode Counts: Filter by Platform AND Genre (Refined)
-        let gamesForPlayerModes = searchFiltered;
-
-        // Apply Platform Filter
-        if (this.selectedPlatformIds.length > 0) {
-            const selectedPlatformNames = this.platforms
-                .filter(p => this.selectedPlatformIds.includes(p.id))
-                .map(p => p.name.toLowerCase());
-
-            if (selectedPlatformNames.length > 0) {
-                gamesForPlayerModes = gamesForPlayerModes.filter(game => {
-                    const gamePlatform = (game.platform || '').toLowerCase();
-                    return selectedPlatformNames.some(p => gamePlatform.includes(p));
-                });
-            }
-        }
-
-        // Apply Genre Filter
-        if (this.selectedGenreIds.length > 0) {
-            const selectedGenreNames = this.genres
-                .filter(g => this.selectedGenreIds.includes(g.id))
-                .map(g => g.name);
-
-            if (selectedGenreNames.length > 0) {
-                gamesForPlayerModes = gamesForPlayerModes.filter(game =>
-                    selectedGenreNames.every(name => game.genres.includes(name))
-                );
-            }
-        }
-
-        // 3. Update Counts
+        // Calculate counts based on ALL games (Static Counts)
+        // This ensures counts show total games in category, not filtered results.
 
         // Update Genres
         this.genres.forEach(genre => {
-            // Count how many games in the filtered set have this genre
-            genre.game_count = gamesForGenres.filter(g => g.genres.includes(genre.name)).length;
+            genre.game_count = this.allGames.filter(g => g.genres.includes(genre.name)).length;
         });
 
         // Update Platforms
         this.platforms.forEach(platform => {
             const pName = platform.name.toLowerCase();
-            // Match logic must match filter logic (substring check)
-            platform.game_count = gamesForPlatforms.filter(g => (g.platform || '').toLowerCase().includes(pName)).length;
+            platform.game_count = this.allGames.filter(g => (g.platform || '').toLowerCase().includes(pName)).length;
         });
 
         // Update Player Modes
         this.playerModes.forEach(mode => {
-            mode.game_count = gamesForPlayerModes.filter(g => (g.playerModes || []).includes(mode.name)).length;
+            // Standard check
+            mode.game_count = this.allGames.filter(g => (g.playerModes || []).includes(mode.name)).length;
         });
+
+        console.log('--- End Debug ---');
     }
 
     // Explicit binding trigger
