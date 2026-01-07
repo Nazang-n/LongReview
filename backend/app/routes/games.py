@@ -4,6 +4,7 @@ from sqlalchemy import text, and_, case
 from typing import List, Optional
 from .. import models, schemas
 from ..database import get_db
+from ..utils.tag_translator import translate_tag
 from datetime import date
 
 router = APIRouter(
@@ -17,11 +18,19 @@ def serialize_game(game: models.Game) -> dict:
     # Try to get steam_app_id - it may not be loaded if backend wasn't restarted
     steam_app_id = getattr(game, 'steam_app_id', None)
     
+    # Translate genres
+    genre_th = None
+    if game.genre:
+        genres = [g.strip() for g in game.genre.split(',')]
+        genres_th = [translate_tag(g, 'genre') for g in genres]
+        genre_th = ", ".join(genres_th)
+    
     return {
         "id": game.id,
         "title": game.title,
         "description": game.description,
         "genre": game.genre,
+        "genre_th": genre_th,
         "rating": game.rating,
         "image_url": game.image_url,
         "release_date": game.release_date.isoformat() if game.release_date else None,
@@ -30,7 +39,6 @@ def serialize_game(game: models.Game) -> dict:
         "platform": game.platform,
         "price": game.price,
         "video": game.video,
-        "about_game_th": game.about_game_th,
         "about_game_th": game.about_game_th,
         "app_id": steam_app_id,
         "player_modes": []  # Default empty list

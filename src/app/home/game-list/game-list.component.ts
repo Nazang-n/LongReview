@@ -17,6 +17,7 @@ interface Game {
     description: string;
     releaseDate: string;
     genres: string[];
+    genresTh: string[];
     reviewTags: string[];
     image: string;
     reviewType?: 'positive' | 'negative' | 'mixed';
@@ -135,12 +136,14 @@ export class GameListComponent implements OnInit {
                 if (gamesFromDb && gamesFromDb.length > 0) {
                     this.allGames = gamesFromDb.map((game: any) => {
                         const genres = game.genre ? game.genre.split(',').map((g: string) => g.trim()) : [];
+                        const genresTh = game.genre_th ? game.genre_th.split(',').map((g: string) => g.trim()) : genres;
                         return {
                             id: game.id,
                             title: game.title || 'Unknown Game',
                             description: game.description || game.developer || 'No description available',
                             releaseDate: game.release_date || 'Unknown',
                             genres: genres,
+                            genresTh: genresTh,
                             reviewTags: [],
                             image: game.image_url || `https://via.placeholder.com/460x215?text=${encodeURIComponent(game.title)}`,
                             reviewType: undefined,
@@ -186,7 +189,8 @@ export class GameListComponent implements OnInit {
                 reviewTags: [],
                 image: 'https://cdn.cloudflare.steamstatic.com/steam/apps/1172470/header.jpg',
                 reviewType: 'positive',
-                isNew: false
+                isNew: false,
+                genresTh: ['แบทเทิลรอยัล', 'FPS']
             }
         ];
         this.filterGames();
