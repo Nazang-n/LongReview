@@ -92,6 +92,11 @@ export class GameListComponent implements OnInit {
                 );
                 this.platforms = response.stats.platforms;
                 this.playerModes = response.stats.player_modes;
+
+                // If games are already loaded, update counts immediately
+                if (this.allGames.length > 0) {
+                    this.updateTagCounts();
+                }
             },
             error: (err) => console.error('Error loading tags:', err)
         });
@@ -265,8 +270,6 @@ export class GameListComponent implements OnInit {
         }
 
         // 3. Platform Filter (OR Logic: Show games on ANY of the selected platforms)
-        // Usually users want "Show me Windows games" or "Show me Mac games". 
-        // If I select both, I probably want games available on EITHER.
         if (this.selectedPlatformIds.length > 0) {
             const selectedPlatformNames = this.platforms
                 .filter(p => this.selectedPlatformIds.includes(p.id))
@@ -284,8 +287,70 @@ export class GameListComponent implements OnInit {
         // Currently not available in 'allGames' data.
 
         this.games = filtered;
+        this.updateTagCounts(); // Update counts based on current filters
         this.currentPage = 1;
         this.getPaginatedGames();
+    }
+
+    updateTagCounts() {
+        // 1. Base Search Filter
+        let searchFiltered = this.allGames;
+        if (this.searchQuery.trim()) {
+            const query = this.searchQuery.toLowerCase();
+            searchFiltered = searchFiltered.filter(game => game.title.toLowerCase().includes(query));
+        }
+
+        // 2. Prepare Sets for Counting
+
+        // For Genre Counts: Filter by Platform ONLY (ignore current genre selection to show potential count)
+        // Actually, users usually expect "Refined Count" (Intersection).
+        // But for AND logic filter (Genre), showing "0" for unselected means "If you click this, you get 0 result".
+        // This is correct. So we applied platform filter.
+        let gamesForGenres = searchFiltered;
+
+        if (this.selectedPlatformIds.length > 0) {
+            const selectedPlatformNames = this.platforms
+                .filter(p => this.selectedPlatformIds.includes(p.id))
+                .map(p => p.name.toLowerCase());
+
+            if (selectedPlatformNames.length > 0) {
+                gamesForGenres = gamesForGenres.filter(game => {
+                    const gamePlatform = (game.platform || '').toLowerCase();
+                    return selectedPlatformNames.some(p => gamePlatform.includes(p));
+                });
+            }
+        }
+
+        // For Platform Counts: Filter by Genre ONLY (ignore current platform selection)
+        // Because Platform is OR logic, we usually want to show "How many games match this platform" 
+        // within the current Genre/Search scope.
+        let gamesForPlatforms = searchFiltered;
+        if (this.selectedGenreIds.length > 0) {
+            const selectedGenreNames = this.genres
+                .filter(g => this.selectedGenreIds.includes(g.id))
+                .map(g => g.name);
+
+            if (selectedGenreNames.length > 0) {
+                gamesForPlatforms = gamesForPlatforms.filter(game =>
+                    selectedGenreNames.every(name => game.genres.includes(name))
+                );
+            }
+        }
+
+        // 3. Update Counts
+
+        // Update Genres
+        this.genres.forEach(genre => {
+            // Count how many games in the filtered set have this genre
+            genre.game_count = gamesForGenres.filter(g => g.genres.includes(genre.name)).length;
+        });
+
+        // Update Platforms
+        this.platforms.forEach(platform => {
+            const pName = platform.name.toLowerCase();
+            // Match logic must match filter logic (substring check)
+            platform.game_count = gamesForPlatforms.filter(g => (g.platform || '').toLowerCase().includes(pName)).length;
+        });
     }
 
     // Explicit binding trigger
