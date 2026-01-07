@@ -4,6 +4,7 @@ from sqlalchemy import text, and_, case
 from typing import List, Optional
 from .. import models, schemas
 from ..database import get_db
+from ..utils.tag_translator import translate_tag
 from datetime import date
 
 router = APIRouter(
@@ -17,11 +18,19 @@ def serialize_game(game: models.Game) -> dict:
     # Try to get steam_app_id - it may not be loaded if backend wasn't restarted
     steam_app_id = getattr(game, 'steam_app_id', None)
     
+    # Translate genres
+    genre_th = None
+    if game.genre:
+        genres = [g.strip() for g in game.genre.split(',')]
+        genres_th = [translate_tag(g, 'genre') for g in genres]
+        genre_th = ", ".join(genres_th)
+    
     return {
         "id": game.id,
         "title": game.title,
         "description": game.description,
         "genre": game.genre,
+        "genre_th": genre_th,
         "rating": game.rating,
         "image_url": game.image_url,
         "release_date": game.release_date.isoformat() if game.release_date else None,
@@ -31,7 +40,13 @@ def serialize_game(game: models.Game) -> dict:
         "price": game.price,
         "video": game.video,
         "about_game_th": game.about_game_th,
-        "app_id": steam_app_id
+        "app_id": steam_app_id,
+        "price": game.price,
+        "video": game.video,
+        "about_game_th": game.about_game_th,
+        "app_id": steam_app_id,
+        "player_modes": [],  # Default empty list
+        "review_type": "positive" if game.rating and game.rating >= 7 else "mixed" if game.rating and game.rating >= 4 else "negative"
     }
 
 
@@ -40,6 +55,7 @@ def get_games(
     skip: int = 0,
     limit: int = 100,
     tags: Optional[str] = Query(None, description="Comma-separated tag IDs to filter by"),
+    sort_by: Optional[str] = Query("newest", description="Sort by: newest, popular, rating"),
     db: Session = Depends(get_db)
 ):
     """
@@ -48,6 +64,7 @@ def get_games(
     - **skip**: Number of records to skip (default: 0)
     - **limit**: Maximum number of records to return (default: 100)
     - **tags**: Comma-separated tag IDs to filter by (e.g., "1,2,3")
+    - **sort_by**: Sort order ("newest", "popular", "rating")
     """
     query = db.query(models.Game)
     
@@ -69,8 +86,41 @@ def get_games(
                 )
     
     # Apply ordering and pagination
-    games = query.order_by(models.Game.release_date.desc()).offset(skip).limit(limit).all()
-    return [serialize_game(game) for game in games]
+    if sort_by == "popular" or sort_by == "rating":
+        # Sort by rating descending (nulls last)
+        query = query.order_by(models.Game.rating.desc().nullslast())
+    else:
+        # Default: newest first
+        query = query.order_by(models.Game.release_date.desc().nullslast())
+        
+    games = query.offset(skip).limit(limit).all()
+    
+    # Fetch player modes for these games
+    results = []
+    if games:
+        game_ids = [g.id for g in games]
+        
+        # Query player mode tags
+        pm_tags = db.query(models.GameTag.game_id, models.Tag.name)\
+            .join(models.Tag, models.GameTag.tag_id == models.Tag.id)\
+            .filter(models.GameTag.game_id.in_(game_ids))\
+            .filter(models.Tag.type == 'player_mode')\
+            .all()
+            
+        # Group by game_id
+        pm_map = {}
+        for gid, tname in pm_tags:
+            if gid not in pm_map:
+                pm_map[gid] = []
+            pm_map[gid].append(tname)
+            
+        # Serialize and attach
+        for game in games:
+            g_dict = serialize_game(game)
+            g_dict['player_modes'] = pm_map.get(game.id, [])
+            results.append(g_dict)
+            
+    return results
 
 
 @router.get("/count")

@@ -17,14 +17,18 @@ interface Game {
     description: string;
     releaseDate: string;
     genres: string[];
+    genresTh: string[];
     reviewTags: string[];
     image: string;
     reviewType?: 'positive' | 'negative' | 'mixed';
+    sentimentPercent?: number;
+    reviewScoreDesc?: string;
     isNew?: boolean;
     appId?: string;
     isFavorite?: boolean;
     platform?: string;
     price?: number;
+    playerModes?: string[];
 }
 
 @Component({
@@ -92,6 +96,11 @@ export class GameListComponent implements OnInit {
                 );
                 this.platforms = response.stats.platforms;
                 this.playerModes = response.stats.player_modes;
+
+                // If games are already loaded, update counts immediately
+                if (this.allGames.length > 0) {
+                    this.updateTagCounts();
+                }
             },
             error: (err) => console.error('Error loading tags:', err)
         });
@@ -129,18 +138,21 @@ export class GameListComponent implements OnInit {
                 if (gamesFromDb && gamesFromDb.length > 0) {
                     this.allGames = gamesFromDb.map((game: any) => {
                         const genres = game.genre ? game.genre.split(',').map((g: string) => g.trim()) : [];
+                        const genresTh = game.genre_th ? game.genre_th.split(',').map((g: string) => g.trim()) : genres;
                         return {
                             id: game.id,
                             title: game.title || 'Unknown Game',
                             description: game.description || game.developer || 'No description available',
                             releaseDate: game.release_date || 'Unknown',
                             genres: genres,
+                            genresTh: genresTh,
                             reviewTags: [],
                             image: game.image_url || `https://via.placeholder.com/460x215?text=${encodeURIComponent(game.title)}`,
                             reviewType: undefined,
                             isNew: false,
                             platform: game.platform,
-                            price: game.price
+                            price: game.price,
+                            playerModes: game.player_modes || []
                         };
                     });
 
@@ -149,6 +161,7 @@ export class GameListComponent implements OnInit {
 
                     // Initial filter (if any tags selected)
                     this.filterGames();
+                    this.updateTagCounts(); // Calculate initial static counts
 
                     this.isLoading = false;
                     this.updateFavoriteStatus();
@@ -179,7 +192,8 @@ export class GameListComponent implements OnInit {
                 reviewTags: [],
                 image: 'https://cdn.cloudflare.steamstatic.com/steam/apps/1172470/header.jpg',
                 reviewType: 'positive',
-                isNew: false
+                isNew: false,
+                genresTh: ['แบทเทิลรอยัล', 'FPS']
             }
         ];
         this.filterGames();
@@ -230,11 +244,30 @@ export class GameListComponent implements OnInit {
             next: (sentiments) => {
                 this.paginatedGames.forEach(game => {
                     const sentiment = sentiments[game.id];
-                    if (sentiment) {
-                        const diff = Math.abs(sentiment.positive_percent - sentiment.negative_percent);
-                        if (diff <= 10) game.reviewType = 'mixed';
-                        else if (sentiment.positive_percent > sentiment.negative_percent) game.reviewType = 'positive';
-                        else game.reviewType = 'negative';
+                    if (sentiment && sentiment.review_score_desc) {
+                        const desc = sentiment.review_score_desc.toLowerCase();
+
+                        // Store percentage and description for display
+                        (game as any).sentimentPercent = sentiment.positive_percent;
+                        (game as any).reviewScoreDesc = sentiment.review_score_desc;
+
+                        // Positive reviews (Green thumbs up)
+                        if (desc.includes('positive')) {
+                            game.reviewType = 'positive';
+                        }
+                        // Mixed reviews (Yellow spin icon)
+                        else if (desc.includes('mixed')) {
+                            game.reviewType = 'mixed';
+                        }
+                        // Negative reviews (Red thumbs down)
+                        else if (desc.includes('negative')) {
+                            game.reviewType = 'negative';
+                            (game as any).sentimentPercent = sentiment.negative_percent;
+                        }
+                        // No reviews or unknown
+                        else {
+                            game.reviewType = undefined;
+                        }
                     }
                 });
             }
@@ -265,8 +298,6 @@ export class GameListComponent implements OnInit {
         }
 
         // 3. Platform Filter (OR Logic: Show games on ANY of the selected platforms)
-        // Usually users want "Show me Windows games" or "Show me Mac games". 
-        // If I select both, I probably want games available on EITHER.
         if (this.selectedPlatformIds.length > 0) {
             const selectedPlatformNames = this.platforms
                 .filter(p => this.selectedPlatformIds.includes(p.id))
@@ -280,12 +311,47 @@ export class GameListComponent implements OnInit {
             }
         }
 
-        // 4. Player Mode Filter (Placeholder - requires backend update to map to game object)
-        // Currently not available in 'allGames' data.
+        // 4. Player Mode Filter (AND Logic)
+        if (this.selectedPlayerModeIds.length > 0) {
+            const selectedModeNames = this.playerModes
+                .filter(p => this.selectedPlayerModeIds.includes(p.id))
+                .map(p => p.name);
+
+            if (selectedModeNames.length > 0) {
+                filtered = filtered.filter(game =>
+                    selectedModeNames.every(name => (game.playerModes || []).includes(name))
+                );
+            }
+        }
 
         this.games = filtered;
+        // this.updateTagCounts(); // Counts are now static (updated only on load)
         this.currentPage = 1;
         this.getPaginatedGames();
+    }
+
+    updateTagCounts() {
+        // Calculate counts based on ALL games (Static Counts)
+        // This ensures counts show total games in category, not filtered results.
+
+        // Update Genres
+        this.genres.forEach(genre => {
+            genre.game_count = this.allGames.filter(g => g.genres.includes(genre.name)).length;
+        });
+
+        // Update Platforms
+        this.platforms.forEach(platform => {
+            const pName = platform.name.toLowerCase();
+            platform.game_count = this.allGames.filter(g => (g.platform || '').toLowerCase().includes(pName)).length;
+        });
+
+        // Update Player Modes
+        this.playerModes.forEach(mode => {
+            // Standard check
+            mode.game_count = this.allGames.filter(g => (g.playerModes || []).includes(mode.name)).length;
+        });
+
+        console.log('--- End Debug ---');
     }
 
     // Explicit binding trigger

@@ -25,17 +25,23 @@ app = FastAPI(
 
 # Start background tasks
 from app.services.news_sync import NewsSyncService
+from app.services.game_sync import GameSyncService
 from app.services.review_scheduler import start_review_scheduler, stop_review_scheduler
+from app.scheduler import start_scheduler, stop_scheduler
 
 @app.on_event("startup")
 async def startup_event():
     NewsSyncService.start_scheduler()
+    # GameSyncService.start_scheduler()
     start_review_scheduler()  # Start daily review update scheduler
+    start_scheduler()  # Start hourly sentiment update scheduler
 
 @app.on_event("shutdown")
 async def shutdown_event():
     NewsSyncService.stop_scheduler()
+    GameSyncService.stop_scheduler()
     stop_review_scheduler()  # Stop review scheduler
+    stop_scheduler()  # Stop sentiment scheduler
 
 # Configure CORS
 origins = os.getenv("CORS_ORIGINS", "http://localhost:4200,http://127.0.0.1:4200").split(",")

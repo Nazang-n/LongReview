@@ -54,10 +54,11 @@ export class GameService {
     /**
      * Get all games with optional pagination and tag filtering
      */
-    getGames(skip: number = 0, limit: number = 100, tagIds?: number[]): Observable<Game[]> {
+    getGames(skip: number = 0, limit: number = 100, tagIds?: number[], sortBy: string = 'newest'): Observable<Game[]> {
         let params = new HttpParams()
             .set('skip', skip.toString())
-            .set('limit', limit.toString());
+            .set('limit', limit.toString())
+            .set('sort_by', sortBy);
 
         // Add tag filtering if provided
         if (tagIds && tagIds.length > 0) {
@@ -195,5 +196,19 @@ export class GameService {
     batchTranslateGames(limit: number = 10000): Observable<any> {
         const params = new HttpParams().set('limit', limit.toString());
         return this.http.post<any>('http://localhost:8000/api/games/translate/batch', null, { params });
+    }
+
+    /**
+     * Manually trigger review update scheduler
+     */
+    triggerReviewUpdate(): Observable<any> {
+        return this.http.post<any>(`${this.steamApiUrl}/admin/trigger-review-update`, {});
+    }
+
+    /**
+     * Manually trigger sentiment cache update
+     */
+    triggerSentimentUpdate(): Observable<any> {
+        return this.http.post<any>('http://localhost:8000/api/reviews/sentiment/update-all', {});
     }
 }
