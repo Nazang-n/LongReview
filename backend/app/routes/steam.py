@@ -250,9 +250,13 @@ def import_game_from_steam(
             print(f"Error auto-tagging player modes: {e}")
             # Don't fail the import just because tagging failed
         
-        # Reviews will be fetched automatically by hourly scheduler
-        # Disabled synchronous fetching to prevent page freezing during import
-        print(f"✓ Game imported. Reviews will be fetched by hourly scheduler.")
+        # Fetch and cache sentiment data
+        try:
+            from ..utils.sentiment_helper import fetch_and_cache_sentiment
+            fetch_and_cache_sentiment(new_game.id, app_id, db)
+        except Exception as e:
+            print(f"Error fetching sentiment: {e}")
+            # Don't fail import if sentiment fetch fails
         
         return {
             "success": True,
@@ -685,8 +689,12 @@ def import_games_batch_from_steamspy(
                 
                 imported_count += 1
                 
-                # Reviews will be fetched automatically by hourly scheduler
-                # Disabled synchronous fetching to prevent page freezing during batch import
+                # Fetch and cache sentiment data for the newly imported game
+                try:
+                    from ..utils.sentiment_helper import fetch_and_cache_sentiment
+                    fetch_and_cache_sentiment(new_game.id, int(app_id), db)
+                except Exception as e:
+                    print(f"   ✗ Error fetching sentiment: {e}")
                 
                 # Commit every 10 games to avoid losing progress
                 if imported_count % 10 == 0:
