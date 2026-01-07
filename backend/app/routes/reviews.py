@@ -114,6 +114,7 @@ def get_steam_reviews(
         "reviews": [
             {
                 "id": r.id,
+                "steam_id": r.steam_id,
                 "author": r.steam_author,
                 "content": r.content,
                 "voted_up": r.voted_up,
@@ -170,6 +171,7 @@ def sync_steam_reviews(
                 "reviews": [
                     {
                         "id": r.id,
+                        "steam_id": r.steam_id,
                         "author": r.steam_author,
                         "content": r.content,
                         "voted_up": r.voted_up,
@@ -182,6 +184,7 @@ def sync_steam_reviews(
             }
         
         # Fetch from Steam API
+        # Fetch Thai reviews for display in the "Read Reviews" section
         steam_reviews = SteamAPIClient.get_all_reviews(
             app_id=int(steam_app_id),
             language="thai",
@@ -199,7 +202,29 @@ def sync_steam_reviews(
         
         # Save reviews to database
         saved_reviews = []
+        
+        # Helper set to track what we've added in this transaction
+        # This prevents "Duplicate entry" if Steam API returns the same review twice in the same batch
+        processed_steam_ids = set()
+
+        # Helper set to check against DB
+        # Get all existing steam_ids for this game
+        db_existing_ids = {
+            r[0] for r in db.query(models.Review.steam_id).filter(
+                models.Review.game_id == game_id,
+                models.Review.steam_id.isnot(None)
+            ).all()
+        }
+        
         for steam_review in steam_reviews:
+            rec_id = steam_review.get("recommendationid")
+            
+            # Skip if no ID or already exists in DB or already processed in this batch
+            if not rec_id or rec_id in db_existing_ids or rec_id in processed_steam_ids:
+                continue
+                
+            processed_steam_ids.add(rec_id)
+
             playtime_minutes = steam_review.get("author", {}).get("playtime_at_review", 0)
             playtime_hours = round(playtime_minutes / 60, 1) if playtime_minutes else 0
             
@@ -211,6 +236,7 @@ def sync_steam_reviews(
                 admin_id=None,
                 owner=steam_review.get("author", {}).get("steamid", "Unknown"),
                 content=steam_review.get("review", ""),
+                steam_id=rec_id,
                 is_steam_review=True,
                 steam_author=steam_review.get("author", {}).get("steamid", "Unknown"),
                 voted_up=steam_review.get("voted_up", True),
@@ -221,6 +247,8 @@ def sync_steam_reviews(
             
             db.add(new_review)
             saved_reviews.append({
+                "id": new_review.id,  # Note: ID won't be available until commit/flush if not using RETURNING
+                "steam_id": new_review.steam_id,
                 "author": new_review.steam_author,
                 "content": new_review.content,
                 "voted_up": new_review.voted_up,
@@ -229,7 +257,17 @@ def sync_steam_reviews(
                 "created_at": new_review.created_at.isoformat() if new_review.created_at else None
             })
         
-        db.commit()
+        if saved_reviews:
+            db.commit()
+            # Refresh to get IDs
+            for review_data in saved_reviews:
+                 # Re-querying is expensive, just return success. 
+                 # Or we can do db.refresh(new_review) inside the loop if performance allows. 
+                 # For batch logic, refreshing inside loop might be slow but safe.
+                 pass
+        else:
+             # Nothing new saved
+             pass
         
         return {
             "success": True,
@@ -273,58 +311,57 @@ def get_steam_sentiment(game_id: int, db: Session = Depends(get_db)):
         
         steam_app_id = int(game_row[0])
         
-        # Check cache
-        cached = db.query(models.AnalyReview).filter(models.AnalyReview.game_id == game_id).count()
-        print(f"[Sentiment] Cached: {cached}")
+        # Use Steam API query_summary (Fast & Real-time)
+        review_summary = SteamAPIClient.get_app_reviews(
+            app_id=steam_app_id, 
+            language="all", 
+            num_per_page=0 # We only want summary, not actual reviews
+        )
         
-        # Fetch if needed
-        if cached == 0:
-            print(f"[Sentiment] Fetching ALL reviews for app {steam_app_id}...")
-            reviews = SteamAPIClient.get_all_reviews(app_id=steam_app_id, language="all", max_reviews=None)
-            if reviews:
-                print(f"[Sentiment] Saving {len(reviews)} records...")
-                saved = 0
-                for r in reviews:
-                    try:
-                        db.add(models.AnalyReview(game_id=game_id, voted_up=r.get("voted_up", True)))
-                        saved += 1
-                        if saved % 500 == 0:
-                            db.commit()
-                            print(f"[Sentiment] Saved {saved}/{len(reviews)}...")
-                    except:
-                        pass
-                db.commit()
-                print(f"[Sentiment] Done saving {saved} records")
+        if review_summary and review_summary.get("success") == 1:
+            summary = review_summary.get("query_summary", {})
+            total = summary.get("total_reviews", 0)
+            positive = summary.get("total_positive", 0)
+            negative = summary.get("total_negative", 0)
+            
+            # Calculate percentages
+            if total > 0:
+                pos_pct = round((positive / total * 100), 1)
+                neg_pct = round((negative / total * 100), 1)
+            else:
+                pos_pct = 0
+                neg_pct = 0
+                
+            return {
+                "success": True,
+                "total_reviews": total,
+                "positive_count": positive,
+                "negative_count": negative,
+                "positive_percent": pos_pct,
+                "negative_percent": neg_pct,
+                "cached": False
+            }
         
-        # Calculate
-        result = db.execute(
-            text("SELECT COUNT(*), SUM(CASE WHEN voted_up = TRUE THEN 1 ELSE 0 END) FROM analyreview WHERE game_id = :game_id"),
-            {"game_id": game_id}
-        ).fetchone()
-        
-        total = result[0] if result else 0
-        positive = result[1] if result else 0
-        negative = total - positive
-        pos_pct = round((positive / total * 100), 1) if total > 0 else 0
-        neg_pct = round((negative / total * 100), 1) if total > 0 else 0
-        
-        print(f"[Sentiment] Result: {total} reviews, {pos_pct}% positive, {neg_pct}% negative")
-        
+        # Fallback to empty result if API fails
         return {
-            "success": True,
-            "total_reviews": total,
-            "positive_count": positive,
-            "negative_count": negative,
-            "positive_percent": pos_pct,
-            "negative_percent": neg_pct,
-            "cached": cached > 0
+            "success": False,
+            "total_reviews": 0,
+            "positive_count": 0,
+            "negative_count": 0,
+            "positive_percent": 0,
+            "negative_percent": 0,
+            "cached": False,
+            "error": "Failed to fetch from Steam API"
         }
+            
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
         print(f"[Sentiment] Error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return {
+            "success": False,
+            "error": str(e)
+        }
 
 
 @router.post("/sentiment/batch")

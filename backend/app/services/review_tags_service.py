@@ -59,7 +59,7 @@ class ReviewTagsService:
         
         return result
     
-    def generate_tags_for_game(self, game_id: int, top_n: int = 7, language: str = "english") -> Dict:
+    def generate_tags_for_game(self, game_id: int, top_n: int = 7, language: str = "english", max_reviews: int = 1500) -> Dict:
         """
         Generate review tags for a game by analyzing ALL reviews from database
         
@@ -67,6 +67,7 @@ class ReviewTagsService:
             game_id: Game ID
             top_n: Number of top tags to generate for each sentiment
             language: Review language filter ('english', 'thai', 'all')
+            max_reviews: Maximum number of reviews to analyze (default: 1500)
             
         Returns:
             Dict with generated tags and metadata
@@ -74,12 +75,19 @@ class ReviewTagsService:
         from sqlalchemy import text
         
         try:
-            # Get game's name from database
+            # 1. Fetch Game Details (Short Transaction)
+            # Get game's name AND steam_app_id from database
             result = self.db.execute(
-                text("SELECT name FROM game WHERE id = :game_id"),
+                text("SELECT name, steam_app_id FROM game WHERE id = :game_id"),
                 {"game_id": game_id}
             )
             game_row = result.fetchone()
+            
+            # Commit/close this read transaction immediately to free the connection?
+            # Or just rely on the fact that SELECT doesn't block readers in WAL mode?
+            # But SQLite default journal mode blocks writers if readers are active and vice versa?
+            # Better to be safe: We have the data, we don't need the DB for the next 30s.
+            # self.db.commit() # End current transaction if any
             
             if not game_row:
                 return {
@@ -89,72 +97,79 @@ class ReviewTagsService:
                 }
             
             game_name = game_row[0]
-            print(f"[ReviewTags] Processing game: {game_name} (ID: {game_id})")
+            steam_app_id = game_row[1]
             
-            # Fetch ALL reviews from database (analyreview table)
-            print(f"[ReviewTags] Fetching ALL reviews from database...")
-            
-            # Build language filter
-            language_filter = ""
-            if language == "english":
-                language_filter = "AND language = 'english'"
-            elif language == "thai":
-                language_filter = "AND language = 'thai'"
-            # If 'all', no filter
-            
-            query = text(f"""
-                SELECT review_text, voted_up 
-                FROM analyreview 
-                WHERE game_id = :game_id 
-                {language_filter}
-            """)
-            
-            result = self.db.execute(query, {"game_id": game_id})
-            db_reviews = result.fetchall()
-            
-            if not db_reviews:
+            if not steam_app_id:
                 return {
                     'success': False,
-                    'error': f'No reviews found in database for game {game_id}. Please fetch reviews first.',
+                    'error': f'Game {game_id} has no Steam App ID',
                     'game_id': game_id
                 }
+
+            print(f"[ReviewTags] Processing game: {game_name} (ID: {game_id}, SteamID: {steam_app_id})")
             
-            print(f"[ReviewTags] Got {len(db_reviews)} reviews from database")
+            # --- CRITICAL: RELEASE DB LOCK HERE ---
+            # We are about to do a long network call (30s+). 
+            # If we keep the session active, we might hold a lock or transaction.
+            # Especially with SQLite or certain isolation levels.
+            # We can't easily "close" the session provided by dependency, but we can avoid using it.
+            # The session is passed in __init__.
             
-            # Separate reviews by sentiment (voted_up)
+            # 2. Fetch English reviews DIRECTLY from Steam API for analysis (LONG OP)
+            # This happens OUTSIDE of any DB lock/transaction hopefully.
+            from ..steam_api import SteamAPIClient
+            print(f"[ReviewTags] Fetching English reviews from Steam API for analysis (limit={max_reviews})...")
+            
+            steam_reviews = SteamAPIClient.get_all_reviews(
+                app_id=int(steam_app_id),
+                language="english",
+                max_reviews=max_reviews # Use parameterized limit
+            )
+            
+            if not steam_reviews:
+                 return {
+                    'success': False,
+                    'error': f'No English reviews found on Steam for analysis.',
+                    'game_id': game_id
+                }
+
+            print(f"[ReviewTags] Got {len(steam_reviews)} reviews from Steam API")
+            
+            # Format reviews for analyzer
+            db_reviews = []
+            for r in steam_reviews:
+                content = r.get('review', '')
+                voted = r.get('voted_up', True)
+                if content:
+                    db_reviews.append((content, voted))
+            
+            # Separate reviews by sentiment
             positive_reviews = [r[0] for r in db_reviews if r[1] == True]
             negative_reviews = [r[0] for r in db_reviews if r[1] == False]
             
             print(f"[ReviewTags] Positive: {len(positive_reviews)}, Negative: {len(negative_reviews)}")
             
-            # Select analyzer based on language
+            # 3. Analyze Texts (CPU Intensive)
             if language == "english":
-                # Use updated min_count (5) and game_name filter for English
-                print(f"[ReviewTags] Using EnglishTextAnalyzer (min_count=5, filtering '{game_name}')")
+                base_min_count = 2 if len(positive_reviews) < 200 else 5
+                print(f"[ReviewTags] Using EnglishTextAnalyzer (min_count={base_min_count}, filtering '{game_name}')")
                 positive_tags, negative_tags = self.english_analyzer.analyze_reviews_by_sentiment(
                     positive_reviews,
                     negative_reviews,
                     top_n,
-                    min_count=5,  # Increased threshold as requested
+                    min_count=base_min_count,
                     game_name=game_name
                 )
             else:
                 analyzer = self.thai_analyzer
                 print("[ReviewTags] Using ThaiTextAnalyzer")
-                # Thai analyzer might not support these new arguments yet?
-                # Assuming ThaiAnalyzer matches old signature or handles *args, **kwargs.
-                # Actually, ThaiTextAnalyzer inheritance or strict typing?
-                # Let's check ThaiTextAnalyzer signature if needed. But for now, just calling the old way for ELSE block if needed.
-                # Wait, ThaiTextAnalyzer likely has the old signature.
                 positive_tags, negative_tags = analyzer.analyze_reviews_by_sentiment(
                     positive_reviews,
                     negative_reviews,
                     top_n
                 )
             
-            # --- GOLDEN RULE: Deduplication & Game Name Filtering ---
-            # 1. Clean up Game Name Tags (e.g. remove "Black Myth Wukong" tag from "Black Myth: Wukong")
-            # Create a normalized version of game name for comparison (remove spaces/conduct punctuation)
+            # --- Deduplication & Game Name Filtering ---
             import re
             def normalize_text(text):
                 return re.sub(r'[^a-z0-9]', '', text.lower())
@@ -163,8 +178,6 @@ class ReviewTagsService:
             
             def is_title_tag(tag_word):
                 norm_tag = normalize_text(tag_word)
-                # Check if tag is essentially the game name (or very close)
-                # Equal, or contained if it's long enough to be significant
                 if norm_tag == norm_game_name:
                     return True
                 if len(norm_tag) > 5 and (norm_tag in norm_game_name or norm_game_name in norm_tag):
@@ -174,51 +187,33 @@ class ReviewTagsService:
             positive_tags = [t for t in positive_tags if not is_title_tag(t['word'])]
             negative_tags = [t for t in negative_tags if not is_title_tag(t['word'])]
             
-            # 2. Resolve Conflicting Tags (Dominance Rule)
-            # If a tag exists in both, keep ONLY the one with higher count.
-            # If counts are equal, default to Positive (or maybe remove both? taking Positive for now).
-            
-            # Re-build dictionaries after title filtering
+            # Resolve Conflicting Tags (Dominance Rule)
             pos_dict = {tag['word']: tag['count'] for tag in positive_tags}
             neg_dict = {tag['word']: tag['count'] for tag in negative_tags}
             
             final_pos_tags = []
             final_neg_tags = []
             
-            # Process Positive: Keep if Count > Negative Count
             for tag in positive_tags:
                 word = tag['word']
                 p_count = tag['count']
                 n_count = neg_dict.get(word, 0)
-                
                 if n_count > p_count:
-                    print(f"[ReviewTags] Dominance: '{word}' is more NEGATIVE ({n_count} > {p_count}). Removing from Positive.")
-                    continue # Skip (it belongs to Negative)
+                    continue 
                 elif n_count == p_count and n_count > 0:
-                     # Tie-breaker: Maybe keep positive? Or remove?
-                     # User said "If which side has more...". If equal, maybe ambiguous.
-                     # Let's keep in Positive as default benefit of doubt.
                      pass 
-                
                 final_pos_tags.append(tag)
                 
-            # Process Negative: Keep if Count > Positive Count
-            # Note: We use > so that if equal, it fails here (since we kept it in Positive above)
             for tag in negative_tags:
                 word = tag['word']
                 n_count = tag['count']
                 p_count = pos_dict.get(word, 0)
-                
-                if p_count >= n_count: # If Positive is deeper or equal, we removed it from Negative
-                    if p_count > 0:
-                        print(f"[ReviewTags] Dominance: '{word}' is more POSITIVE (or equal) ({p_count} >= {n_count}). Removing from Negative.")
+                if p_count >= n_count:
                     continue
-                
                 final_neg_tags.append(tag)
             
             positive_tags = final_pos_tags
             negative_tags = final_neg_tags
-            # ----------------------------------------------
             
             # --- AI Polishing Step ---
             if language == "english":
@@ -228,18 +223,25 @@ class ReviewTagsService:
                         print(f"[ReviewTags] Polishing {len(all_tag_words)} tags with AI...")
                         polished_map = self.polisher.polish_tags(all_tag_words)
                         
-                        # Apply polished words
                         for tag in positive_tags:
                             tag['word'] = polished_map.get(tag['word'], tag['word'])
-                            
                         for tag in negative_tags:
                             tag['word'] = polished_map.get(tag['word'], tag['word'])
                         print("[ReviewTags] AI Polishing complete.")
+                        
+                        print("[ReviewTags] AI Polishing complete.")
+                        
+                        # Removed automatic Thai translation as per user request
+                        # keep tags in refined English
+                        
                 except Exception as e:
                     print(f"[ReviewTags] AI Polishing failed (skipping): {e}")
-            # -------------------------------
 
-            # Delete existing tags for this game
+            # 4. Save to Database (Short Write Transaction)
+            # Re-verify game existence or just write?
+            # We wrap this in a commit to ensure atomic write.
+            
+            # Delete existing tags
             self.db.query(GameReviewTag).filter(
                 GameReviewTag.game_id == game_id
             ).delete()
@@ -290,13 +292,14 @@ class ReviewTagsService:
                 'game_id': game_id
             }
     
-    def refresh_tags_if_needed(self, game_id: int, max_age_days: int = 7) -> Dict:
+    def refresh_tags_if_needed(self, game_id: int, max_age_days: int = 7, max_reviews: int = 1500) -> Dict:
         """
         Refresh tags if they are older than max_age_days or don't exist
         
         Args:
             game_id: Game ID
             max_age_days: Maximum age of tags in days before refresh
+            max_reviews: limit reviews for generation if needed
             
         Returns:
             Dict with tags (either from cache or newly generated)
@@ -313,4 +316,4 @@ class ReviewTagsService:
                 return self.get_tags_for_game(game_id)
         
         # Tags don't exist or are old, generate new ones
-        return self.generate_tags_for_game(game_id)
+        return self.generate_tags_for_game(game_id, max_reviews=max_reviews)

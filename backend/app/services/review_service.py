@@ -70,46 +70,34 @@ class ReviewService:
                     print(f"  ℹ No more reviews found")
                     break
                 
-                # Store reviews in database
+                # Store reviews in database with duplicate detection
                 for review_data in reviews:
-                    # Check if review already exists
+                    # Get Steam's unique review ID
                     steam_review_id = review_data.get("recommendationid")
-                    existing = db.query(models.AnalyReview).filter(
-                        models.AnalyReview.steam_review_id == str(steam_review_id)
-                    ).first()
                     
-                    if existing:
-                        continue  # Skip duplicate
+                    # Check if review already exists (duplicate detection)
+                    if steam_review_id:
+                        existing = db.query(models.AnalyReview).filter(
+                            models.AnalyReview.steam_review_id == steam_review_id
+                        ).first()
+                        
+                        if existing:
+                            continue  # Skip duplicate review
                     
-                    # Analyze sentiment
-                    review_text = review_data.get("review", "")
-                    sentiment_result = self.sentiment_analyzer.analyze(review_text)
+                    # Get vote (positive/negative)
+                    voted_up = review_data.get("voted_up", False)
                     
-                    # Create review record
+                    # Create review record with steam_review_id for duplicate detection
                     new_review = models.AnalyReview(
                         game_id=game_id,
-                        steam_review_id=str(steam_review_id),
-                        author=review_data.get("author", {}).get("steamid", "unknown"),
-                        review_text=review_text,
-                        voted_up=review_data.get("voted_up", False),
-                        votes_up=review_data.get("votes_up", 0),
-                        votes_funny=review_data.get("votes_funny", 0),
-                        weighted_vote_score=review_data.get("weighted_vote_score", 0.0),
-                        comment_count=review_data.get("comment_count", 0),
-                        steam_purchase=review_data.get("steam_purchase", False),
-                        received_for_free=review_data.get("received_for_free", False),
-                        written_during_early_access=review_data.get("written_during_early_access", False),
-                        language=review_data.get("language", "english"),
-                        timestamp_created=datetime.fromtimestamp(review_data.get("timestamp_created", 0)),
-                        timestamp_updated=datetime.fromtimestamp(review_data.get("timestamp_updated", 0)),
-                        sentiment=sentiment_result.get("sentiment", "neutral"),
-                        sentiment_score=sentiment_result.get("score", 0.0)
+                        steam_review_id=steam_review_id,
+                        voted_up=voted_up
                     )
                     
                     db.add(new_review)
                     new_count += 1
                     
-                    if review_data.get("voted_up"):
+                    if voted_up:
                         positive_count += 1
                     else:
                         negative_count += 1
@@ -135,11 +123,11 @@ class ReviewService:
             game = db.query(Game).filter(Game.id == game_id).first()
             if game:
                 game.last_review_fetch = datetime.utcnow()
-            
             db.commit()
             
             print(f"  ✓ Stored {new_count} new reviews ({positive_count} positive, {negative_count} negative)")
             print(f"  Total fetched: {total_fetched} reviews")
+            print(f"  ✓ Updated last_review_fetch timestamp")
             
             return {
                 "success": True,
@@ -179,19 +167,24 @@ class ReviewService:
         """
         Get games that need review updates
         
+        Prioritizes games that have never been fetched, then games not fetched in 1+ hour
+        
         Args:
             db: Database session
             limit: Maximum number of games to return
             
         Returns:
-            List of Game instances
+            List of Game instances ordered by priority
         """
-        # Games that have never been fetched or haven't been fetched in 24+ hours
-        cutoff_time = datetime.utcnow() - timedelta(hours=24)
+        # Reduced to 1 hour so hourly scheduler can continuously update games
+        cutoff_time = datetime.utcnow() - timedelta(hours=1)
         
+        # Prioritize: 1) Never fetched, 2) Not fetched in 1+ hour
         games = db.query(Game).filter(
             (Game.last_review_fetch == None) | (Game.last_review_fetch < cutoff_time),
             Game.steam_app_id != None
+        ).order_by(
+            Game.last_review_fetch.asc().nullsfirst()  # NULL first (never fetched), then oldest
         ).limit(limit).all()
         
         return games

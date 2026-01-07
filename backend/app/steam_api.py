@@ -41,13 +41,28 @@ class SteamAPIClient:
             "num_per_page": num_per_page
         }
         
-        try:
-            response = requests.get(url, params=params, timeout=10)
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.RequestException as e:
-            print(f"Error fetching Steam reviews: {e}")
-            return None
+        max_retries = 3
+        retry_delay = 1
+        
+        for attempt in range(max_retries):
+            try:
+                # Increased timeout to 30s as Steam API can be slow/rate-limited
+                response = requests.get(url, params=params, timeout=30)
+                
+                if response.status_code == 429:
+                    print(f"Rate limit hit for app {app_id}. Waiting {retry_delay*5}s...")
+                    time.sleep(retry_delay * 5)
+                    raise requests.exceptions.RequestException("Rate limit")
+                    
+                response.raise_for_status()
+                return response.json()
+            except requests.exceptions.RequestException as e:
+                print(f"Error fetching Steam reviews (Attempt {attempt+1}/{max_retries}): {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay)
+                    retry_delay *= 2  # Exponential backoff
+                else:
+                    return None
     
     @staticmethod
     def get_all_reviews(
