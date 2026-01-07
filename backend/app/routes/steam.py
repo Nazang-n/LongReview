@@ -305,6 +305,9 @@ def import_reviews_from_steam(
                 user_id=user_id,
                 title=steam_review.get("review", "")[:255],  # Use first 255 chars as title
                 content=steam_review.get("review", ""),
+                steam_id=steam_review.get("recommendationid"),
+                is_steam_review=True,
+                steam_author=steam_review.get("author", {}).get("steamid", "Unknown"),
                 rating=10 if steam_review.get("voted_up") else 5  # Convert to 0-10 scale
             )
             

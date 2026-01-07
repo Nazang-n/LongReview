@@ -229,21 +229,13 @@ class ReviewTagsService:
                             tag['word'] = polished_map.get(tag['word'], tag['word'])
                         print("[ReviewTags] AI Polishing complete.")
                         
-                        print("[ReviewTags] Translating tags to Thai (Google Translate)...")
-                        from ..utils.tag_translator import translate_tag
+                        print("[ReviewTags] AI Polishing complete.")
                         
-                        def process_translations_google(tags_list):
-                            for tag in tags_list:
-                                original = tag['word']
-                                translated = translate_tag(original, "review_tag")
-                                tag['word'] = translated
-                                
-                        process_translations_google(positive_tags)
-                        process_translations_google(negative_tags)
-                        print("[ReviewTags] Translation complete.")
-
+                        # Removed automatic Thai translation as per user request
+                        # keep tags in refined English
+                        
                 except Exception as e:
-                    print(f"[ReviewTags] AI Polishing/Translation failed (skipping): {e}")
+                    print(f"[ReviewTags] AI Polishing failed (skipping): {e}")
 
             # 4. Save to Database (Short Write Transaction)
             # Re-verify game existence or just write?

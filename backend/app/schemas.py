@@ -91,8 +91,11 @@ class ReviewUpdate(BaseModel):
 
 class Review(ReviewBase):
     id: int
-    user_id: int
-    created_at: datetime
+    user_id: Optional[int] = None  # user_id can be null for steam reviews
+    steam_id: Optional[str] = None
+    is_steam_review: bool = False
+    steam_author: Optional[str] = None
+    created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
     class Config:
