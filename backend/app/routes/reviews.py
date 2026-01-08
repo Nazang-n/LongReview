@@ -96,21 +96,65 @@ def delete_review(review_id: int, db: Session = Depends(get_db)):
 
 
 # Steam Reviews Endpoints
+
+def is_thai_review(text: str, min_thai_ratio: float = 0.1) -> bool:
+    """
+    Check if review text is primarily in Thai language.
+    
+    Args:
+        text: Review content to check
+        min_thai_ratio: Minimum ratio of Thai characters (default 0.1 = 10%)
+    
+    Returns:
+        True if review is primarily Thai, False otherwise
+    """
+    if not text:
+        return False
+    
+    # Count Thai characters (Unicode range 0E00-0E7F)
+    thai_chars = sum(1 for c in text if '\u0E00' <= c <= '\u0E7F')
+    # Count total alphabetic characters
+    total_chars = len([c for c in text if c.isalpha()])
+    
+    if total_chars == 0:
+        return False
+    
+    # Require at least 10% Thai characters (lenient to show mixed reviews)
+    return (thai_chars / total_chars) >= min_thai_ratio
+
+
 @router.get("/steam/{game_id}")
 def get_steam_reviews(
     game_id: int,
     limit: int = 20,
     db: Session = Depends(get_db)
 ):
-    """Get Steam reviews for a specific game from database."""
+    """
+    Get Steam reviews for a specific game from database.
+    Filters to show only Thai reviews and sorts by helpfulness.
+    """
+    # Get all Thai Steam reviews for this game
     reviews = db.query(models.Review).filter(
         models.Review.game_id == game_id,
         models.Review.is_steam_review == True
-    ).limit(limit).all()
+    ).all()
+    
+    # Filter to only Thai reviews and calculate helpfulness score
+    thai_reviews = []
+    for r in reviews:
+        if is_thai_review(r.content):
+            # Helpfulness score: (votes * 2) + content length
+            # This prioritizes upvoted reviews and longer detailed reviews
+            helpfulness_score = (r.helpful_count * 2) + len(r.content or "")
+            thai_reviews.append((r, helpfulness_score))
+    
+    # Sort by helpfulness score (highest first) and limit
+    thai_reviews.sort(key=lambda x: x[1], reverse=True)
+    thai_reviews = thai_reviews[:limit]
     
     return {
         "success": True,
-        "count": len(reviews),
+        "count": len(thai_reviews),
         "reviews": [
             {
                 "id": r.id,
@@ -122,7 +166,7 @@ def get_steam_reviews(
                 "playtime_hours": r.playtime_hours,
                 "created_at": r.created_at.isoformat() if r.created_at else None
             }
-            for r in reviews
+            for r, _ in thai_reviews
         ]
     }
 
@@ -139,6 +183,8 @@ def sync_steam_reviews(
     from ..steam_api import SteamAPIClient
     from datetime import datetime
     from sqlalchemy import text
+    
+    print(f"[DEBUG] sync_steam_reviews called for game_id={game_id}, max_reviews={max_reviews}")
     
     try:
         # Get game's steam_app_id using raw SQL
@@ -162,12 +208,22 @@ def sync_steam_reviews(
             models.Review.is_steam_review == True
         ).all()
         
+        print(f"[DEBUG] Found {len(existing_reviews)} existing reviews in DB for game {game_id}")
+        
         if existing_reviews:
+            # Filter to only Thai reviews (no sorting by helpfulness)
+            thai_reviews = []
+            for r in existing_reviews:
+                if is_thai_review(r.content):
+                    thai_reviews.append(r)
+            
+            print(f"[DEBUG] After filtering: {len(thai_reviews)} Thai reviews found")
+            
             # Return cached reviews
             return {
                 "success": True,
                 "cached": True,
-                "count": len(existing_reviews),
+                "count": len(thai_reviews),
                 "reviews": [
                     {
                         "id": r.id,
@@ -179,7 +235,7 @@ def sync_steam_reviews(
                         "playtime_hours": r.playtime_hours,
                         "created_at": r.created_at.isoformat() if r.created_at else None
                     }
-                    for r in existing_reviews
+                    for r in thai_reviews
                 ]
             }
         
@@ -190,6 +246,7 @@ def sync_steam_reviews(
             language="thai",
             max_reviews=max_reviews
         )
+        
         
         if not steam_reviews:
             return {
@@ -218,9 +275,22 @@ def sync_steam_reviews(
         
         for steam_review in steam_reviews:
             rec_id = steam_review.get("recommendationid")
+            review_content = steam_review.get("review", "")
             
             # Skip if no ID or already exists in DB or already processed in this batch
-            if not rec_id or rec_id in db_existing_ids or rec_id in processed_steam_ids:
+            if not rec_id:
+                print(f"[DEBUG] Skipping review: no rec_id")
+                continue
+            if rec_id in db_existing_ids:
+                print(f"[DEBUG] Skipping review {rec_id}: already in DB")
+                continue
+            if rec_id in processed_steam_ids:
+                print(f"[DEBUG] Skipping review {rec_id}: already processed in this batch")
+                continue
+            
+            # Filter out non-Thai reviews
+            if not is_thai_review(review_content):
+                print(f"[DEBUG] Skipping review {rec_id}: failed Thai filter (content: {review_content[:50]}...)")
                 continue
                 
             processed_steam_ids.add(rec_id)
@@ -235,7 +305,7 @@ def sync_steam_reviews(
                 game_id=game_id,
                 admin_id=None,
                 owner=steam_review.get("author", {}).get("steamid", "Unknown"),
-                content=steam_review.get("review", ""),
+                content=review_content,
                 steam_id=rec_id,
                 is_steam_review=True,
                 steam_author=steam_review.get("author", {}).get("steamid", "Unknown"),
@@ -269,11 +339,14 @@ def sync_steam_reviews(
              # Nothing new saved
              pass
         
+        # Return reviews in chronological order (no sorting by helpfulness)
+        sorted_reviews = saved_reviews
+        
         return {
             "success": True,
             "cached": False,
-            "count": len(saved_reviews),
-            "reviews": saved_reviews
+            "count": len(sorted_reviews),
+            "reviews": sorted_reviews
         }
         
     except HTTPException:

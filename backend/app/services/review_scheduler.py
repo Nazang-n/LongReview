@@ -1,10 +1,10 @@
 """
-Daily review update scheduler
-Runs at 12 AM daily to fetch new reviews for games
+Thai Review Fetching Scheduler
+Runs hourly to fetch Thai reviews from Steam for display in game detail pages
 """
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 
 # Configure logging
@@ -15,29 +15,36 @@ logger = logging.getLogger(__name__)
 scheduler = None
 
 
-def update_game_reviews():
+def update_thai_reviews():
     """
-    Daily job to update reviews for games
-    Runs at 12 AM every day
+    Hourly job to fetch Thai reviews from Steam for games
+    Stores reviews in the 'review' table for display in game detail pages
     """
     from ..database import SessionLocal
-    from ..services.review_service import review_service
+    from ..steam_api import SteamAPIClient
+    from .. import models
     
     logger.info("=" * 60)
-    logger.info(f"Starting daily review update job at {datetime.now()}")
+    logger.info(f"Starting Thai review update job at {datetime.now()}")
     logger.info("=" * 60)
     
     db = SessionLocal()
     try:
-        # Get games that need review updates (not fetched or > 24 hours old)
-        # Reduced to 10 games per run for faster processing
-        games_to_update = review_service.get_games_needing_review_update(db, limit=10)
+        # Get games that need review updates (not fetched or >24 hours old)
+        cutoff_time = datetime.utcnow() - timedelta(hours=24)
+        
+        games_to_update = db.query(models.Game).filter(
+            (models.Game.last_review_fetch == None) | (models.Game.last_review_fetch < cutoff_time),
+            models.Game.steam_app_id != None
+        ).order_by(
+            models.Game.last_review_fetch.asc().nullsfirst()
+        ).limit(10).all()
         
         if not games_to_update:
             logger.info("No games need review updates")
             return
         
-        logger.info(f"Found {len(games_to_update)} games needing review updates")
+        logger.info(f"Found {len(games_to_update)} games needing Thai review updates")
         
         total_new_reviews = 0
         successful_updates = 0
@@ -45,31 +52,80 @@ def update_game_reviews():
         
         for game in games_to_update:
             try:
-                logger.info(f"Updating reviews for: {game.title} (ID: {game.id})")
+                logger.info(f"Fetching Thai reviews for: {game.title} (ID: {game.id}, Steam: {game.steam_app_id})")
                 
-                result = review_service.fetch_and_store_reviews(
-                    db=db,
-                    game_id=game.id,
-                    steam_app_id=game.steam_app_id
-                    # No max_reviews limit - fetch all reviews during daily update
+                # Fetch Thai reviews from Steam
+                steam_reviews = SteamAPIClient.get_all_reviews(
+                    app_id=int(game.steam_app_id),
+                    language="thai",
+                    max_reviews=100  # Limit to 100 Thai reviews per game
                 )
                 
-                if result.get("success"):
-                    new_reviews = result.get("new_reviews", 0)
-                    total_new_reviews += new_reviews
-                    successful_updates += 1
-                    logger.info(f"  ✓ Fetched {new_reviews} new reviews")
-                else:
-                    failed_updates += 1
-                    logger.warning(f"  ✗ Failed: {result.get('error', 'Unknown error')}")
-                    
+                if not steam_reviews:
+                    logger.info(f"  ℹ No Thai reviews found for {game.title}")
+                    # Still update timestamp to avoid retrying immediately
+                    game.last_review_fetch = datetime.utcnow()
+                    db.commit()
+                    continue
+                
+                logger.info(f"  📊 Fetched {len(steam_reviews)} Thai reviews from Steam")
+                
+                imported_count = 0
+                skipped_count = 0
+                
+                for steam_review in steam_reviews:
+                    try:
+                        recommendation_id = steam_review.get('recommendationid')
+                        
+                        # Check if review already exists
+                        existing = db.query(models.Review).filter(
+                            models.Review.steam_id == recommendation_id
+                        ).first()
+                        
+                        if existing:
+                            skipped_count += 1
+                            continue
+                        
+                        # Extract review data
+                        created_timestamp = steam_review.get('timestamp_created')
+                        created_at = datetime.fromtimestamp(created_timestamp) if created_timestamp else None
+                        author = steam_review.get('author', {})
+                        
+                        # Create new review
+                        new_review = models.Review(
+                            game_id=game.id,
+                            steam_id=recommendation_id,
+                            content=steam_review.get('review', ''),
+                            owner=f"Steam User {author.get('steamid', 'Unknown')[-4:]}",
+                            voted_up=steam_review.get('voted_up', True),
+                            created_at=created_at
+                        )
+                        
+                        db.add(new_review)
+                        db.commit()  # Commit each review individually to avoid bulk duplicate errors
+                        imported_count += 1
+                        
+                    except Exception as e:
+                        logger.error(f"  ✗ Error importing review {recommendation_id}: {e}")
+                        db.rollback()  # Rollback this specific review
+                        continue
+                
+                # Update last fetch timestamp
+                game.last_review_fetch = datetime.utcnow()
+                db.commit()
+                
+                total_new_reviews += imported_count
+                successful_updates += 1
+                logger.info(f"  ✓ Imported {imported_count} new Thai reviews (skipped {skipped_count} duplicates)")
+                
             except Exception as e:
                 failed_updates += 1
                 logger.error(f"  ✗ Error updating {game.title}: {e}")
+                db.rollback()
                 continue
         
         logger.info("=" * 60)
-        logger.info(f"Daily review update complete:")
+        logger.info(f"Thai review update complete:")
         logger.info(f"  - Games processed: {len(games_to_update)}")
         logger.info(f"  - Successful: {successful_updates}")
         logger.info(f"  - Failed: {failed_updates}")
@@ -77,15 +133,15 @@ def update_game_reviews():
         logger.info("=" * 60)
         
     except Exception as e:
-        logger.error(f"Error in daily review update job: {e}")
+        logger.error(f"Error in Thai review update job: {e}")
+        db.rollback()
     finally:
         db.close()
 
 
 def start_review_scheduler():
     """
-    Start the background scheduler for hourly review updates
-    Runs every hour to fetch reviews for newly imported games
+    Start the background scheduler for hourly Thai review updates
     """
     global scheduler
     
@@ -95,21 +151,21 @@ def start_review_scheduler():
     
     scheduler = BackgroundScheduler()
     
-    # Schedule hourly review update (every hour at minute 0)
+    # Schedule hourly Thai review update (every hour at minute 0)
     scheduler.add_job(
-        update_game_reviews,
+        update_thai_reviews,
         trigger=CronTrigger(minute=0),  # Every hour at :00
-        id='hourly_review_update',
-        name='Hourly Review Update',
+        id='hourly_thai_review_update',
+        name='Hourly Thai Review Update',
         replace_existing=True
     )
     
     scheduler.start()
-    logger.info("✓ Review scheduler started - Hourly updates every hour")
+    logger.info("✓ Thai review scheduler started - Updates every hour")
     
     # Log next run time
-    next_run = scheduler.get_job('hourly_review_update').next_run_time
-    logger.info(f"  Next review update scheduled for: {next_run}")
+    next_run = scheduler.get_job('hourly_thai_review_update').next_run_time
+    logger.info(f"  Next Thai review update scheduled for: {next_run}")
 
 
 def stop_review_scheduler():
@@ -119,19 +175,116 @@ def stop_review_scheduler():
     if scheduler is not None:
         scheduler.shutdown()
         scheduler = None
-        logger.info("Review scheduler stopped")
+        logger.info("Thai review scheduler stopped")
 
 
 def trigger_manual_update():
     """
-    Manually trigger a review update (for testing)
+    Manually trigger a Thai review update (for admin panel)
+    Returns statistics about the update
     """
-    logger.info("Manual review update triggered")
+    logger.info("🔧 Admin manually triggered Thai review update")
+    
+    from ..database import SessionLocal
+    from ..steam_api import SteamAPIClient
+    from .. import models
+    
+    db = SessionLocal()
+    stats = {
+        'games_processed': 0,
+        'successful': 0,
+        'failed': 0,
+        'total_new_reviews': 0
+    }
+    
     try:
-        update_game_reviews()
-        logger.info("Manual review update completed successfully")
+        # For manual triggers, fetch ALL games (no 24-hour restriction)
+        # This allows admins to force-refresh reviews anytime
+        games_to_update = db.query(models.Game).filter(
+            models.Game.steam_app_id != None
+        ).order_by(
+            models.Game.last_review_fetch.asc().nullsfirst()
+        ).all()  # No limit - process ALL games
+        
+        stats['games_processed'] = len(games_to_update)
+        
+        for game in games_to_update:
+            try:
+                logger.info(f"Fetching Thai reviews for: {game.title}")
+                
+                steam_reviews = SteamAPIClient.get_all_reviews(
+                    app_id=int(game.steam_app_id),
+                    language="thai",
+                    max_reviews=100
+                )
+                
+                if not steam_reviews:
+                    game.last_review_fetch = datetime.utcnow()
+                    db.commit()
+                    continue
+                
+                imported_count = 0
+                
+                for steam_review in steam_reviews:
+                    try:
+                        recommendation_id = steam_review.get('recommendationid')
+                        
+                        existing = db.query(models.Review).filter(
+                            models.Review.steam_id == recommendation_id
+                        ).first()
+                        
+                        if existing:
+                            continue
+                        
+                        created_timestamp = steam_review.get('timestamp_created')
+                        created_at = datetime.fromtimestamp(created_timestamp) if created_timestamp else None
+                        author = steam_review.get('author', {})
+                        
+                        new_review = models.Review(
+                            game_id=game.id,
+                            steam_id=recommendation_id,
+                            content=steam_review.get('review', ''),
+                            owner=f"Steam User {author.get('steamid', 'Unknown')[-4:]}",
+                            voted_up=steam_review.get('voted_up', True),
+                            created_at=created_at
+                        )
+                        
+                        db.add(new_review)
+                        db.commit()
+                        imported_count += 1
+                        
+                    except Exception as e:
+                        logger.error(f"  ✗ Error importing review: {e}")
+                        db.rollback()
+                        continue
+                
+                game.last_review_fetch = datetime.utcnow()
+                db.commit()
+                
+                stats['total_new_reviews'] += imported_count
+                stats['successful'] += 1
+                
+            except Exception as e:
+                stats['failed'] += 1
+                logger.error(f"  ✗ Error updating {game.title}: {e}")
+                db.rollback()
+                continue
+        
+        logger.info("=" * 60)
+        logger.info(f"Thai review update complete:")
+        logger.info(f"  - Games processed: {stats['games_processed']}")
+        logger.info(f"  - Successful: {stats['successful']}")
+        logger.info(f"  - Failed: {stats['failed']}")
+        logger.info(f"  - Total new reviews: {stats['total_new_reviews']}")
+        logger.info("=" * 60)
+        logger.info("Manual Thai review update completed successfully")
+        
+        return stats
+        
     except Exception as e:
-        logger.error(f"Error in manual review update: {e}")
+        logger.error(f"Error in manual Thai review update: {e}")
         import traceback
         traceback.print_exc()
         raise
+    finally:
+        db.close()

@@ -1,5 +1,8 @@
 <app-header></app-header>
 
+<!-- Toast Notifications -->
+<p-toast position="top-right"></p-toast>
+
 <div class="admin-container">
     <div class="admin-content">
         <p-card header="Admin Panel" subheader="Manage news synchronization">
@@ -86,14 +89,14 @@
             </div>
         </p-card>
 
-        <!-- Review Scheduler Section -->
-        <p-card header="Review Scheduler" subheader="Manage automated review updates" class="mt-4">
+        <!-- Thai Reviews Update Section -->
+        <p-card header="Thai Reviews from Steam" subheader="Fetch Thai reviews for game detail pages" class="mt-4">
             <div class="sync-section">
-                <h3>Manual Review Update</h3>
-                <p>Manually trigger the daily review update job to fetch new reviews for all games. This normally runs
-                    automatically at 12:00 AM.</p>
+                <h3>Update Thai Reviews</h3>
+                <p>Manually trigger Thai review fetching from Steam for all games. Reviews will be displayed in game
+                    detail pages under "รีวิวจาก Steam (ภาษาไทย)". This normally runs automatically every hour.</p>
 
-                <button pButton type="button" label="Update Reviews Now" icon="pi pi-refresh"
+                <button pButton type="button" label="Update Thai Reviews Now" icon="pi pi-refresh"
                     [loading]="isUpdatingReviews" [disabled]="isUpdatingReviews" (click)="triggerReviewUpdate()"
                     class="sync-button">
                 </button>
@@ -102,12 +105,12 @@
                 <div *ngIf="isUpdatingReviews" class="loading-container">
                     <p-progressSpinner styleClass="custom-spinner" strokeWidth="4" animationDuration="1s">
                     </p-progressSpinner>
-                    <p>Updating reviews... Check console logs for progress.</p>
+                    <p>Fetching Thai reviews from Steam... This may take a few minutes.</p>
                 </div>
 
                 <!-- Success Result -->
                 <div *ngIf="reviewUpdateResult && !isUpdatingReviews" class="result-container success">
-                    <p-message severity="success" text="Review update triggered successfully!"></p-message>
+                    <p-message severity="success" text="Thai review update triggered successfully!"></p-message>
                     <p class="mt-2">{{ reviewUpdateResult.message }}</p>
                 </div>
 
@@ -139,8 +142,17 @@
 
                 <!-- Success Result -->
                 <div *ngIf="sentimentUpdateResult && !isUpdatingSentiment" class="result-container success">
-                    <p-message severity="success" text="Sentiment update triggered successfully!"></p-message>
-                    <p class="mt-2">{{ sentimentUpdateResult.message }}</p>
+                    <p-message severity="success" text="Sentiment update completed successfully!"></p-message>
+                    <div class="result-details" *ngIf="sentimentUpdateResult.stats">
+                        <h4>Update Results:</h4>
+                        <ul>
+                            <li><strong>Games Processed:</strong> {{ sentimentUpdateResult.stats.games_processed || 0 }}
+                            </li>
+                            <li><strong>Updated:</strong> {{ sentimentUpdateResult.stats.updated || 0 }}</li>
+                            <li><strong>Errors:</strong> {{ sentimentUpdateResult.stats.errors || 0 }}</li>
+                        </ul>
+                    </div>
+                    <p class="mt-2" *ngIf="!sentimentUpdateResult.stats">{{ sentimentUpdateResult.message }}</p>
                 </div>
 
                 <!-- Error Message -->
@@ -172,8 +184,18 @@
 
                 <!-- Success Result -->
                 <div *ngIf="reviewTagsUpdateResult && !isUpdatingReviewTags" class="result-container success">
-                    <p-message severity="success" text="Review tags update triggered successfully!"></p-message>
-                    <p class="mt-2">{{ reviewTagsUpdateResult.message }}</p>
+                    <p-message severity="success" text="Review tags update completed successfully!"></p-message>
+                    <div class="result-details" *ngIf="reviewTagsUpdateResult.stats">
+                        <h4>Update Results:</h4>
+                        <ul>
+                            <li><strong>Games Checked:</strong> {{ reviewTagsUpdateResult.stats.games_checked || 0 }}
+                            </li>
+                            <li><strong>Updated:</strong> {{ reviewTagsUpdateResult.stats.updated || 0 }}</li>
+                            <li><strong>Skipped:</strong> {{ reviewTagsUpdateResult.stats.skipped || 0 }}</li>
+                            <li><strong>Errors:</strong> {{ reviewTagsUpdateResult.stats.errors || 0 }}</li>
+                        </ul>
+                    </div>
+                    <p class="mt-2" *ngIf="!reviewTagsUpdateResult.stats">{{ reviewTagsUpdateResult.message }}</p>
                 </div>
 
                 <!-- Error Message -->

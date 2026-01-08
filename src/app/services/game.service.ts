@@ -199,10 +199,10 @@ export class GameService {
     }
 
     /**
-     * Manually trigger review update scheduler
+     * Manually trigger Thai review update from Steam
      */
     triggerReviewUpdate(): Observable<any> {
-        return this.http.post<any>(`${this.steamApiUrl}/admin/trigger-review-update`, {});
+        return this.http.post<any>('http://localhost:8000/api/admin/reviews/update', {});
     }
 
     /**

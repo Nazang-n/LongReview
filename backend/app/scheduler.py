@@ -15,12 +15,18 @@ import time
 def update_all_sentiments():
     """Update sentiment for all games with steam_app_id"""
     db = SessionLocal()
+    stats = {
+        'games_processed': 0,
+        'updated': 0,
+        'errors': 0
+    }
     try:
         # Get all games with steam_app_id
         games = db.query(models.Game).filter(
             models.Game.steam_app_id.isnot(None)
         ).all()
         
+        stats['games_processed'] = len(games)
         print(f"[Sentiment Scheduler] Starting update for {len(games)} games...")
         updated_count = 0
         error_count = 0
@@ -84,7 +90,11 @@ def update_all_sentiments():
                 error_count += 1
                 continue
         
+        stats['updated'] = updated_count
+        stats['errors'] = error_count
+        
         print(f"[Sentiment Scheduler] Update complete! Updated: {updated_count}, Errors: {error_count}")
+        return stats
         
     except Exception as e:
         print(f"[Sentiment Scheduler] Fatal error: {e}")
@@ -94,6 +104,13 @@ def update_all_sentiments():
 def update_review_tags():
     """Update review tags for games that need refresh (older than 7 days or no tags)"""
     db = SessionLocal()
+    stats = {
+        'games_checked': 0,
+        'updated': 0,
+        'skipped': 0,
+        'errors': 0
+    }
+    
     try:
         from .services.review_tags_service import ReviewTagsService
         from datetime import timedelta
@@ -103,7 +120,9 @@ def update_review_tags():
             models.Game.steam_app_id.isnot(None)
         ).all()
         
+        stats['games_checked'] = len(games)
         print(f"[Review Tags Scheduler] Checking {len(games)} games for tag updates...")
+        
         updated_count = 0
         skipped_count = 0
         error_count = 0
@@ -146,10 +165,16 @@ def update_review_tags():
                 error_count += 1
                 continue
         
+        stats['updated'] = updated_count
+        stats['skipped'] = skipped_count
+        stats['errors'] = error_count
+        
         print(f"[Review Tags Scheduler] Update complete! Updated: {updated_count}, Skipped: {skipped_count}, Errors: {error_count}")
+        return stats
         
     except Exception as e:
         print(f"[Review Tags Scheduler] Fatal error: {e}")
+        raise
     finally:
         db.close()
 
