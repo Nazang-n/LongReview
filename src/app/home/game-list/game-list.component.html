@@ -144,22 +144,22 @@
 
                         <!-- Review Badge (Top Right) -->
                         <div class="absolute top-3 right-3">
-                            <!-- Positive Reviews -->
+                            <!-- Positive Reviews (Green thumbs up) -->
                             <div *ngIf="game.reviewType === 'positive'"
                                 class="bg-green-500 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-lg">
                                 <i class="pi pi-thumbs-up text-base"></i>
                             </div>
 
-                            <!-- Negative Reviews -->
-                            <div *ngIf="game.reviewType === 'negative'"
-                                class="bg-red-500 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-lg">
-                                <i class="pi pi-thumbs-down text-base"></i>
-                            </div>
-
-                            <!-- Mixed Reviews -->
+                            <!-- Mixed Reviews (Yellow spin icon) -->
                             <div *ngIf="game.reviewType === 'mixed'"
                                 class="bg-yellow-500 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-lg">
                                 <i class="pi pi-sync text-base"></i>
+                            </div>
+
+                            <!-- Negative Reviews (Red thumbs down) -->
+                            <div *ngIf="game.reviewType === 'negative'"
+                                class="bg-red-500 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-lg">
+                                <i class="pi pi-thumbs-down text-base"></i>
                             </div>
                         </div>
 

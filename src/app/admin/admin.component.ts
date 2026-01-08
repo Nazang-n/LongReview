@@ -56,6 +56,11 @@ export class AdminComponent implements OnInit {
     reviewUpdateResult: any = null;
     reviewUpdateError: string | null = null;
 
+    // Sentiment cache
+    isUpdatingSentiment = false;
+    sentimentUpdateResult: any = null;
+    sentimentUpdateError: string | null = null;
+
     constructor(
         private newsService: NewsService,
         private gameService: GameService,
@@ -195,6 +200,23 @@ export class AdminComponent implements OnInit {
             error: (err) => {
                 this.reviewUpdateError = err.message || 'Failed to trigger review update';
                 this.isUpdatingReviews = false;
+            }
+        });
+    }
+
+    triggerSentimentUpdate() {
+        this.isUpdatingSentiment = true;
+        this.sentimentUpdateResult = null;
+        this.sentimentUpdateError = null;
+
+        this.gameService.triggerSentimentUpdate().subscribe({
+            next: (result: any) => {
+                this.sentimentUpdateResult = result;
+                this.isUpdatingSentiment = false;
+            },
+            error: (err: any) => {
+                this.sentimentUpdateError = err.message || 'Failed to trigger sentiment update';
+                this.isUpdatingSentiment = false;
             }
         });
     }

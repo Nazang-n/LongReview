@@ -75,10 +75,23 @@ class AnalyReview(Base):
     __tablename__ = "analyreview"
     
     id = Column(Integer, primary_key=True, index=True)
-    game_id = Column(Integer, ForeignKey("game.id"), nullable=False)
+    game_id = Column(Integer, ForeignKey("game.id"), nullable=False, index=True)
     steam_review_id = Column(BigInteger, unique=True, index=True)  # Steam's recommendationid for duplicate detection
     voted_up = Column(Boolean, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class GameSentiment(Base):
+    """Game sentiment cache - stores Steam review sentiment data"""
+    __tablename__ = "game_sentiment"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    game_id = Column(Integer, ForeignKey("game.id"), unique=True, nullable=False, index=True)
+    positive_percent = Column(Float, nullable=True)
+    negative_percent = Column(Float, nullable=True)
+    total_reviews = Column(Integer, nullable=True)
+    review_score_desc = Column(String(50), nullable=True)
+    last_updated = Column(DateTime(timezone=True), nullable=True)
 
 
 

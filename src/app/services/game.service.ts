@@ -204,4 +204,11 @@ export class GameService {
     triggerReviewUpdate(): Observable<any> {
         return this.http.post<any>(`${this.steamApiUrl}/admin/trigger-review-update`, {});
     }
+
+    /**
+     * Manually trigger sentiment cache update
+     */
+    triggerSentimentUpdate(): Observable<any> {
+        return this.http.post<any>('http://localhost:8000/api/reviews/sentiment/update-all', {});
+    }
 }
