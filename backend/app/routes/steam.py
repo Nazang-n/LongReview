@@ -258,6 +258,20 @@ def import_game_from_steam(
             print(f"Error fetching sentiment: {e}")
             # Don't fail import if sentiment fetch fails
         
+        # Generate review tags automatically
+        try:
+            from ..services.review_tags_service import ReviewTagsService
+            print(f"[Import] Generating review tags for {new_game.title}...")
+            tags_service = ReviewTagsService(db)
+            tags_result = tags_service.generate_tags_for_game(new_game.id, top_n=10, max_reviews=1500)
+            if tags_result.get('success'):
+                print(f"[Import] ✓ Generated {len(tags_result.get('positive_tags', []))} positive and {len(tags_result.get('negative_tags', []))} negative tags")
+            else:
+                print(f"[Import] ✗ Failed to generate tags: {tags_result.get('error')}")
+        except Exception as e:
+            print(f"[Import] Error generating review tags: {e}")
+            # Don't fail import if tag generation fails
+        
         return {
             "success": True,
             "message": "Game imported successfully",
@@ -696,6 +710,17 @@ def import_games_batch_from_steamspy(
                 except Exception as e:
                     print(f"   ✗ Error fetching sentiment: {e}")
                 
+                # Generate review tags automatically
+                try:
+                    from ..services.review_tags_service import ReviewTagsService
+                    print(f"   [Batch] Generating review tags...")
+                    tags_service = ReviewTagsService(db)
+                    tags_result = tags_service.generate_tags_for_game(new_game.id, top_n=10, max_reviews=1500)
+                    if tags_result.get('success'):
+                        print(f"   ✓ Generated {len(tags_result.get('positive_tags', []))} positive and {len(tags_result.get('negative_tags', []))} negative tags")
+                except Exception as e:
+                    print(f"   ✗ Error generating review tags: {e}")
+                
                 # Commit every 10 games to avoid losing progress
                 if imported_count % 10 == 0:
                     db.commit()
@@ -984,8 +1009,23 @@ def import_newest_games_from_steamspy(
                 
                 imported_count += 1
                 
-                # Reviews will be fetched automatically by hourly scheduler
-                # Disabled synchronous fetching to prevent page freezing during batch import
+                # Fetch and cache sentiment data for the newly imported game
+                try:
+                    from ..utils.sentiment_helper import fetch_and_cache_sentiment
+                    fetch_and_cache_sentiment(new_game.id, int(app_id), db)
+                except Exception as e:
+                    print(f"   ✗ Error fetching sentiment: {e}")
+                
+                # Generate review tags automatically
+                try:
+                    from ..services.review_tags_service import ReviewTagsService
+                    print(f"   [Batch] Generating review tags...")
+                    tags_service = ReviewTagsService(db)
+                    tags_result = tags_service.generate_tags_for_game(new_game.id, top_n=10, max_reviews=1500)
+                    if tags_result.get('success'):
+                        print(f"   ✓ Generated {len(tags_result.get('positive_tags', []))} positive and {len(tags_result.get('negative_tags', []))} negative tags")
+                except Exception as e:
+                    print(f"   ✗ Error generating review tags: {e}")
                 
                 # Commit every 10 games to avoid losing progress
                 if imported_count % 10 == 0:

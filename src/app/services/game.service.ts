@@ -211,4 +211,11 @@ export class GameService {
     triggerSentimentUpdate(): Observable<any> {
         return this.http.post<any>('http://localhost:8000/api/reviews/sentiment/update-all', {});
     }
+
+    /**
+     * Manually trigger review tags update for all games
+     */
+    triggerReviewTagsUpdate(): Observable<any> {
+        return this.http.post<any>('http://localhost:8000/api/admin/review-tags/update', {});
+    }
 }

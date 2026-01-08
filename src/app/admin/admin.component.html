@@ -150,6 +150,39 @@
             </div>
         </p-card>
 
+        <!-- Review Tags Update Section -->
+        <p-card header="Review Tags" subheader="Manage game review tags from Steam reviews" class="mt-4">
+            <div class="sync-section">
+                <h3>Update Review Tags</h3>
+                <p>Manually trigger review tag generation for all games. This will analyze Steam reviews and extract
+                    positive/negative tags. Tags older than 7 days will be refreshed. This normally runs automatically
+                    every hour.</p>
+
+                <button pButton type="button" label="Update Review Tags Now" icon="pi pi-tags"
+                    [loading]="isUpdatingReviewTags" [disabled]="isUpdatingReviewTags"
+                    (click)="triggerReviewTagsUpdate()" class="sync-button">
+                </button>
+
+                <!-- Loading Spinner -->
+                <div *ngIf="isUpdatingReviewTags" class="loading-container">
+                    <p-progressSpinner styleClass="custom-spinner" strokeWidth="4" animationDuration="1s">
+                    </p-progressSpinner>
+                    <p>Updating review tags... This may take several minutes.</p>
+                </div>
+
+                <!-- Success Result -->
+                <div *ngIf="reviewTagsUpdateResult && !isUpdatingReviewTags" class="result-container success">
+                    <p-message severity="success" text="Review tags update triggered successfully!"></p-message>
+                    <p class="mt-2">{{ reviewTagsUpdateResult.message }}</p>
+                </div>
+
+                <!-- Error Message -->
+                <div *ngIf="reviewTagsUpdateError && !isUpdatingReviewTags" class="result-container error">
+                    <p-message severity="error" [text]="reviewTagsUpdateError"></p-message>
+                </div>
+            </div>
+        </p-card>
+
         <!-- Reported Comments Section -->
         <div class="bg-white rounded-lg shadow-md p-6 mb-8">
             <h2 class="text-2xl font-bold text-gray-900 mb-6">รายงานความคิดเห็น</h2>
