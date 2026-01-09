@@ -86,9 +86,18 @@ def get_games(
                 )
     
     # Apply ordering and pagination
-    if sort_by == "popular" or sort_by == "rating":
-        # Sort by rating descending (nulls last)
-        query = query.order_by(models.Game.rating.desc().nullslast())
+    if sort_by == "popular":
+        # Sort by total_reviews from GameSentiment (descending)
+        query = query.outerjoin(models.GameSentiment, models.Game.id == models.GameSentiment.game_id)
+        query = query.order_by(models.GameSentiment.total_reviews.desc().nullslast())
+    elif sort_by == "rating":
+        # Sort by rating descending (nulls last), then by total_reviews descending
+        # This prioritizes high-rated games that are also popular (e.g., 100% with 1000 reviews > 100% with 1 review)
+        query = query.outerjoin(models.GameSentiment, models.Game.id == models.GameSentiment.game_id)
+        query = query.order_by(
+            models.Game.rating.desc().nullslast(),
+            models.GameSentiment.total_reviews.desc().nullslast()
+        )
     else:
         # Default: newest first
         query = query.order_by(models.Game.release_date.desc().nullslast())
@@ -380,5 +389,7 @@ def batch_translate_games(
         "failed": failed_count,
         "failed_games": failed_games[:10]  # Return first 10 failed games
     }
+
+
 
 

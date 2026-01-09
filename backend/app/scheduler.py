@@ -79,6 +79,9 @@ def update_all_sentiments():
                         )
                         db.add(sentiment)
                     
+                    # Update Game rating (0-10 scale)
+                    game.rating = round(pos_pct / 10.0, 1)
+                    
                     db.commit()
                     updated_count += 1
                     

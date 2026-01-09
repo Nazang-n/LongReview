@@ -8,6 +8,7 @@ import { TagService } from '../services/tag.service';
 
 // Import PrimeNG modules
 import { ButtonModule } from 'primeng/button';
+import { SkeletonModule } from 'primeng/skeleton';
 
 // Interface สำหรับข้อมูลเกม
 interface Game {
@@ -20,9 +21,11 @@ interface Game {
   image: string;
   rating: number;
   tags: string[];
-  reviewType: 'positive' | 'negative' | 'mixed';
+  reviewType: 'positive' | 'negative' | 'mixed' | undefined;
   isNew?: boolean;
   genresTh?: string[];
+  sentimentPercent?: number;
+  reviewScoreDesc?: string;
 }
 
 @Component({
@@ -32,7 +35,8 @@ interface Game {
     RouterLink,
     HeaderComponent,
     FooterComponent,
-    ButtonModule
+    ButtonModule,
+    SkeletonModule
   ],
   templateUrl: './home.component.html',
   styleUrls: ['./home.component.css']
@@ -70,19 +74,66 @@ export class HomeComponent implements OnInit, OnDestroy {
         this.newArrivals = this.mapGames(games);
         // Mark isNew = true for slider logic if needed
         this.newArrivals.forEach(g => g.isNew = true);
+        this.loadGameSentiments(this.newArrivals);
       },
       error: (err) => console.error('Error loading new arrivals', err)
     });
 
-    // 2. Get Popular Games (Top 10 Popular) - Sort by Rating
-    this.gameService.getGames(0, 10, [], 'rating').subscribe({
+    // 2. Get Popular Games (Top 10 Popular) - Sort by Total Reviews
+    this.gameService.getGames(0, 10, [], 'popular').subscribe({
       next: (games: any[]) => {
         this.popularGames = this.mapGames(games);
-        // For now, Positive Reviews = Popular Games (High Rating)
-        this.positiveGames = [...this.popularGames];
         this.isLoading = false;
+        this.loadGameSentiments(this.popularGames);
       },
       error: (err) => console.error('Error loading popular games', err)
+    });
+
+    // 3. Get Positive Games (Top Rated) - Sort by Rating (Positive %)
+    this.gameService.getGames(0, 10, [], 'rating').subscribe({
+      next: (games: any[]) => {
+        this.positiveGames = this.mapGames(games);
+        this.loadGameSentiments(this.positiveGames);
+      },
+      error: (err) => console.error('Error loading positive games', err)
+    });
+  }
+
+  loadGameSentiments(games: Game[]) {
+    const gameIds = games.map(g => g.id);
+    if (gameIds.length === 0) return;
+
+    this.gameService.getBatchSentiment(gameIds).subscribe({
+      next: (sentiments) => {
+        games.forEach(game => {
+          const sentiment = sentiments[game.id];
+          if (sentiment && sentiment.review_score_desc) {
+            const desc = sentiment.review_score_desc.toLowerCase();
+
+            // Store percentage and description for display
+            game.sentimentPercent = sentiment.positive_percent;
+            game.reviewScoreDesc = sentiment.review_score_desc;
+
+            // Positive reviews
+            if (desc.includes('positive') || desc.includes('very positive') || desc.includes('overwhelmingly positive')) {
+              game.reviewType = 'positive';
+            }
+            // Mixed reviews
+            else if (desc.includes('mixed')) {
+              game.reviewType = 'mixed';
+            }
+            // Negative reviews
+            else if (desc.includes('negative')) {
+              game.reviewType = 'negative';
+              game.sentimentPercent = sentiment.negative_percent;
+            }
+            // No reviews or unknown
+            else {
+              game.reviewType = undefined;
+            }
+          }
+        });
+      }
     });
   }
 
@@ -99,14 +150,11 @@ export class HomeComponent implements OnInit, OnDestroy {
         releaseDate: game.release_date || '',
         genres: genres,
         genresTh: genresTh,
-        reviewTags: [], // Backend doesn't send these fully yet in list view? Or need separate call? 
-        // Actually `Game` model has no reviewTags column in DB, it's computed?
-        // For now leave empty, or maybe we fetch them?
-        // Let's use `game.review_type` from backend
+        reviewTags: [],
         image: game.image_url || 'https://via.placeholder.com/460x215',
         rating: game.rating,
-        tags: [], // Deprecated
-        reviewType: game.review_type || 'mixed', // Backend now sends this
+        tags: [],
+        reviewType: undefined, // Will be updated by loadGameSentiments
         isNew: false
       };
     });

@@ -66,6 +66,13 @@ def fetch_and_cache_sentiment(game_id: int, steam_app_id: int, db: Session) -> b
                 )
                 db.add(sentiment)
             
+            # Update Game rating (0-10 scale based on positive percentage)
+            rating_val = round(pos_pct / 10.0, 1)
+            game = db.query(models.Game).filter(models.Game.id == game_id).first()
+            if game:
+                game.rating = rating_val
+                print(f"  ✓ Updated Game {game_id} rating to {rating_val}")
+            
             db.commit()
             print(f"✓ Cached sentiment for game {game_id}: {review_score_desc} ({pos_pct}% positive)")
             return True
