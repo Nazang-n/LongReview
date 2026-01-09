@@ -190,41 +190,8 @@ export class GameDetailComponent implements OnInit {
         }
     ];
 
-    // Mock data for related games - will be replaced with real data later
-    relatedGames: RelatedGame[] = [
-        {
-            id: 101,
-            title: 'Lies of P',
-            image: 'https://cdn.akamai.steamstatic.com/steam/apps/1627720/header.jpg',
-            date: '19 ก.ย. 2566',
-            tags: ['แอ็คชั่น', 'RPG'],
-            reviewTags: ['ท้าทาย', 'สวยงาม']
-        },
-        {
-            id: 102,
-            title: 'DAEMON X MACHINA',
-            image: 'https://cdn.akamai.steamstatic.com/steam/apps/1167450/header.jpg',
-            date: '13 ก.พ. 2563',
-            tags: ['แอ็คชั่น', 'เมคคา'],
-            reviewTags: ['สนุก', 'ปรับแต่งได้']
-        },
-        {
-            id: 103,
-            title: 'Elden Ring',
-            image: 'https://cdn.akamai.steamstatic.com/steam/apps/1245620/header.jpg',
-            date: '25 ก.พ. 2565',
-            tags: ['แอ็คชั่น', 'RPG'],
-            reviewTags: ['ยาก', 'คุ้มค่า']
-        },
-        {
-            id: 104,
-            title: 'METAL GEAR RISING: REVENGEANCE',
-            image: 'https://cdn.akamai.steamstatic.com/steam/apps/235460/header.jpg',
-            date: '9 ม.ค. 2557',
-            tags: ['แอ็คชั่น', 'เมคคา'],
-            reviewTags: ['มันส์', 'เพลงเพราะ']
-        }
-    ];
+    // Similar games
+    similarGames: any[] = [];
 
     displayedReviewsCount = 3; // Initially show 3 reviews
 
@@ -238,12 +205,35 @@ export class GameDetailComponent implements OnInit {
     ) { }
 
     ngOnInit() {
-        this.gameId = this.route.snapshot.paramMap.get('id');
-        if (this.gameId) {
-            this.loadGameDetails(parseInt(this.gameId));
-            this.loadFavoriteStatus(parseInt(this.gameId));
-            this.loadComments();
-        }
+        this.route.paramMap.subscribe(params => {
+            this.gameId = params.get('id');
+            if (this.gameId) {
+                const id = parseInt(this.gameId);
+                this.loadGameDetails(id);
+                this.loadFavoriteStatus(id);
+                this.loadComments();
+                this.loadSimilarGames(id);
+                // Scroll to top on navigation
+                window.scrollTo(0, 0);
+            }
+        });
+    }
+
+    loadSimilarGames(id: number) {
+        this.gameService.getSimilarGames(id).subscribe({
+            next: (games) => {
+                this.similarGames = games;
+            },
+            error: (err) => {
+                console.error('Error loading similar games:', err);
+            }
+        });
+    }
+
+    getGameTags(game: any): string[] {
+        if (!game) return [];
+        const tagsStr = game.genre_th || game.genre || '';
+        return tagsStr.split(',').map((t: string) => t.trim()).filter((t: string) => t.length > 0);
     }
 
     loadGameDetails(id: number) {

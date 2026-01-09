@@ -401,13 +401,30 @@
                 </a> -->
                 </div>
 
-                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                    <div *ngFor="let relatedGame of relatedGames" [routerLink]="['/games', relatedGame.id]"
+                <!-- Grid View (Show if 4 or fewer games) -->
+                <div *ngIf="similarGames.length <= 4" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <div *ngFor="let relatedGame of similarGames" [routerLink]="['/games', relatedGame.id]"
                         class="bg-white rounded-lg overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer group border border-gray-100">
                         <div class="relative h-40 overflow-hidden">
-                            <img [src]="relatedGame.image" [alt]="relatedGame.title"
+                            <img [src]="relatedGame.image_url" [alt]="relatedGame.title"
                                 class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                                 onerror="this.src='/games/placeholder.jpg'">
+
+                            <!-- Review Badge (Top Right) - Icon Only -->
+                            <div class="absolute top-2 right-2 flex flex-col gap-1">
+                                <div *ngIf="relatedGame.review_type === 'positive'"
+                                    class="bg-green-500 text-white px-2 py-1.5 rounded-md flex items-center justify-center shadow-md backdrop-blur-sm bg-opacity-90">
+                                    <i class="pi pi-thumbs-up text-xs"></i>
+                                </div>
+                                <div *ngIf="relatedGame.review_type === 'mixed'"
+                                    class="bg-yellow-500 text-white px-2 py-1.5 rounded-md flex items-center justify-center shadow-md backdrop-blur-sm bg-opacity-90">
+                                    <i class="pi pi-sync text-xs"></i>
+                                </div>
+                                <div *ngIf="relatedGame.review_type === 'negative'"
+                                    class="bg-red-500 text-white px-2 py-1.5 rounded-md flex items-center justify-center shadow-md backdrop-blur-sm bg-opacity-90">
+                                    <i class="pi pi-thumbs-down text-xs"></i>
+                                </div>
+                            </div>
 
                             <!-- Gradient Overlay -->
                             <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
@@ -419,22 +436,10 @@
                                     {{ relatedGame.title }}
                                 </h3>
 
-                                <!-- Release Date -->
-                                <div class="flex items-center gap-1.5 text-white/90 text-xs">
-                                    <i class="pi pi-calendar"></i>
-                                    <span>{{ relatedGame.date }}</span>
-                                </div>
-
-                                <!-- Genre and Review Tags -->
+                                <!-- Genre Tags (Purple) -->
                                 <div class="flex flex-wrap gap-1">
-                                    <!-- Genre Tags (Purple) -->
-                                    <span *ngFor="let tag of relatedGame.tags"
+                                    <span *ngFor="let tag of getGameTags(relatedGame) | slice:0:3"
                                         class="bg-purple-500/90 text-white text-xs px-1.5 py-0.5 rounded font-medium backdrop-blur-sm">
-                                        {{ tag }}
-                                    </span>
-                                    <!-- Review Tags (Yellow) -->
-                                    <span *ngFor="let tag of relatedGame.reviewTags"
-                                        class="bg-yellow-500/90 text-white text-xs px-1.5 py-0.5 rounded font-medium backdrop-blur-sm">
                                         {{ tag }}
                                     </span>
                                 </div>
@@ -442,6 +447,66 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Carousel View (Show if more than 4 games) -->
+                <p-carousel *ngIf="similarGames.length > 4" [value]="similarGames" [numVisible]="4" [numScroll]="1"
+                    [circular]="true" [autoplayInterval]="0" [responsiveOptions]="[
+                        {breakpoint: '1024px', numVisible: 3, numScroll: 1},
+                        {breakpoint: '768px', numVisible: 2, numScroll: 1},
+                        {breakpoint: '560px', numVisible: 1, numScroll: 1}
+                    ]">
+                    <ng-template pTemplate="item" let-relatedGame>
+                        <div [routerLink]="['/games', relatedGame.id]"
+                            class="bg-white rounded-lg overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer group border border-gray-100 mx-2 h-full">
+                            <div class="relative h-40 overflow-hidden">
+                                <img [src]="relatedGame.image_url" [alt]="relatedGame.title"
+                                    class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                                    onerror="this.src='/games/placeholder.jpg'">
+
+                                <!-- Review Badge (Top Right) - Icon Only -->
+                                <div class="absolute top-2 right-2 flex flex-col gap-1">
+                                    <!-- Positive Reviews (Green thumbs up) -->
+                                    <div *ngIf="relatedGame.review_type === 'positive'"
+                                        class="bg-green-500 text-white px-2 py-1.5 rounded-md flex items-center justify-center shadow-md backdrop-blur-sm bg-opacity-90">
+                                        <i class="pi pi-thumbs-up text-xs"></i>
+                                    </div>
+
+                                    <!-- Mixed Reviews (Yellow sync icon) -->
+                                    <div *ngIf="relatedGame.review_type === 'mixed'"
+                                        class="bg-yellow-500 text-white px-2 py-1.5 rounded-md flex items-center justify-center shadow-md backdrop-blur-sm bg-opacity-90">
+                                        <i class="pi pi-sync text-xs"></i>
+                                    </div>
+
+                                    <!-- Negative Reviews (Red thumbs down) -->
+                                    <div *ngIf="relatedGame.review_type === 'negative'"
+                                        class="bg-red-500 text-white px-2 py-1.5 rounded-md flex items-center justify-center shadow-md backdrop-blur-sm bg-opacity-90">
+                                        <i class="pi pi-thumbs-down text-xs"></i>
+                                    </div>
+                                </div>
+
+                                <!-- Gradient Overlay -->
+                                <div
+                                    class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
+                                </div>
+
+                                <!-- Game Title Overlay (Bottom) -->
+                                <div class="absolute bottom-0 left-0 right-0 p-3 space-y-1.5">
+                                    <h3 class="font-bold text-white text-sm drop-shadow-lg line-clamp-2">
+                                        {{ relatedGame.title }}
+                                    </h3>
+
+                                    <!-- Genre Tags (Purple) -->
+                                    <div class="flex flex-wrap gap-1">
+                                        <span *ngFor="let tag of getGameTags(relatedGame) | slice:0:3"
+                                            class="bg-purple-500/90 text-white text-xs px-1.5 py-0.5 rounded font-medium backdrop-blur-sm">
+                                            {{ tag }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </ng-template>
+                </p-carousel>
             </div>
         </div>
     </div>

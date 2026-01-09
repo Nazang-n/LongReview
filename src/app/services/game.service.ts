@@ -76,6 +76,14 @@ export class GameService {
     }
 
     /**
+     * Get similar games based on genre
+     */
+    getSimilarGames(id: number, limit: number = 12): Observable<Game[]> {
+        const params = new HttpParams().set('limit', limit.toString());
+        return this.http.get<Game[]>(`${this.apiUrl}/${id}/similar`, { params });
+    }
+
+    /**
      * Get total count of games, optionally filtered by tags
      */
     getGamesCount(tagIds?: number[]): Observable<{ total: number }> {
