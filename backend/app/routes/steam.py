@@ -103,6 +103,13 @@ def import_game_from_steam(
         ).first()
         
         if existing_game_by_id:
+            # Game exists - check if it needs Thai reviews fetched
+            try:
+                from ..utils.thai_review_helper import fetch_and_cache_thai_reviews
+                fetch_and_cache_thai_reviews(existing_game_by_id.id, app_id, db, max_reviews=50)
+            except Exception as e:
+                print(f"Error fetching Thai reviews for existing game: {e}")
+            
             return {
                 "success": True,
                 "message": "Game already exists (Found by Steam App ID)",
@@ -119,6 +126,13 @@ def import_game_from_steam(
             if not existing_game_by_title.steam_app_id:
                 existing_game_by_title.steam_app_id = app_id
                 db.commit()
+            
+            # Check if it needs Thai reviews fetched
+            try:
+                from ..utils.thai_review_helper import fetch_and_cache_thai_reviews
+                fetch_and_cache_thai_reviews(existing_game_by_title.id, app_id, db, max_reviews=50)
+            except Exception as e:
+                print(f"Error fetching Thai reviews for existing game: {e}")
                 
             return {
                 "success": True,
@@ -257,6 +271,14 @@ def import_game_from_steam(
         except Exception as e:
             print(f"Error fetching sentiment: {e}")
             # Don't fail import if sentiment fetch fails
+        
+        # Fetch and cache Thai reviews
+        try:
+            from ..utils.thai_review_helper import fetch_and_cache_thai_reviews
+            fetch_and_cache_thai_reviews(new_game.id, app_id, db, max_reviews=50)
+        except Exception as e:
+            print(f"Error fetching Thai reviews: {e}")
+            # Don't fail import if review fetch fails
         
         # Generate review tags automatically
         try:
@@ -710,6 +732,13 @@ def import_games_batch_from_steamspy(
                 except Exception as e:
                     print(f"   ✗ Error fetching sentiment: {e}")
                 
+                # Fetch and cache Thai reviews for the newly imported game
+                try:
+                    from ..utils.thai_review_helper import fetch_and_cache_thai_reviews
+                    fetch_and_cache_thai_reviews(new_game.id, int(app_id), db, max_reviews=50)
+                except Exception as e:
+                    print(f"   ✗ Error fetching Thai reviews: {e}")
+                
                 # Generate review tags automatically
                 try:
                     from ..services.review_tags_service import ReviewTagsService
@@ -1015,6 +1044,13 @@ def import_newest_games_from_steamspy(
                     fetch_and_cache_sentiment(new_game.id, int(app_id), db)
                 except Exception as e:
                     print(f"   ✗ Error fetching sentiment: {e}")
+                
+                # Fetch and cache Thai reviews for the newly imported game
+                try:
+                    from ..utils.thai_review_helper import fetch_and_cache_thai_reviews
+                    fetch_and_cache_thai_reviews(new_game.id, int(app_id), db, max_reviews=50)
+                except Exception as e:
+                    print(f"   ✗ Error fetching Thai reviews: {e}")
                 
                 # Generate review tags automatically
                 try:
