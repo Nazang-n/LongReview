@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
+from sqlalchemy import or_
 from .. import models, schemas
 from ..database import get_db
+from ..utils.thai_validator import is_valid_thai_content
 
 router = APIRouter(
     prefix="/api/reviews",
@@ -97,30 +99,7 @@ def delete_review(review_id: int, db: Session = Depends(get_db)):
 
 # Steam Reviews Endpoints
 
-def is_thai_review(text: str, min_thai_ratio: float = 0.1) -> bool:
-    """
-    Check if review text is primarily in Thai language.
-    
-    Args:
-        text: Review content to check
-        min_thai_ratio: Minimum ratio of Thai characters (default 0.1 = 10%)
-    
-    Returns:
-        True if review is primarily Thai, False otherwise
-    """
-    if not text:
-        return False
-    
-    # Count Thai characters (Unicode range 0E00-0E7F)
-    thai_chars = sum(1 for c in text if '\u0E00' <= c <= '\u0E7F')
-    # Count total alphabetic characters
-    total_chars = len([c for c in text if c.isalpha()])
-    
-    if total_chars == 0:
-        return False
-    
-    # Require at least 10% Thai characters (lenient to show mixed reviews)
-    return (thai_chars / total_chars) >= min_thai_ratio
+
 
 
 @router.get("/steam/{game_id}")
@@ -136,13 +115,16 @@ def get_steam_reviews(
     # Get all Thai Steam reviews for this game
     reviews = db.query(models.Review).filter(
         models.Review.game_id == game_id,
-        models.Review.is_steam_review == True
+        or_(
+            models.Review.is_steam_review == True,
+            models.Review.steam_id.isnot(None)
+        )
     ).all()
     
     # Filter to only Thai reviews and calculate helpfulness score
     thai_reviews = []
     for r in reviews:
-        if is_thai_review(r.content):
+        if is_valid_thai_content(r.content):
             # Helpfulness score: (votes * 2) + content length
             # This prioritizes upvoted reviews and longer detailed reviews
             helpfulness_score = (r.helpful_count * 2) + len(r.content or "")
@@ -182,7 +164,7 @@ def sync_steam_reviews(
     """
     from ..steam_api import SteamAPIClient
     from datetime import datetime
-    from sqlalchemy import text
+    from sqlalchemy import text, or_
     
     print(f"[DEBUG] sync_steam_reviews called for game_id={game_id}, max_reviews={max_reviews}")
     
@@ -205,7 +187,10 @@ def sync_steam_reviews(
         # Check if we already have Steam reviews for this game
         existing_reviews = db.query(models.Review).filter(
             models.Review.game_id == game_id,
-            models.Review.is_steam_review == True
+            or_(
+                models.Review.is_steam_review == True,
+                models.Review.steam_id.isnot(None)
+            )
         ).all()
         
         print(f"[DEBUG] Found {len(existing_reviews)} existing reviews in DB for game {game_id}")
@@ -214,7 +199,7 @@ def sync_steam_reviews(
             # Filter to only Thai reviews (no sorting by helpfulness)
             thai_reviews = []
             for r in existing_reviews:
-                if is_thai_review(r.content):
+                if is_valid_thai_content(r.content):
                     thai_reviews.append(r)
             
             print(f"[DEBUG] After filtering: {len(thai_reviews)} Thai reviews found")
@@ -289,7 +274,7 @@ def sync_steam_reviews(
                 continue
             
             # Filter out non-Thai reviews
-            if not is_thai_review(review_content):
+            if not is_valid_thai_content(review_content):
                 print(f"[DEBUG] Skipping review {rec_id}: failed Thai filter (content: {review_content[:50]}...)")
                 continue
                 

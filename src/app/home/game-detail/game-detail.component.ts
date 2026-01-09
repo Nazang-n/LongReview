@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef, ViewEncapsulation } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterModule, Router } from '@angular/router';
 import { HeaderComponent } from '../../shared/header.component';
@@ -10,6 +10,7 @@ import { ProgressBarModule } from 'primeng/progressbar';
 import { TextareaModule } from 'primeng/textarea';
 import { FormsModule } from '@angular/forms';
 import { DialogModule } from 'primeng/dialog';
+import { CarouselModule } from 'primeng/carousel';
 import { GameService } from '../../services/game.service';
 import { FavoriteService } from '../../services/favorite.service';
 import { AuthService } from '../../services/auth.service';
@@ -47,7 +48,9 @@ interface RelatedGame {
         ProgressBarModule,
         TextareaModule,
         FormsModule,
-        DialogModule
+        FormsModule,
+        DialogModule,
+        CarouselModule
     ],
     templateUrl: './game-detail.component.html',
     styleUrls: ['./game-detail.component.css']
@@ -58,6 +61,24 @@ export class GameDetailComponent implements OnInit {
     gameId: string | null = '';
     isLoading = true;
     error: string | null = null;
+
+    responsiveOptions = [
+        {
+            breakpoint: '1024px',
+            numVisible: 2,
+            numScroll: 1
+        },
+        {
+            breakpoint: '768px',
+            numVisible: 2,
+            numScroll: 1
+        },
+        {
+            breakpoint: '560px',
+            numVisible: 1,
+            numScroll: 1
+        }
+    ];
 
     game: any = {
         title: '',
@@ -86,7 +107,9 @@ export class GameDetailComponent implements OnInit {
     };
 
     // Steam reviews
+    // Steam reviews
     steamReviews: any[] = [];
+    chunkedReviews: any[][] = [];
     loadingSteamReviews = false;
     steamReviewsError: string | null = null;
 
@@ -119,6 +142,9 @@ export class GameDetailComponent implements OnInit {
     errorMessage = '';
     loginMessage = '';
     loginRedirect = false;
+
+    // UI States
+    isExpanded = false;
 
     // Mock data for reviews - will be replaced with real data later
     reviews: Review[] = [
@@ -204,7 +230,7 @@ export class GameDetailComponent implements OnInit {
 
     constructor(
         private route: ActivatedRoute,
-        private router: Router,
+        public router: Router,
         private gameService: GameService,
         private favoriteService: FavoriteService,
         private authService: AuthService,
@@ -328,6 +354,12 @@ export class GameDetailComponent implements OnInit {
                 if (response.success) {
                     this.steamReviews = response.reviews || [];
                     console.log(`Loaded ${this.steamReviews.length} Steam reviews`);
+
+                    // Chunk reviews into groups of 2 for 2-row layout
+                    this.chunkedReviews = [];
+                    for (let i = 0; i < this.steamReviews.length; i += 2) {
+                        this.chunkedReviews.push(this.steamReviews.slice(i, i + 2));
+                    }
                 }
                 this.loadingSteamReviews = false;
             },

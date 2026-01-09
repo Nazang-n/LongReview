@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, aliased
-from sqlalchemy import text, and_, case
+from sqlalchemy import text, and_, case, or_
 from typing import List, Optional
 from .. import models, schemas
 from ..database import get_db

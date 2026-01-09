@@ -69,6 +69,11 @@ def update_thai_reviews():
                     continue
                 
                 logger.info(f"  📊 Fetched {len(steam_reviews)} Thai reviews from Steam")
+
+                # Filter for valid Thai content (strict check)
+                from ..utils.thai_validator import is_valid_thai_content
+                steam_reviews = [r for r in steam_reviews if is_valid_thai_content(r.get('review', ''))]
+                logger.info(f"  🔍 Valid Thai reviews after content check: {len(steam_reviews)}")
                 
                 imported_count = 0
                 skipped_count = 0
@@ -90,6 +95,8 @@ def update_thai_reviews():
                         created_timestamp = steam_review.get('timestamp_created')
                         created_at = datetime.fromtimestamp(created_timestamp) if created_timestamp else None
                         author = steam_review.get('author', {})
+                        playtime_minutes = author.get("playtime_at_review", 0)
+                        playtime_hours = round(playtime_minutes / 60, 1) if playtime_minutes else 0
                         
                         # Create new review
                         new_review = models.Review(
@@ -98,7 +105,11 @@ def update_thai_reviews():
                             content=steam_review.get('review', ''),
                             owner=f"Steam User {author.get('steamid', 'Unknown')[-4:]}",
                             voted_up=steam_review.get('voted_up', True),
-                            created_at=created_at
+                            created_at=created_at,
+                            is_steam_review=True,
+                            steam_author=author.get('steamid', 'Unknown'),
+                            helpful_count=steam_review.get('votes_up', 0),
+                            playtime_hours=playtime_hours
                         )
                         
                         db.add(new_review)
@@ -218,6 +229,11 @@ def trigger_manual_update():
                     max_reviews=100
                 )
                 
+                 # Filter for valid Thai content (strict check)
+                from ..utils.thai_validator import is_valid_thai_content
+                if steam_reviews:
+                    steam_reviews = [r for r in steam_reviews if is_valid_thai_content(r.get('review', ''))]
+                
                 if not steam_reviews:
                     game.last_review_fetch = datetime.utcnow()
                     db.commit()
@@ -239,6 +255,8 @@ def trigger_manual_update():
                         created_timestamp = steam_review.get('timestamp_created')
                         created_at = datetime.fromtimestamp(created_timestamp) if created_timestamp else None
                         author = steam_review.get('author', {})
+                        playtime_minutes = author.get("playtime_at_review", 0)
+                        playtime_hours = round(playtime_minutes / 60, 1) if playtime_minutes else 0
                         
                         new_review = models.Review(
                             game_id=game.id,
@@ -246,7 +264,11 @@ def trigger_manual_update():
                             content=steam_review.get('review', ''),
                             owner=f"Steam User {author.get('steamid', 'Unknown')[-4:]}",
                             voted_up=steam_review.get('voted_up', True),
-                            created_at=created_at
+                            created_at=created_at,
+                            is_steam_review=True,
+                            steam_author=author.get('steamid', 'Unknown'),
+                            helpful_count=steam_review.get('votes_up', 0),
+                            playtime_hours=playtime_hours
                         )
                         
                         db.add(new_review)
