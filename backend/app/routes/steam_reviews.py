@@ -64,6 +64,28 @@ def import_reviews_for_game(
                 "failed": 0
             }
         
+        # Verify content is actually Thai (using centralized utility)
+        # Note: Steam language filter is not 100% accurate, so we double-check.
+        from ..utils.thai_validator import is_valid_thai_content
+        
+        filtered_reviews = []
+        for r in steam_reviews:
+            if is_valid_thai_content(r.get('review', '')):
+                filtered_reviews.append(r)
+        
+        steam_reviews = filtered_reviews
+        
+        if not steam_reviews:
+             return {
+                "success": False,
+                "message": "No valid Thai reviews found after filtering (English-only reviews removed)",
+                "game_title": game.title,
+                "steam_app_id": steam_app_id,
+                "imported": 0,
+                "skipped": 0,
+                "failed": 0
+            }
+            
         # Debug: Show what Steam sent
         unique_steam_ids = set(r.get('recommendationid') for r in steam_reviews)
         print(f"📊 Steam API returned {len(steam_reviews)} reviews ({len(unique_steam_ids)} unique)")
@@ -89,9 +111,10 @@ def import_reviews_for_game(
                 created_timestamp = steam_review.get('timestamp_created')
                 created_at = datetime.fromtimestamp(created_timestamp) if created_timestamp else None
                 
-                # Extract author info for display name
-                author = steam_review.get('author', {})
-                
+                # Extract playtime
+                playtime_minutes = author.get("playtime_at_review", 0)
+                playtime_hours = round(playtime_minutes / 60, 1) if playtime_minutes else 0
+
                 # Create new review (only using columns that exist in DB)
                 new_review = models.Review(
                     game_id=game_id,
@@ -99,7 +122,11 @@ def import_reviews_for_game(
                     content=steam_review.get('review', ''),
                     owner=f"Steam User {author.get('steamid', 'Unknown')[-4:]}",
                     voted_up=steam_review.get('voted_up', True),
-                    created_at=created_at
+                    created_at=created_at,
+                    is_steam_review=True, 
+                    steam_author=author.get('steamid', 'Unknown'),
+                    helpful_count=steam_review.get('votes_up', 0),
+                    playtime_hours=playtime_hours
                 )
                 
                 db.add(new_review)
@@ -188,6 +215,12 @@ def import_reviews_batch(
                 
                 print(f"   📊 Steam returned {len(steam_reviews) if steam_reviews else 0} reviews")
                 
+                # Filter for valid Thai content
+                from ..utils.thai_validator import is_valid_thai_content
+                if steam_reviews:
+                    steam_reviews = [r for r in steam_reviews if is_valid_thai_content(r.get('review', ''))]
+                    print(f"   🔍 After Thai validation: {len(steam_reviews)} reviews remaining")
+                
                 if not steam_reviews:
                     results.append({
                         "game_id": game.id,
@@ -214,6 +247,8 @@ def import_reviews_batch(
                         created_timestamp = steam_review.get('timestamp_created')
                         created_at = datetime.fromtimestamp(created_timestamp) if created_timestamp else None
                         author = steam_review.get('author', {})
+                        playtime_minutes = author.get("playtime_at_review", 0)
+                        playtime_hours = round(playtime_minutes / 60, 1) if playtime_minutes else 0
                         
                         new_review = models.Review(
                             game_id=game.id,
@@ -221,7 +256,11 @@ def import_reviews_batch(
                             content=steam_review.get('review', ''),
                             owner=f"Steam User {author.get('steamid', 'Unknown')[-4:]}",
                             voted_up=steam_review.get('voted_up', True),
-                            created_at=created_at
+                            created_at=created_at,
+                            is_steam_review=True,
+                            steam_author=author.get('steamid', 'Unknown'),
+                            helpful_count=steam_review.get('votes_up', 0),
+                            playtime_hours=playtime_hours
                         )
                         
                         db.add(new_review)

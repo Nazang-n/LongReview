@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, aliased
-from sqlalchemy import text, and_, case
+from sqlalchemy import text, and_, case, or_
 from typing import List, Optional
 from .. import models, schemas
 from ..database import get_db
@@ -13,7 +13,7 @@ router = APIRouter(
 )
 
 
-def serialize_game(game: models.Game) -> dict:
+def serialize_game(game: models.Game, sentiment: Optional[models.GameSentiment] = None) -> dict:
     """Convert Game model to dict with proper date serialization"""
     # Try to get steam_app_id - it may not be loaded if backend wasn't restarted
     steam_app_id = getattr(game, 'steam_app_id', None)
@@ -24,6 +24,19 @@ def serialize_game(game: models.Game) -> dict:
         genres = [g.strip() for g in game.genre.split(',')]
         genres_th = [translate_tag(g, 'genre') for g in genres]
         genre_th = ", ".join(genres_th)
+        
+    # Determine review type from sentiment if available, else fallback to rating
+    review_type = "mixed"
+    if sentiment and sentiment.review_score_desc:
+        desc = sentiment.review_score_desc.lower()
+        if 'positive' in desc:
+            review_type = 'positive'
+        elif 'negative' in desc:
+            review_type = 'negative'
+        else:
+            review_type = 'mixed'
+    elif game.rating:
+        review_type = "positive" if game.rating >= 7 else "mixed" if game.rating >= 4 else "negative"
     
     return {
         "id": game.id,
@@ -41,12 +54,8 @@ def serialize_game(game: models.Game) -> dict:
         "video": game.video,
         "about_game_th": game.about_game_th,
         "app_id": steam_app_id,
-        "price": game.price,
-        "video": game.video,
-        "about_game_th": game.about_game_th,
-        "app_id": steam_app_id,
         "player_modes": [],  # Default empty list
-        "review_type": "positive" if game.rating and game.rating >= 7 else "mixed" if game.rating and game.rating >= 4 else "negative"
+        "review_type": review_type
     }
 
 
@@ -206,6 +215,74 @@ def get_game(game_id: int, db: Session = Depends(get_db)):
     game_dict["app_id"] = row[0] if row else None
     
     return game_dict
+
+
+@router.get("/{game_id}/similar", response_model=List[dict])
+def get_similar_games(game_id: int, limit: int = 12, db: Session = Depends(get_db)):
+    """
+    Get similar games based on genre overlap.
+    Returns top {limit} games sharing the most tags/genres.
+    """
+    # 1. Get current game
+    current_game = db.query(models.Game).filter(models.Game.id == game_id).first()
+    if not current_game:
+        return []
+        
+    if not current_game.genre:
+        return []
+
+    # 2. Extract current genres
+    # Define generic tags to ignore in similarity calculation
+    ignored_tags = {'free to play', 'early access', 'action', 'adventure', 'indie', 'casual', 'simulation'}
+    
+    current_genres = set([g.strip().lower() for g in current_game.genre.split(',') if g.strip()])
+    # Filter out ignored tags IF there are other specific tags available
+    # (If a game ONLY has ignored tags, we keep them to find something)
+    filtered_current = {g for g in current_genres if g not in ignored_tags}
+    if not filtered_current:
+        filtered_current = current_genres # Fallback if only generic tags exist
+    
+    # 3. Fetch all other games
+    all_games = db.query(models.Game).filter(models.Game.id != game_id).all()
+    
+    scores = []
+    for game in all_games:
+        if not game.genre:
+            continue
+            
+        game_genres = set([g.strip().lower() for g in game.genre.split(',') if g.strip()])
+        filtered_game = {g for g in game_genres if g not in ignored_tags}
+        if not filtered_game:
+            filtered_game = game_genres
+        
+        # Calculate overlap on FILTERED tags
+        overlap = len(filtered_current.intersection(filtered_game))
+        
+        # Secondary sort metric: Jaccard similarity (overlap / union) to prefer closer matches
+        # e.g. (RPG, Anime) matches (RPG, Anime) better than (RPG, Anime, Strategy, Sci-fi)
+        union_size = len(filtered_current.union(filtered_game))
+        jaccard = overlap / union_size if union_size > 0 else 0
+        
+        if overlap > 0:
+            scores.append((overlap, jaccard, game))
+            
+    # 4. Sort by overlap (desc) then Jaccard (desc)
+    scores.sort(key=lambda x: (x[0], x[1]), reverse=True)
+    
+    top_games = []
+    
+    # Optimize: fetch required sentiment records in one go
+    top_game_ids = [item[2].id for item in scores[:limit]]
+    sentiments = db.query(models.GameSentiment).filter(models.GameSentiment.game_id.in_(top_game_ids)).all()
+    sentiment_map = {s.game_id: s for s in sentiments}
+    
+    for item in scores[:limit]:
+        g = item[2]
+        # Pass sentiment data to serializer
+        game_dict = serialize_game(g, sentiment_map.get(g.id))
+        top_games.append(game_dict)
+    
+    return top_games
 
 
 @router.post("/", response_model=schemas.Game, status_code=status.HTTP_201_CREATED)

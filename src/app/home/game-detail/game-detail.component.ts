@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef, ViewEncapsulation } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterModule, Router } from '@angular/router';
 import { HeaderComponent } from '../../shared/header.component';
@@ -10,6 +10,7 @@ import { ProgressBarModule } from 'primeng/progressbar';
 import { TextareaModule } from 'primeng/textarea';
 import { FormsModule } from '@angular/forms';
 import { DialogModule } from 'primeng/dialog';
+import { CarouselModule } from 'primeng/carousel';
 import { GameService } from '../../services/game.service';
 import { FavoriteService } from '../../services/favorite.service';
 import { AuthService } from '../../services/auth.service';
@@ -47,7 +48,9 @@ interface RelatedGame {
         ProgressBarModule,
         TextareaModule,
         FormsModule,
-        DialogModule
+        FormsModule,
+        DialogModule,
+        CarouselModule
     ],
     templateUrl: './game-detail.component.html',
     styleUrls: ['./game-detail.component.css']
@@ -58,6 +61,24 @@ export class GameDetailComponent implements OnInit {
     gameId: string | null = '';
     isLoading = true;
     error: string | null = null;
+
+    responsiveOptions = [
+        {
+            breakpoint: '1024px',
+            numVisible: 2,
+            numScroll: 1
+        },
+        {
+            breakpoint: '768px',
+            numVisible: 2,
+            numScroll: 1
+        },
+        {
+            breakpoint: '560px',
+            numVisible: 1,
+            numScroll: 1
+        }
+    ];
 
     game: any = {
         title: '',
@@ -86,7 +107,9 @@ export class GameDetailComponent implements OnInit {
     };
 
     // Steam reviews
+    // Steam reviews
     steamReviews: any[] = [];
+    chunkedReviews: any[][] = [];
     loadingSteamReviews = false;
     steamReviewsError: string | null = null;
 
@@ -119,6 +142,9 @@ export class GameDetailComponent implements OnInit {
     errorMessage = '';
     loginMessage = '';
     loginRedirect = false;
+
+    // UI States
+    isExpanded = false;
 
     // Mock data for reviews - will be replaced with real data later
     reviews: Review[] = [
@@ -164,47 +190,14 @@ export class GameDetailComponent implements OnInit {
         }
     ];
 
-    // Mock data for related games - will be replaced with real data later
-    relatedGames: RelatedGame[] = [
-        {
-            id: 101,
-            title: 'Lies of P',
-            image: 'https://cdn.akamai.steamstatic.com/steam/apps/1627720/header.jpg',
-            date: '19 ก.ย. 2566',
-            tags: ['แอ็คชั่น', 'RPG'],
-            reviewTags: ['ท้าทาย', 'สวยงาม']
-        },
-        {
-            id: 102,
-            title: 'DAEMON X MACHINA',
-            image: 'https://cdn.akamai.steamstatic.com/steam/apps/1167450/header.jpg',
-            date: '13 ก.พ. 2563',
-            tags: ['แอ็คชั่น', 'เมคคา'],
-            reviewTags: ['สนุก', 'ปรับแต่งได้']
-        },
-        {
-            id: 103,
-            title: 'Elden Ring',
-            image: 'https://cdn.akamai.steamstatic.com/steam/apps/1245620/header.jpg',
-            date: '25 ก.พ. 2565',
-            tags: ['แอ็คชั่น', 'RPG'],
-            reviewTags: ['ยาก', 'คุ้มค่า']
-        },
-        {
-            id: 104,
-            title: 'METAL GEAR RISING: REVENGEANCE',
-            image: 'https://cdn.akamai.steamstatic.com/steam/apps/235460/header.jpg',
-            date: '9 ม.ค. 2557',
-            tags: ['แอ็คชั่น', 'เมคคา'],
-            reviewTags: ['มันส์', 'เพลงเพราะ']
-        }
-    ];
+    // Similar games
+    similarGames: any[] = [];
 
     displayedReviewsCount = 3; // Initially show 3 reviews
 
     constructor(
         private route: ActivatedRoute,
-        private router: Router,
+        public router: Router,
         private gameService: GameService,
         private favoriteService: FavoriteService,
         private authService: AuthService,
@@ -212,12 +205,35 @@ export class GameDetailComponent implements OnInit {
     ) { }
 
     ngOnInit() {
-        this.gameId = this.route.snapshot.paramMap.get('id');
-        if (this.gameId) {
-            this.loadGameDetails(parseInt(this.gameId));
-            this.loadFavoriteStatus(parseInt(this.gameId));
-            this.loadComments();
-        }
+        this.route.paramMap.subscribe(params => {
+            this.gameId = params.get('id');
+            if (this.gameId) {
+                const id = parseInt(this.gameId);
+                this.loadGameDetails(id);
+                this.loadFavoriteStatus(id);
+                this.loadComments();
+                this.loadSimilarGames(id);
+                // Scroll to top on navigation
+                window.scrollTo(0, 0);
+            }
+        });
+    }
+
+    loadSimilarGames(id: number) {
+        this.gameService.getSimilarGames(id).subscribe({
+            next: (games) => {
+                this.similarGames = games;
+            },
+            error: (err) => {
+                console.error('Error loading similar games:', err);
+            }
+        });
+    }
+
+    getGameTags(game: any): string[] {
+        if (!game) return [];
+        const tagsStr = game.genre_th || game.genre || '';
+        return tagsStr.split(',').map((t: string) => t.trim()).filter((t: string) => t.length > 0);
     }
 
     loadGameDetails(id: number) {
@@ -328,6 +344,12 @@ export class GameDetailComponent implements OnInit {
                 if (response.success) {
                     this.steamReviews = response.reviews || [];
                     console.log(`Loaded ${this.steamReviews.length} Steam reviews`);
+
+                    // Chunk reviews into groups of 2 for 2-row layout
+                    this.chunkedReviews = [];
+                    for (let i = 0; i < this.steamReviews.length; i += 2) {
+                        this.chunkedReviews.push(this.steamReviews.slice(i, i + 2));
+                    }
                 }
                 this.loadingSteamReviews = false;
             },

@@ -76,6 +76,14 @@ export class GameService {
     }
 
     /**
+     * Get similar games based on genre
+     */
+    getSimilarGames(id: number, limit: number = 12): Observable<Game[]> {
+        const params = new HttpParams().set('limit', limit.toString());
+        return this.http.get<Game[]>(`${this.apiUrl}/${id}/similar`, { params });
+    }
+
+    /**
      * Get total count of games, optionally filtered by tags
      */
     getGamesCount(tagIds?: number[]): Observable<{ total: number }> {
@@ -199,10 +207,10 @@ export class GameService {
     }
 
     /**
-     * Manually trigger review update scheduler
+     * Manually trigger Thai review update from Steam
      */
     triggerReviewUpdate(): Observable<any> {
-        return this.http.post<any>(`${this.steamApiUrl}/admin/trigger-review-update`, {});
+        return this.http.post<any>('http://localhost:8000/api/admin/reviews/update', {});
     }
 
     /**
@@ -210,5 +218,12 @@ export class GameService {
      */
     triggerSentimentUpdate(): Observable<any> {
         return this.http.post<any>('http://localhost:8000/api/reviews/sentiment/update-all', {});
+    }
+
+    /**
+     * Manually trigger review tags update for all games
+     */
+    triggerReviewTagsUpdate(): Observable<any> {
+        return this.http.post<any>('http://localhost:8000/api/admin/review-tags/update', {});
     }
 }
