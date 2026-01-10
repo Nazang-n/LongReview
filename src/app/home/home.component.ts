@@ -9,6 +9,7 @@ import { TagService } from '../services/tag.service';
 // Import PrimeNG modules
 import { ButtonModule } from 'primeng/button';
 import { SkeletonModule } from 'primeng/skeleton';
+import { CarouselModule } from 'primeng/carousel';
 
 // Interface สำหรับข้อมูลเกม
 interface Game {
@@ -36,7 +37,8 @@ interface Game {
     HeaderComponent,
     FooterComponent,
     ButtonModule,
-    SkeletonModule
+    SkeletonModule,
+    CarouselModule
   ],
   templateUrl: './home.component.html',
   styleUrls: ['./home.component.css']
@@ -53,6 +55,7 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   @ViewChild('cardList') cardList!: ElementRef;
   @ViewChild('cardList2') cardList2!: ElementRef;
+  @ViewChild('categoryGameList') categoryGameList!: ElementRef;
 
   constructor(
     @Inject(PLATFORM_ID) private platformId: Object,
@@ -63,6 +66,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   ngOnInit() {
     this.startAutoSlide();
     this.loadData();
+    this.loadCategories();
   }
 
   loadData() {
@@ -198,6 +202,83 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.startAutoSlide();
   }
 
+  // --- Logic สำหรับ Top 10 Categories ---
+  categories: any[] = [];
+  selectedCategory: number | null = null;
+  categoryGames: Game[] = [];
+  isLoadingCategories = true;
+  isLoadingCategoryGames = false;
+
+  categoryResponsiveOptions = [
+    {
+      breakpoint: '1024px',
+      numVisible: 5,
+      numScroll: 3
+    },
+    {
+      breakpoint: '768px',
+      numVisible: 3,
+      numScroll: 2
+    },
+    {
+      breakpoint: '560px',
+      numVisible: 2,
+      numScroll: 1
+    }
+  ];
+
+  loadCategories() {
+    this.isLoadingCategories = true;
+    this.tagService.getTagStats().subscribe({
+      next: (res) => {
+        if (res.success && res.stats.genres) {
+          // Filter out unwanted genres (same as Game List)
+          const filteredGenres = res.stats.genres.filter(
+            (genre: any) => genre.name !== 'Massively Multiplayer' && genre.name !== 'Early Access'
+          );
+
+          // Sort by game count
+          this.categories = filteredGenres.sort((a: any, b: any) => b.game_count - a.game_count);
+
+          // Select first category by default if available
+          if (this.categories.length > 0) {
+            this.selectCategory(this.categories[0].id);
+          }
+        }
+        this.isLoadingCategories = false;
+      },
+      error: (err) => {
+        console.error('Error loading categories', err);
+        this.isLoadingCategories = false;
+      }
+    });
+  }
+
+  selectCategory(categoryId: number) {
+    this.selectedCategory = categoryId;
+    this.loadCategoryGames();
+  }
+
+  loadCategoryGames() {
+    if (!this.selectedCategory) return;
+
+    this.isLoadingCategoryGames = true;
+    this.categoryGames = []; // Clear current list
+
+    // Fetch top 10 games for this category, sorted by popularity (Total Reviews)
+    this.gameService.getGames(0, 10, [this.selectedCategory], 'popular').subscribe({
+      next: (games: any[]) => {
+        this.categoryGames = this.mapGames(games);
+        this.isLoadingCategoryGames = false;
+        this.loadGameSentiments(this.categoryGames);
+      },
+      error: (err) => {
+        console.error('Error loading category games', err);
+        this.isLoadingCategoryGames = false;
+      }
+    });
+  }
+
   // --- Logic สำหรับ High Rated Scroll ---
   scrollList(offset: number) {
     this.cardList.nativeElement.scrollBy({ left: offset, behavior: 'smooth' });
@@ -205,5 +286,11 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   scrollList2(offset: number) {
     this.cardList2.nativeElement.scrollBy({ left: offset, behavior: 'smooth' });
+  }
+
+  scrollCategoryGames(offset: number) {
+    if (this.categoryGameList) {
+      this.categoryGameList.nativeElement.scrollBy({ left: offset, behavior: 'smooth' });
+    }
   }
 }

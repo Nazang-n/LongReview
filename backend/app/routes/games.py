@@ -95,21 +95,47 @@ def get_games(
                 )
     
     # Apply ordering and pagination
+    
+    # Priority Sort: If filtering by single tag, prioritize games where that tag is PRIMARY (first in genre list)
+    primary_tag_sort = None
+    if tags:
+        tag_ids = [int(tid.strip()) for tid in tags.split(',') if tid.strip().isdigit()]
+        if len(tag_ids) == 1:
+            tag = db.query(models.Tag).filter(models.Tag.id == tag_ids[0]).first()
+            if tag and tag.type == 'genre':
+                # Case: 0 if match (first), 1 if not match (sort ascending puts 0 first)
+                primary_tag_sort = case(
+                    (models.Game.genre.ilike(f"{tag.name}%"), 0),
+                    else_=1
+                )
+
     if sort_by == "popular":
         # Sort by total_reviews from GameSentiment (descending)
         query = query.outerjoin(models.GameSentiment, models.Game.id == models.GameSentiment.game_id)
-        query = query.order_by(models.GameSentiment.total_reviews.desc().nullslast())
+        if primary_tag_sort is not None:
+            query = query.order_by(primary_tag_sort, models.GameSentiment.total_reviews.desc().nullslast())
+        else:
+            query = query.order_by(models.GameSentiment.total_reviews.desc().nullslast())
     elif sort_by == "rating":
         # Sort by rating descending (nulls last), then by total_reviews descending
-        # This prioritizes high-rated games that are also popular (e.g., 100% with 1000 reviews > 100% with 1 review)
         query = query.outerjoin(models.GameSentiment, models.Game.id == models.GameSentiment.game_id)
-        query = query.order_by(
-            models.Game.rating.desc().nullslast(),
-            models.GameSentiment.total_reviews.desc().nullslast()
-        )
+        if primary_tag_sort is not None:
+            query = query.order_by(
+                primary_tag_sort,
+                models.Game.rating.desc().nullslast(),
+                models.GameSentiment.total_reviews.desc().nullslast()
+            )
+        else:
+            query = query.order_by(
+                models.Game.rating.desc().nullslast(),
+                models.GameSentiment.total_reviews.desc().nullslast()
+            )
     else:
         # Default: newest first
-        query = query.order_by(models.Game.release_date.desc().nullslast())
+        if primary_tag_sort is not None:
+            query = query.order_by(primary_tag_sort, models.Game.release_date.desc().nullslast())
+        else:
+            query = query.order_by(models.Game.release_date.desc().nullslast())
         
     games = query.offset(skip).limit(limit).all()
     

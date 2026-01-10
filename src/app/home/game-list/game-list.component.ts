@@ -362,21 +362,16 @@ export class GameListComponent implements OnInit {
     }
 
     sortByReleaseDate() {
-        this.games.sort((a, b) => {
-            // Handle 'Unknown' or bad dates
+        // Sort logic for Release Date
+        const sortFn = (a: Game, b: Game) => {
             if (a.releaseDate === 'Unknown') return 1;
             if (b.releaseDate === 'Unknown') return -1;
             return new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime();
-        });
-        // Note: this.games is overwritten in filterGames.
-        // Sort should happen strictly on filterGames?
-        // Or allGames should be sorted.
-        this.allGames.sort((a, b) => {
-            if (a.releaseDate === 'Unknown') return 1;
-            if (b.releaseDate === 'Unknown') return -1;
-            return new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime();
-        });
-        this.filterGames();
+        };
+
+        // Sort BOTH allGames (base) and games (filtered)
+        this.allGames.sort(sortFn);
+        this.games.sort(sortFn);
     }
 
     getPaginatedGames() {

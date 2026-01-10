@@ -263,6 +263,39 @@ def import_game_from_steam(
         except Exception as e:
             print(f"Error auto-tagging player modes: {e}")
             # Don't fail the import just because tagging failed
+
+        # Auto-tag Genres
+        try:
+            genres = app_details_en.get('genres', [])
+            for genre_data in genres:
+                genre_name = genre_data.get('description')
+                if not genre_name:
+                    continue
+                    
+                # Find or create Genre tag
+                genre_tag = db.query(models.Tag).filter(
+                    models.Tag.name == genre_name,
+                    models.Tag.type == 'genre'
+                ).first()
+                
+                if not genre_tag:
+                    genre_tag = models.Tag(name=genre_name, type='genre')
+                    db.add(genre_tag)
+                    db.flush()
+                
+                # Link game to Genre tag
+                existing_link = db.query(models.GameTag).filter(
+                    models.GameTag.game_id == new_game.id,
+                    models.GameTag.tag_id == genre_tag.id
+                ).first()
+                
+                if not existing_link:
+                    game_tag = models.GameTag(game_id=new_game.id, tag_id=genre_tag.id)
+                    db.add(game_tag)
+                    print(f"   ✓ Auto-linked Genre: {genre_name}")
+            db.commit()
+        except Exception as e:
+            print(f"Error auto-tagging genres: {e}")
         
         # Fetch and cache sentiment data
         try:
@@ -722,6 +755,35 @@ def import_games_batch_from_steamspy(
                         game_tag = models.GameTag(game_id=new_game.id, tag_id=multiplayer_tag.id)
                         db.add(game_tag)
                         print(f"   ✓ Auto-linked Massively Multiplayer game to Multi-player tag")
+                
+                # Auto-tag Genres (NEW logic)
+                genres = steam_details_en.get('genres', [])
+                for genre_data in genres:
+                    genre_name = genre_data.get('description')
+                    if not genre_name:
+                        continue
+                        
+                    # Find or create Genre tag
+                    genre_tag = db.query(models.Tag).filter(
+                        models.Tag.name == genre_name,
+                        models.Tag.type == 'genre'
+                    ).first()
+                    
+                    if not genre_tag:
+                        genre_tag = models.Tag(name=genre_name, type='genre')
+                        db.add(genre_tag)
+                        db.flush()
+                    
+                    # Link game to Genre tag
+                    existing_link = db.query(models.GameTag).filter(
+                        models.GameTag.game_id == new_game.id,
+                        models.GameTag.tag_id == genre_tag.id
+                    ).first()
+                    
+                    if not existing_link:
+                        game_tag = models.GameTag(game_id=new_game.id, tag_id=genre_tag.id)
+                        db.add(game_tag)
+                        print(f"   ✓ Auto-linked Genre: {genre_name}")
                 
                 imported_count += 1
                 

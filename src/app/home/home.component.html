@@ -167,6 +167,120 @@
     </div>
   </section>
 
+  <!-- Top 10 by Category Section -->
+  <section class="section mt-10 mb-10">
+    <h2 class="section-title">เกมยอดนิยมตามหมวดหมู่</h2>
+
+    <!-- Category Pills Carousel -->
+    <div class="mb-6">
+      <!-- Skeleton for categories -->
+      <ng-container *ngIf="isLoadingCategories">
+        <div class="flex gap-3 overflow-hidden">
+          <p-skeleton width="120px" height="42px" borderRadius="20px" *ngFor="let i of [1,2,3,4,5,6]"></p-skeleton>
+        </div>
+      </ng-container>
+
+      <ng-container *ngIf="!isLoadingCategories && categories.length > 0">
+        <p-carousel [value]="categories" [numVisible]="7" [numScroll]="3" [circular]="false"
+          [responsiveOptions]="categoryResponsiveOptions" [showIndicators]="true" indicatorsContentClass="mt-4">
+          <ng-template let-category pTemplate="item">
+            <div class="px-1 py-2">
+              <button (click)="selectCategory(category.id)"
+                class="w-full px-4 py-2.5 rounded-full whitespace-nowrap transition-all duration-300 font-medium text-sm border shadow-sm"
+                [ngClass]="selectedCategory === category.id 
+                  ? 'bg-purple-600 text-white border-purple-600 shadow-md scale-105' 
+                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50 hover:border-purple-200 hover:text-purple-600'">
+                {{ category.name_th || category.name }}
+              </button>
+            </div>
+          </ng-template>
+        </p-carousel>
+      </ng-container>
+    </div>
+
+    <!-- Games Scroll for Category -->
+    <div class="scroll-container-wrapper mt-4">
+      <div class="scroll-btn left" (click)="scrollCategoryGames(-400)">
+        <i class="pi pi-chevron-left"></i>
+      </div>
+
+      <div class="card-list" #categoryGameList>
+        <!-- Skeleton Loading -->
+        <ng-container *ngIf="isLoadingCategoryGames">
+          <div *ngFor="let i of [1,2,3,4,5]"
+            class="game-card bg-gray-100 rounded-xl overflow-hidden shadow-sm border border-gray-100 h-[250px]"
+            style="min-width: 260px; max-width: 260px;">
+            <p-skeleton width="100%" height="100%"></p-skeleton>
+          </div>
+        </ng-container>
+
+        <ng-container *ngIf="!isLoadingCategoryGames">
+          <div *ngFor="let game of categoryGames; let i = index" [routerLink]="['/game', game.id]"
+            class="game-card bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group border border-gray-100 h-[250px] relative block"
+            style="min-width: 260px; max-width: 260px;">
+
+            <div class="absolute inset-0">
+              <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
+                [style.backgroundImage]="'url(' + game.image + ')'"></div>
+              <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
+
+              <!-- Rank Badge -->
+              <div
+                class="absolute top-0 left-0 bg-purple-600 text-white px-3 py-1 rounded-br-xl font-bold z-10 shadow-lg">
+                #{{ i + 1 }}
+              </div>
+
+              <div class="absolute top-3 right-3 z-10">
+                <!-- Positive Reviews (Green thumbs up) -->
+                <div *ngIf="game.reviewType === 'positive'"
+                  class="bg-green-500 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-lg">
+                  <i class="pi pi-thumbs-up text-base"></i>
+                </div>
+
+                <!-- Mixed Reviews (Yellow spin icon) -->
+                <div *ngIf="game.reviewType === 'mixed'"
+                  class="bg-yellow-500 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-lg">
+                  <i class="pi pi-sync text-base"></i>
+                </div>
+
+                <!-- Negative Reviews (Red thumbs down) -->
+                <div *ngIf="game.reviewType === 'negative'"
+                  class="bg-red-500 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-lg">
+                  <i class="pi pi-thumbs-down text-base"></i>
+                </div>
+              </div>
+
+              <div class="absolute bottom-0 left-0 right-0 p-4 space-y-2 z-10">
+                <h3 class="text-lg font-bold text-white drop-shadow-lg leading-tight line-clamp-2">{{ game.title }}</h3>
+                <div class="flex items-center gap-1.5 text-white/90 text-xs text-shadow-sm">
+                  <i class="pi pi-calendar"></i><span>{{ game.releaseDate | slice:0:10 }}</span>
+                </div>
+                <div class="flex flex-wrap gap-1.5 pt-1">
+                  <span *ngFor="let genre of game.genresTh?.slice(0, 2)"
+                    class="bg-purple-500/90 text-white text-xs px-2 py-1 rounded font-medium backdrop-blur-sm">{{ genre
+                    }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </ng-container>
+
+        <!-- Empty State -->
+        <div *ngIf="!isLoadingCategoryGames && categoryGames.length === 0"
+          class="flex items-center justify-center w-full py-10 text-center text-gray-500" style="min-width: 100%;">
+          <div>
+            <i class="pi pi-info-circle text-4xl mb-2 block text-gray-300"></i>
+            ไม่พบข้อมูลเกมในหมวดหมู่นี้
+          </div>
+        </div>
+      </div>
+
+      <div class="scroll-btn right" (click)="scrollCategoryGames(400)">
+        <i class="pi pi-chevron-right"></i>
+      </div>
+    </div>
+  </section>
+
 </main>
 
 <app-footer></app-footer>
