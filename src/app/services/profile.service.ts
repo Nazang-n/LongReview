@@ -85,4 +85,11 @@ export class ProfileService {
     getUserStats(userId: number): Observable<UserStats> {
         return this.http.get<UserStats>(`${this.apiUrl}/${userId}/stats`);
     }
+
+    /**
+     * Delete avatar
+     */
+    deleteAvatar(userId: number): Observable<any> {
+        return this.http.delete(`${this.apiUrl}/${userId}/avatar`);
+    }
 }
