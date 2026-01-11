@@ -256,16 +256,34 @@
             <i class="pi pi-upload"></i>
             อัพโหลดรูปภาพ
         </button>
-        <button (click)="confirmDeleteAvatar()" [disabled]="!hasAvatar()"
+        <button (click)="showDeleteAvatarDialog()" [disabled]="!hasAvatar()"
             class="w-full px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-400">
             <i class="pi pi-trash"></i>
             ลบรูปโปรไฟล์
         </button>
     </div>
+</p-dialog>
+
+<!-- Delete Avatar Confirmation Dialog -->
+<p-dialog [(visible)]="showDeleteAvatarConfirm" [modal]="true" [style]="{width: '450px'}" [draggable]="false"
+    [resizable]="false">
+    <ng-template pTemplate="header">
+        <div class="flex items-center gap-3">
+            <i class="pi pi-exclamation-triangle text-red-600 text-2xl"></i>
+            <span class="font-bold text-xl">ยืนยันการลบ</span>
+        </div>
+    </ng-template>
+    <div class="py-4">
+        <p class="text-gray-700 text-lg">ต้องการลบรูปโปรไฟล์หรือไม่</p>
+    </div>
     <ng-template pTemplate="footer">
-        <button (click)="showAvatarDialog = false"
+        <button (click)="cancelDeleteAvatar()"
             class="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg transition-colors font-medium">
-            ปิด
+            ไม่
+        </button>
+        <button (click)="confirmDeleteAvatar()"
+            class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium">
+            ใช่
         </button>
     </ng-template>
 </p-dialog>
