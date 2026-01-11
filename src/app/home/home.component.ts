@@ -271,6 +271,13 @@ export class HomeComponent implements OnInit, OnDestroy {
         this.categoryGames = this.mapGames(games);
         this.isLoadingCategoryGames = false;
         this.loadGameSentiments(this.categoryGames);
+
+        // Reset scroll position after view updates
+        setTimeout(() => {
+          if (this.categoryGameList) {
+            this.categoryGameList.nativeElement.scrollLeft = 0;
+          }
+        }, 0);
       },
       error: (err) => {
         console.error('Error loading category games', err);

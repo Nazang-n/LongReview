@@ -266,7 +266,7 @@
         </ng-container>
 
         <!-- Empty State -->
-        <div *ngIf="!isLoadingCategoryGames && categoryGames.length === 0"
+        <div *ngIf="!isLoadingCategoryGames && categoryGames.length === 0 && selectedCategory != null"
           class="flex items-center justify-center w-full py-10 text-center text-gray-500" style="min-width: 100%;">
           <div>
             <i class="pi pi-info-circle text-4xl mb-2 block text-gray-300"></i>
