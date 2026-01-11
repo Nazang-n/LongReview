@@ -139,7 +139,9 @@ export class GameDetailComponent implements OnInit {
     // Alert dialogs
     showLoginDialog = false;
     showErrorDialog = false;
+    showSuccessDialog = false;
     errorMessage = '';
+    successMessage = '';
     loginMessage = '';
     loginRedirect = false;
 
@@ -655,7 +657,7 @@ export class GameDetailComponent implements OnInit {
 
         this.commentService.reportComment(this.pendingReportCommentId, user.id, this.reportReason).subscribe({
             next: () => {
-                this.showError('รายงานความคิดเห็นเรียบร้อยแล้ว');
+                this.showSuccess('รายงานความคิดเห็นเรียบร้อยแล้ว');
                 this.showReportDialog = false;
                 this.pendingReportCommentId = null;
                 this.reportReason = '';
@@ -663,7 +665,7 @@ export class GameDetailComponent implements OnInit {
             error: (err) => {
                 console.error('Error reporting comment:', err);
                 if (err.status === 400) {
-                    this.showError('คุณได้รายงานความคิดเห็นนี้แล้ว');
+                    this.showError('คุณได้รายงานความคิดเห็นนี้ไปแล้ว');
                 } else {
                     this.showError('เกิดข้อผิดพลาดในการรายงาน');
                 }
@@ -727,5 +729,14 @@ export class GameDetailComponent implements OnInit {
 
     closeErrorDialog() {
         this.showErrorDialog = false;
+    }
+
+    showSuccess(message: string) {
+        this.successMessage = message;
+        this.showSuccessDialog = true;
+    }
+
+    closeSuccessDialog() {
+        this.showSuccessDialog = false;
     }
 }
