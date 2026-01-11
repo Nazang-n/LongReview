@@ -34,7 +34,8 @@ import { isPlatformBrowser } from '@angular/common';
              <span class="username">{{ user.username }}</span>
              <div class="profile-dropdown-wrapper">
                <a class="profile-icon" (click)="toggleDropdown($event)" title="Profile">
-                <img [src]="getAvatarUrl()" [alt]="user.username" class="avatar-image">
+                <img *ngIf="hasAvatar()" [src]="getAvatarUrl()" [alt]="user.username" class="avatar-image">
+                <i *ngIf="!hasAvatar()" class="pi pi-user"></i>
                </a>
                <div class="dropdown-menu" [class.show]="isDropdownOpen">
                  <a class="dropdown-item" (click)="navigateToProfile()">
@@ -207,12 +208,12 @@ export class HeaderComponent implements OnInit, OnDestroy {
     });
   }
 
+  hasAvatar(): boolean {
+    return this.userProfile?.avatar_url !== null && this.userProfile?.avatar_url !== undefined && this.userProfile?.avatar_url !== '';
+  }
+
   getAvatarUrl(): string {
-    if (this.userProfile?.avatar_url) {
-      return this.userProfile.avatar_url;
-    }
-    const user = this.authService.getCurrentUserValue();
-    return 'https://via.placeholder.com/150/6366f1/ffffff?text=' + (user?.username?.charAt(0).toUpperCase() || 'U');
+    return this.userProfile?.avatar_url || '';
   }
 
   toggleDropdown(event: Event) {

@@ -354,7 +354,7 @@ export class ProfileComponent implements OnInit {
     }
 
     getAvatarUrl(): string {
-        return this.userProfile.avatar_url || 'https://via.placeholder.com/150/6366f1/ffffff?text=' + (this.userProfile.username?.charAt(0) || 'U');
+        return this.userProfile.avatar_url || '';
     }
 
     showSuccessDialog(title: string, message: string) {

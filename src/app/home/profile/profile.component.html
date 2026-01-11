@@ -6,7 +6,10 @@
         <div class="profile-info-container">
             <div class="profile-avatar-section">
                 <div class="avatar-wrapper">
-                    <img [src]="getAvatarUrl()" [alt]="userProfile.username" class="profile-avatar">
+                    <img *ngIf="hasAvatar()" [src]="getAvatarUrl()" [alt]="userProfile.username" class="profile-avatar">
+                    <div *ngIf="!hasAvatar()" class="profile-avatar-default">
+                        <i class="pi pi-user"></i>
+                    </div>
                     <input type="file" #fileInput (change)="onFileSelected($event)" accept="image/*"
                         style="display: none;">
                     <button class="edit-avatar-btn" title="เปลี่ยนรูปโปรไฟล์" (click)="showAvatarDialog = true">
