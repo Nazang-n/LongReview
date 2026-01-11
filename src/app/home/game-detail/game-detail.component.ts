@@ -139,7 +139,9 @@ export class GameDetailComponent implements OnInit {
     // Alert dialogs
     showLoginDialog = false;
     showErrorDialog = false;
+    showSuccessDialog = false;
     errorMessage = '';
+    successMessage = '';
     loginMessage = '';
     loginRedirect = false;
 
@@ -246,7 +248,8 @@ export class GameDetailComponent implements OnInit {
                 this.game = {
                     title: gameData.title || 'Unknown Game',
                     image: gameData.image_url || 'https://via.placeholder.com/460x215?text=No+Image',
-                    tags: gameData.genre ? gameData.genre.split(',').map((g: string) => g.trim()) : [],
+                    tags: gameData.genre_th ? gameData.genre_th.split(',').map((g: string) => g.trim()) :
+                        (gameData.genre ? gameData.genre.split(',').map((g: string) => g.trim()) : []),
                     releaseDate: this.formatDate(gameData.release_date) || 'Unknown',
                     developer: gameData.developer || 'Unknown Developer',
                     publisher: gameData.publisher || 'Unknown Publisher',
@@ -654,7 +657,7 @@ export class GameDetailComponent implements OnInit {
 
         this.commentService.reportComment(this.pendingReportCommentId, user.id, this.reportReason).subscribe({
             next: () => {
-                this.showError('รายงานความคิดเห็นเรียบร้อยแล้ว');
+                this.showSuccess('รายงานความคิดเห็นเรียบร้อยแล้ว');
                 this.showReportDialog = false;
                 this.pendingReportCommentId = null;
                 this.reportReason = '';
@@ -662,7 +665,7 @@ export class GameDetailComponent implements OnInit {
             error: (err) => {
                 console.error('Error reporting comment:', err);
                 if (err.status === 400) {
-                    this.showError('คุณได้รายงานความคิดเห็นนี้แล้ว');
+                    this.showError('คุณได้รายงานความคิดเห็นนี้ไปแล้ว');
                 } else {
                     this.showError('เกิดข้อผิดพลาดในการรายงาน');
                 }
@@ -726,5 +729,14 @@ export class GameDetailComponent implements OnInit {
 
     closeErrorDialog() {
         this.showErrorDialog = false;
+    }
+
+    showSuccess(message: string) {
+        this.successMessage = message;
+        this.showSuccessDialog = true;
+    }
+
+    closeSuccessDialog() {
+        this.showSuccessDialog = false;
     }
 }

@@ -63,6 +63,7 @@ export class ProfileComponent implements OnInit {
     showEditDialog = false;
     showDeleteDialog = false;
     showAvatarDialog = false;
+    showDeleteAvatarConfirm = false;
     editingComment: UserComment | null = null;
     editingContent = '';
     deletingCommentId: number | null = null;
@@ -396,9 +397,20 @@ export class ProfileComponent implements OnInit {
         }, 100);
     }
 
+    // Show delete avatar confirmation dialog
+    showDeleteAvatarDialog() {
+        this.showAvatarDialog = false;
+        this.showDeleteAvatarConfirm = true;
+    }
+
+    // Cancel delete avatar
+    cancelDeleteAvatar() {
+        this.showDeleteAvatarConfirm = false;
+    }
+
     // Confirm delete avatar
     confirmDeleteAvatar() {
-        this.showAvatarDialog = false;
+        this.showDeleteAvatarConfirm = false;
         this.deleteAvatar();
     }
 

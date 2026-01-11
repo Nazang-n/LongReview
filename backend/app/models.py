@@ -179,8 +179,8 @@ class CommentReport(Base):
     reporter_id = Column(Integer, nullable=False, index=True)
     reason = Column(Text, nullable=False)
     status = Column(String(20), default='pending', nullable=False)  # 'pending', 'reviewed', 'dismissed'
-
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
 
 
 class Tag(Base):
