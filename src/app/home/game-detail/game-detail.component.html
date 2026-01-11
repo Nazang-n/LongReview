@@ -89,7 +89,10 @@
                             <div class="flex flex-col ml-2">
                                 <div class="text-sm text-gray-600 mb-1 ">แนวเกม:</div>
                                 <div class="flex flex-wrap gap-2">
-                                    <p-tag *ngFor="let tag of game.tags" [value]="tag" severity="danger"></p-tag>
+                                    <span *ngFor="let tag of game.tags"
+                                        class="bg-purple-500 text-white text-sm px-3 py-1 rounded font-medium">
+                                        {{ tag }}
+                                    </span>
                                 </div>
                             </div>
                         </div>

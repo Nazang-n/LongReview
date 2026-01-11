@@ -246,7 +246,8 @@ export class GameDetailComponent implements OnInit {
                 this.game = {
                     title: gameData.title || 'Unknown Game',
                     image: gameData.image_url || 'https://via.placeholder.com/460x215?text=No+Image',
-                    tags: gameData.genre ? gameData.genre.split(',').map((g: string) => g.trim()) : [],
+                    tags: gameData.genre_th ? gameData.genre_th.split(',').map((g: string) => g.trim()) :
+                        (gameData.genre ? gameData.genre.split(',').map((g: string) => g.trim()) : []),
                     releaseDate: this.formatDate(gameData.release_date) || 'Unknown',
                     developer: gameData.developer || 'Unknown Developer',
                     publisher: gameData.publisher || 'Unknown Publisher',
