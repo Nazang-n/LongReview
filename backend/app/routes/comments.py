@@ -420,8 +420,8 @@ def dismiss_report(
     
     # Update report
     report.status = 'dismissed'
-    report.reviewed_by = user_id
-    report.reviewed_at = datetime.now()
+    # report.reviewed_by = user_id
+    # report.reviewed_at = datetime.now()
     
     db.commit()
     

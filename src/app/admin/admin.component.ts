@@ -14,6 +14,7 @@ import { AuthService } from '../services/auth.service';
 import { DialogModule } from 'primeng/dialog';
 import { ToastModule } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
+import { TabViewModule } from 'primeng/tabview';
 
 @Component({
     selector: 'app-admin',
@@ -28,7 +29,8 @@ import { MessageService } from 'primeng/api';
         MessageModule,
         ProgressSpinnerModule,
         DialogModule,
-        ToastModule
+        ToastModule,
+        TabViewModule
     ],
     providers: [MessageService],
     templateUrl: './admin.component.html',
@@ -52,8 +54,18 @@ export class AdminComponent implements OnInit {
     // Dialog states
     showDismissDialog = false;
     showDeleteCommentDialog = false;
+    displayResultDialog = false;
+    resultDialogTitle = '';
+    resultDialogData: any = null;
+
     pendingReportId: number | null = null;
     pendingCommentId: number | null = null;
+
+    showResultDialog(title: string, data: any) {
+        this.resultDialogTitle = title;
+        this.resultDialogData = data;
+        this.displayResultDialog = true;
+    }
 
     // Review scheduler
     isUpdatingReviews = false;
@@ -92,12 +104,16 @@ export class AdminComponent implements OnInit {
 
         this.newsService.syncNews().subscribe({
             next: (result) => {
-                this.syncResult = result;
                 this.isLoading = false;
+                this.showResultDialog('ซิงค์ข่าวสารสำเร็จ', {
+                    'เพิ่มใหม่': result.added || 0,
+                    'อัปเดต': result.updated || 0,
+                    'ทั้งหมด': result.total_processed || 0
+                });
             },
             error: (err) => {
-                this.error = err.message || 'Failed to sync news';
                 this.isLoading = false;
+                this.messageService.add({ severity: 'error', summary: 'Error', detail: err.message || 'Failed to sync news' });
             }
         });
     }
@@ -109,14 +125,15 @@ export class AdminComponent implements OnInit {
 
         this.gameService.batchTranslateGames().subscribe({
             next: (result: any) => {
-                this.translateResult = result;
                 this.isTranslating = false;
-                console.log('Translation result:', result);
+                this.showResultDialog('การแปลภาษาเสร็จสิ้น', {
+                    'แปลแล้ว': result.translated || 0,
+                    'ล้มเหลว': result.failed || 0
+                });
             },
             error: (err: any) => {
-                this.translateError = err.message || 'Failed to translate games';
                 this.isTranslating = false;
-                console.error('Translation error:', err);
+                this.messageService.add({ severity: 'error', summary: 'Error', detail: err.message || 'Failed to translate games' });
             }
         });
     }

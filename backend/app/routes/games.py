@@ -422,14 +422,14 @@ def batch_translate_games(
         if not game.about_game_th or game.about_game_th.strip() == "":
             needs_translation = True
         else:
-            # Case 2: about_game_th contains English text (check for common English words)
-            # Simple heuristic: if it contains mostly English characters and common English words
-            text = game.about_game_th.lower()
-            english_indicators = ['the', 'and', 'for', 'with', 'from', 'this', 'that', 'your', 'you', 'are', 'have', 'will']
-            english_word_count = sum(1 for word in english_indicators if f' {word} ' in f' {text} ')
+            # Case 2: Check if it already has Thai characters
+            # If it has Thai characters, assume it is translated (skip it)
+            has_thai = bool(re.search(r'[\u0E00-\u0E7F]', game.about_game_th))
             
-            # If we find 2+ common English words, it's probably English
-            if english_word_count >= 2:
+            if has_thai:
+                needs_translation = False
+            else:
+                # No Thai characters, assume it needs translation
                 needs_translation = True
         
         if needs_translation:
