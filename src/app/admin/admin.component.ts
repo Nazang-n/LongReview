@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HeaderComponent } from '../shared/header.component';
@@ -41,7 +41,7 @@ import { AnalyticsService } from '../services/analytics.service';
     templateUrl: './admin.component.html',
     styleUrls: ['./admin.component.css']
 })
-export class AdminComponent implements OnInit {
+export class AdminComponent implements OnInit, OnDestroy {
     isLoading = false;
     syncResult: any = null;
     error: string | null = null;
@@ -113,6 +113,9 @@ export class AdminComponent implements OnInit {
     // Global processing flag to prevent concurrent operations
     private isAnyProcessing = false;
 
+    // Auto-refresh interval for dashboard
+    private dashboardRefreshInterval: any;
+
     // Polling intervals
     private pollingIntervals: Map<string, any> = new Map();
 
@@ -128,6 +131,18 @@ export class AdminComponent implements OnInit {
     ngOnInit() {
         this.loadReportedComments();
         this.loadDashboardAnalytics();
+
+        // Auto-refresh dashboard analytics every 30 seconds
+        this.dashboardRefreshInterval = setInterval(() => {
+            this.loadDashboardAnalytics();
+        }, 30000);
+    }
+
+    ngOnDestroy() {
+        // Clear auto-refresh interval
+        if (this.dashboardRefreshInterval) {
+            clearInterval(this.dashboardRefreshInterval);
+        }
     }
 
     // Check if any operation is currently processing
@@ -244,6 +259,7 @@ export class AdminComponent implements OnInit {
         this.commentService.dismissReport(this.pendingReportId, user.id).subscribe({
             next: () => {
                 this.loadReportedComments();
+                this.loadDashboardAnalytics(); // Refresh dashboard pending reports count
                 this.showDismissDialog = false;
                 this.pendingReportId = null;
             },
@@ -272,6 +288,7 @@ export class AdminComponent implements OnInit {
         this.commentService.deleteComment(this.pendingCommentId, user.id).subscribe({
             next: () => {
                 this.loadReportedComments();
+                this.loadDashboardAnalytics(); // Refresh dashboard pending reports count
                 this.showDeleteCommentDialog = false;
                 this.pendingCommentId = null;
             },

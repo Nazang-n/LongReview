@@ -13,7 +13,7 @@
 
         <p-tabView styleClass="custom-tabs">
             <!-- TAB 0: Dashboard -->
-            <p-tabPanel header="Dashboard">
+            <p-tabPanel header="สรุปข้อมูล">
                 <div class="animate-fade-in">
                     <!-- Loading State -->
                     <div *ngIf="isLoadingAnalytics" class="flex justify-center py-12">
@@ -368,7 +368,7 @@
 
 <!-- Result Dialog -->
 <p-dialog [(visible)]="displayResultDialog" [header]="resultDialogTitle" [modal]="true" [style]="{width: '450px'}"
-    [draggable]="false" [resizable]="false" styleClass="custom-dialog">
+    [draggable]="false" [resizable]="false" [closable]="false" styleClass="custom-dialog">
     <div *ngIf="resultDialogData" class="flex flex-col">
         <!-- Success Icon & Message -->
         <div class="text-center mb-6 pt-4">
