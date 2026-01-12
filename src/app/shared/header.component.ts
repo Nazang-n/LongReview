@@ -1,16 +1,19 @@
-import { Component } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
+import { DialogModule } from 'primeng/dialog';
 
 import { AuthService, User } from '../services/auth.service';
-import { Observable } from 'rxjs';
+import { ProfileService, UserProfile } from '../services/profile.service';
+import { Observable, Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { PLATFORM_ID, Inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 
 @Component({
   selector: 'app-header',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, DialogModule],
   template: `
   <header class="navbar">
     <div class="container-nav">
@@ -32,7 +35,8 @@ import { isPlatformBrowser } from '@angular/common';
              <span class="username">{{ user.username }}</span>
              <div class="profile-dropdown-wrapper">
                <a class="profile-icon" (click)="toggleDropdown($event)" title="Profile">
-                <i class="pi pi-user"></i>
+                <img *ngIf="hasAvatar()" [src]="getAvatarUrl()" [alt]="user.username" class="avatar-image">
+                <i *ngIf="!hasAvatar()" class="pi pi-user"></i>
                </a>
                <div class="dropdown-menu" [class.show]="isDropdownOpen">
                  <a class="dropdown-item" (click)="navigateToProfile()">
@@ -61,6 +65,53 @@ import { isPlatformBrowser } from '@angular/common';
       </div>
     </div>
   </header>
+
+  <!-- Logout Confirmation Dialog -->
+  <p-dialog 
+    [(visible)]="showLogoutDialog" 
+    [modal]="true" 
+    [closable]="false"
+    [style]="{width: '400px'}"
+    header="ยืนยันการออกจากระบบ">
+    <p style="margin: 0; padding: 16px 0;">คุณต้องการออกจากระบบหรือไม่?</p>
+    <ng-template pTemplate="footer">
+      <button 
+        class="btn-cancel" 
+        (click)="showLogoutDialog = false"
+        style="padding: 8px 16px; margin-right: 8px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">
+        ยกเลิก
+      </button>
+      <button 
+        class="btn-confirm" 
+        (click)="confirmLogout()"
+        style="padding: 8px 16px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">
+        ออกจากระบบ
+      </button>
+    </ng-template>
+  </p-dialog>
+
+  <!-- Logout Success Dialog -->
+  <p-dialog 
+    [(visible)]="showLogoutSuccessDialog" 
+    [modal]="true" 
+    [closable]="false"
+    [style]="{width: '400px'}">
+    <ng-template pTemplate="header">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <i class="pi pi-check-circle" style="color: #28a745; font-size: 1.5rem;"></i>
+        <span style="font-weight: 600; font-size: 1.1rem;">ออกจากระบบสำเร็จ</span>
+      </div>
+    </ng-template>
+    <p style="margin: 0; padding: 16px 0;">คุณได้ออกจากระบบเรียบร้อยแล้ว</p>
+    <ng-template pTemplate="footer">
+      <button 
+        class="btn-confirm" 
+        (click)="handleLogoutSuccess()"
+        style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
+        ตกลง
+      </button>
+    </ng-template>
+  </p-dialog>
   `,
   styles: [`
     .user-info { 
@@ -80,6 +131,17 @@ import { isPlatformBrowser } from '@angular/common';
     .profile-icon {
       cursor: pointer;
       user-select: none;
+    }
+    .avatar-image {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      transition: border-color 0.2s ease;
+    }
+    .avatar-image:hover {
+      border-color: rgba(255, 255, 255, 0.8);
     }
     .dropdown-menu {
       position: absolute;
@@ -130,13 +192,18 @@ import { isPlatformBrowser } from '@angular/common';
     }
   `]
 })
-export class HeaderComponent {
+export class HeaderComponent implements OnInit, OnDestroy {
   currentUser$: Observable<User | null>;
   isBrowser: boolean;
   isDropdownOpen = false;
+  showLogoutDialog = false;
+  showLogoutSuccessDialog = false;
+  userProfile: UserProfile | null = null;
+  private destroy$ = new Subject<void>();
 
   constructor(
     private authService: AuthService,
+    private profileService: ProfileService,
     private router: Router,
     @Inject(PLATFORM_ID) platformId: Object
   ) {
@@ -152,6 +219,51 @@ export class HeaderComponent {
         }
       });
     }
+  }
+
+  ngOnInit(): void {
+    // Subscribe to current user and load profile
+    this.currentUser$.pipe(takeUntil(this.destroy$)).subscribe(user => {
+      if (user) {
+        this.loadUserProfile(user.id);
+      } else {
+        this.userProfile = null;
+      }
+    });
+
+    // Listen to profile updates from other components
+    if (this.isBrowser) {
+      window.addEventListener('profileUpdated', () => {
+        const user = this.authService.getCurrentUserValue();
+        if (user) {
+          this.loadUserProfile(user.id);
+        }
+      });
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  loadUserProfile(userId: number): void {
+    this.profileService.getProfile(userId).subscribe({
+      next: (profile) => {
+        this.userProfile = profile;
+      },
+      error: (err) => {
+        console.error('Error loading user profile in header:', err);
+      }
+    });
+  }
+
+  hasAvatar(): boolean {
+    return this.userProfile?.avatar_url !== null && this.userProfile?.avatar_url !== undefined && this.userProfile?.avatar_url !== '';
+  }
+
+  getAvatarUrl(): string {
+    return this.userProfile?.avatar_url || '';
   }
 
   toggleDropdown(event: Event) {
@@ -175,7 +287,17 @@ export class HeaderComponent {
 
   logout() {
     this.isDropdownOpen = false;
+    this.showLogoutDialog = true;
+  }
+
+  confirmLogout() {
+    this.showLogoutDialog = false;
     this.authService.logout();
+    this.showLogoutSuccessDialog = true;
+  }
+
+  handleLogoutSuccess() {
+    this.showLogoutSuccessDialog = false;
     this.router.navigate(['/']);
   }
 }

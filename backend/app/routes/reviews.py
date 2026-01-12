@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
+from sqlalchemy import or_
 from .. import models, schemas
 from ..database import get_db
+from ..utils.thai_validator import is_valid_thai_content
 
 router = APIRouter(
     prefix="/api/reviews",
@@ -96,21 +98,45 @@ def delete_review(review_id: int, db: Session = Depends(get_db)):
 
 
 # Steam Reviews Endpoints
+
+
+
+
 @router.get("/steam/{game_id}")
 def get_steam_reviews(
     game_id: int,
     limit: int = 20,
     db: Session = Depends(get_db)
 ):
-    """Get Steam reviews for a specific game from database."""
+    """
+    Get Steam reviews for a specific game from database.
+    Filters to show only Thai reviews and sorts by helpfulness.
+    """
+    # Get all Thai Steam reviews for this game
     reviews = db.query(models.Review).filter(
         models.Review.game_id == game_id,
-        models.Review.is_steam_review == True
-    ).limit(limit).all()
+        or_(
+            models.Review.is_steam_review == True,
+            models.Review.steam_id.isnot(None)
+        )
+    ).all()
+    
+    # Filter to only Thai reviews and calculate helpfulness score
+    thai_reviews = []
+    for r in reviews:
+        if is_valid_thai_content(r.content):
+            # Helpfulness score: (votes * 2) + content length
+            # This prioritizes upvoted reviews and longer detailed reviews
+            helpfulness_score = (r.helpful_count * 2) + len(r.content or "")
+            thai_reviews.append((r, helpfulness_score))
+    
+    # Sort by helpfulness score (highest first) and limit
+    thai_reviews.sort(key=lambda x: x[1], reverse=True)
+    thai_reviews = thai_reviews[:limit]
     
     return {
         "success": True,
-        "count": len(reviews),
+        "count": len(thai_reviews),
         "reviews": [
             {
                 "id": r.id,
@@ -122,7 +148,7 @@ def get_steam_reviews(
                 "playtime_hours": r.playtime_hours,
                 "created_at": r.created_at.isoformat() if r.created_at else None
             }
-            for r in reviews
+            for r, _ in thai_reviews
         ]
     }
 
@@ -138,7 +164,9 @@ def sync_steam_reviews(
     """
     from ..steam_api import SteamAPIClient
     from datetime import datetime
-    from sqlalchemy import text
+    from sqlalchemy import text, or_
+    
+    print(f"[DEBUG] sync_steam_reviews called for game_id={game_id}, max_reviews={max_reviews}")
     
     try:
         # Get game's steam_app_id using raw SQL
@@ -159,15 +187,28 @@ def sync_steam_reviews(
         # Check if we already have Steam reviews for this game
         existing_reviews = db.query(models.Review).filter(
             models.Review.game_id == game_id,
-            models.Review.is_steam_review == True
+            or_(
+                models.Review.is_steam_review == True,
+                models.Review.steam_id.isnot(None)
+            )
         ).all()
         
+        print(f"[DEBUG] Found {len(existing_reviews)} existing reviews in DB for game {game_id}")
+        
         if existing_reviews:
+            # Filter to only Thai reviews (no sorting by helpfulness)
+            thai_reviews = []
+            for r in existing_reviews:
+                if is_valid_thai_content(r.content):
+                    thai_reviews.append(r)
+            
+            print(f"[DEBUG] After filtering: {len(thai_reviews)} Thai reviews found")
+            
             # Return cached reviews
             return {
                 "success": True,
                 "cached": True,
-                "count": len(existing_reviews),
+                "count": len(thai_reviews),
                 "reviews": [
                     {
                         "id": r.id,
@@ -179,7 +220,7 @@ def sync_steam_reviews(
                         "playtime_hours": r.playtime_hours,
                         "created_at": r.created_at.isoformat() if r.created_at else None
                     }
-                    for r in existing_reviews
+                    for r in thai_reviews
                 ]
             }
         
@@ -190,6 +231,7 @@ def sync_steam_reviews(
             language="thai",
             max_reviews=max_reviews
         )
+        
         
         if not steam_reviews:
             return {
@@ -218,9 +260,22 @@ def sync_steam_reviews(
         
         for steam_review in steam_reviews:
             rec_id = steam_review.get("recommendationid")
+            review_content = steam_review.get("review", "")
             
             # Skip if no ID or already exists in DB or already processed in this batch
-            if not rec_id or rec_id in db_existing_ids or rec_id in processed_steam_ids:
+            if not rec_id:
+                print(f"[DEBUG] Skipping review: no rec_id")
+                continue
+            if rec_id in db_existing_ids:
+                print(f"[DEBUG] Skipping review {rec_id}: already in DB")
+                continue
+            if rec_id in processed_steam_ids:
+                print(f"[DEBUG] Skipping review {rec_id}: already processed in this batch")
+                continue
+            
+            # Filter out non-Thai reviews
+            if not is_valid_thai_content(review_content):
+                print(f"[DEBUG] Skipping review {rec_id}: failed Thai filter (content: {review_content[:50]}...)")
                 continue
                 
             processed_steam_ids.add(rec_id)
@@ -235,7 +290,7 @@ def sync_steam_reviews(
                 game_id=game_id,
                 admin_id=None,
                 owner=steam_review.get("author", {}).get("steamid", "Unknown"),
-                content=steam_review.get("review", ""),
+                content=review_content,
                 steam_id=rec_id,
                 is_steam_review=True,
                 steam_author=steam_review.get("author", {}).get("steamid", "Unknown"),
@@ -269,11 +324,14 @@ def sync_steam_reviews(
              # Nothing new saved
              pass
         
+        # Return reviews in chronological order (no sorting by helpfulness)
+        sorted_reviews = saved_reviews
+        
         return {
             "success": True,
             "cached": False,
-            "count": len(saved_reviews),
-            "reviews": saved_reviews
+            "count": len(sorted_reviews),
+            "reviews": sorted_reviews
         }
         
     except HTTPException:
@@ -366,46 +424,41 @@ def get_steam_sentiment(game_id: int, db: Session = Depends(get_db)):
 
 @router.post("/sentiment/batch")
 def get_batch_sentiment(game_ids: List[int], db: Session = Depends(get_db)):
-    """Get sentiment for multiple games at once - efficient for game list"""
-    from sqlalchemy import text
-    
+    """Get sentiment from cached data in GameSentiment table"""
     if not game_ids:
         return {}
     
     results = {}
     
     try:
-        # Optimized query using GROUP BY and IN clause
-        # This replaces N queries with just 1 query
-        query = text("""
-            SELECT game_id, COUNT(*), SUM(CASE WHEN voted_up = TRUE THEN 1 ELSE 0 END) 
-            FROM analyreview 
-            WHERE game_id IN :game_ids 
-            GROUP BY game_id
-        """)
+        # Get sentiment records from game_sentiment table
+        sentiments = db.query(models.GameSentiment).filter(
+            models.GameSentiment.game_id.in_(game_ids)
+        ).all()
         
-        # Convert list to tuple for safety (though SQLAlchemy handles lists fine)
-        rows = db.execute(query, {"game_ids": tuple(game_ids)}).fetchall()
-        
-        for row in rows:
-            game_id = row[0]
-            total = row[1]
-            # SUM returns None if no rows match, but COUNT > 0 ensures rows exist.
-            # However, voted_up is boolean, so integer sum is fine.
-            positive = row[2] if row[2] is not None else 0
-            
-            if total > 0:
-                pos_pct = round((positive / total * 100), 1)
-                neg_pct = round(((total - positive) / total * 100), 1)
-                
-                results[game_id] = {
-                    "positive_percent": pos_pct,
-                    "negative_percent": neg_pct,
-                    "total_reviews": total
-                }
+        for sentiment in sentiments:
+            results[sentiment.game_id] = {
+                "positive_percent": float(sentiment.positive_percent) if sentiment.positive_percent else 0,
+                "negative_percent": float(sentiment.negative_percent) if sentiment.negative_percent else 0,
+                "total_reviews": sentiment.total_reviews or 0,
+                "review_score_desc": sentiment.review_score_desc or "No user reviews"
+            }
                 
     except Exception as e:
-        print(f"[Batch Sentiment] Error in batch query: {e}")
-        # On error (e.g. huge list issues), we return empty or partial
+        print(f"[Batch Sentiment] Error: {e}")
     
     return results
+
+
+@router.post("/sentiment/update-all")
+def trigger_sentiment_update():
+    """Manually trigger sentiment update for all games (Admin endpoint)"""
+    from ..scheduler import update_all_sentiments
+    import threading
+    
+    # Run in background thread
+    thread = threading.Thread(target=update_all_sentiments)
+    thread.daemon = True
+    thread.start()
+    
+    return {"success": True, "message": "Sentiment update started in background"}

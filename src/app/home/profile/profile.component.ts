@@ -62,6 +62,11 @@ export class ProfileComponent implements OnInit {
     // Dialog states
     showEditDialog = false;
     showDeleteDialog = false;
+    showAvatarDialog = false;
+    showDeleteAvatarConfirm = false;
+    showLogoutDialog = false;
+    showLogoutSuccessDialog = false;
+    showEditSuccessDialog = false;
     editingComment: UserComment | null = null;
     editingContent = '';
     deletingCommentId: number | null = null;
@@ -160,6 +165,8 @@ export class ProfileComponent implements OnInit {
             next: () => {
                 this.userProfile.avatar_url = base64;
                 this.showMessage('success', 'สำเร็จ', 'อัพโหลดรูปโปรไฟล์สำเร็จ');
+                // Notify other components about profile update
+                window.dispatchEvent(new Event('profileUpdated'));
             },
             error: (err) => {
                 console.error('Error uploading avatar:', err);
@@ -189,6 +196,7 @@ export class ProfileComponent implements OnInit {
                 this.editingComment = null;
                 this.editingContent = '';
                 this.loadComments(user.id);
+                this.showEditSuccessDialog = true;
             },
             error: (err) => {
                 console.error('Error editing comment:', err);
@@ -340,7 +348,17 @@ export class ProfileComponent implements OnInit {
     }
 
     logout(): void {
+        this.showLogoutDialog = true;
+    }
+
+    confirmLogout(): void {
+        this.showLogoutDialog = false;
         this.authService.logout();
+        this.showLogoutSuccessDialog = true;
+    }
+
+    handleLogoutSuccess(): void {
+        this.showLogoutSuccessDialog = false;
         this.router.navigate(['/']);
     }
 
@@ -351,7 +369,7 @@ export class ProfileComponent implements OnInit {
     }
 
     getAvatarUrl(): string {
-        return this.userProfile.avatar_url || 'https://via.placeholder.com/150/6366f1/ffffff?text=' + (this.userProfile.username?.charAt(0) || 'U');
+        return this.userProfile.avatar_url || '';
     }
 
     showSuccessDialog(title: string, message: string) {
@@ -374,5 +392,59 @@ export class ProfileComponent implements OnInit {
         this.messageDialogTitle = title;
         this.messageDialogContent = content;
         this.showMessageDialog = true;
+    }
+
+    // Check if user has avatar
+    hasAvatar(): boolean {
+        return this.userProfile.avatar_url !== null && this.userProfile.avatar_url !== '';
+    }
+
+    // Trigger file upload
+    triggerFileUpload() {
+        this.showAvatarDialog = false;
+        // Use setTimeout to ensure dialog is closed before triggering file input
+        setTimeout(() => {
+            const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+            if (fileInput) {
+                fileInput.click();
+            }
+        }, 100);
+    }
+
+    // Show delete avatar confirmation dialog
+    showDeleteAvatarDialog() {
+        this.showAvatarDialog = false;
+        this.showDeleteAvatarConfirm = true;
+    }
+
+    // Cancel delete avatar
+    cancelDeleteAvatar() {
+        this.showDeleteAvatarConfirm = false;
+    }
+
+    // Confirm delete avatar
+    confirmDeleteAvatar() {
+        this.showDeleteAvatarConfirm = false;
+        this.deleteAvatar();
+    }
+
+    // Delete avatar
+    deleteAvatar() {
+        const user = this.authService.getCurrentUserValue();
+        if (!user) return;
+
+        this.profileService.deleteAvatar(user.id).subscribe({
+            next: () => {
+                this.userProfile.avatar_url = null;
+                this.avatarPreview = null;
+                this.showMessage('success', 'สำเร็จ', 'ลบรูปโปรไฟล์สำเร็จ');
+                // Notify other components about profile update
+                window.dispatchEvent(new Event('profileUpdated'));
+            },
+            error: (err) => {
+                console.error('Error deleting avatar:', err);
+                this.showMessage('error', 'เกิดข้อผิดพลาด', 'เกิดข้อผิดพลาดในการลบรูป');
+            }
+        });
     }
 }

@@ -1,240 +1,286 @@
 <app-header></app-header>
 
-<div class="admin-container">
+<!-- Toast Notifications -->
+<p-toast position="top-right"></p-toast>
+
+<div class="admin-container" style="--primary-color: #7c3aed !important; --primary-color-text: #ffffff !important;">
     <div class="admin-content">
-        <p-card header="Admin Panel" subheader="Manage news synchronization">
-            <div class="sync-section">
-                <h3>News Synchronization</h3>
-                <p>Manually trigger news sync from the API to update the database with the latest articles.</p>
-
-                <button pButton type="button" label="Sync News" icon="pi pi-refresh" [loading]="isLoading"
-                    [disabled]="isLoading" (click)="syncNews()" class="sync-button">
-                </button>
-
-                <!-- Loading Spinner -->
-                <div *ngIf="isLoading" class="loading-container">
-                    <p-progressSpinner styleClass="custom-spinner" strokeWidth="4" animationDuration="1s">
-                    </p-progressSpinner>
-                    <p>Syncing news from API...</p>
-                </div>
-
-                <!-- Success Result -->
-                <div *ngIf="syncResult && !isLoading" class="result-container success">
-                    <p-message severity="success" text="News sync completed successfully!"></p-message>
-                    <div class="result-details">
-                        <h4>Sync Results:</h4>
-                        <ul>
-                            <li><strong>Articles Added:</strong> {{ syncResult.added || 0 }}</li>
-                            <li><strong>Articles Updated:</strong> {{ syncResult.updated || 0 }}</li>
-                            <li><strong>Articles Skipped:</strong> {{ syncResult.skipped || 0 }}</li>
-                            <li><strong>Total Processed:</strong> {{ syncResult.total_processed || 0 }}</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <!-- Error Message -->
-                <div *ngIf="error && !isLoading" class="result-container error">
-                    <p-message severity="error" [text]="error"></p-message>
-                </div>
-            </div>
-        </p-card>
-
-        <!-- Game Translation Section -->
-        <p-card header="Game Translation" subheader="Translate game descriptions to Thai" class="mt-4">
-            <div class="sync-section">
-                <h3>Batch Translate Games</h3>
-                <p>Translate all games that don't have Thai descriptions yet. This will use AI to translate English
-                    descriptions to Thai.</p>
-
-                <button pButton type="button" label="Translate All Games" icon="pi pi-language"
-                    [loading]="isTranslating" [disabled]="isTranslating" (click)="translateGames()" class="sync-button">
-                </button>
-
-                <!-- Loading Spinner -->
-                <div *ngIf="isTranslating" class="loading-container">
-                    <p-progressSpinner styleClass="custom-spinner" strokeWidth="4" animationDuration="1s">
-                    </p-progressSpinner>
-                    <p>Translating game descriptions...</p>
-                </div>
-
-                <!-- Success Result -->
-                <div *ngIf="translateResult && !isTranslating" class="result-container success">
-                    <p-message severity="success" text="Translation completed!"></p-message>
-                    <div class="result-details">
-                        <h4>Translation Results:</h4>
-                        <ul>
-                            <li><strong>Games Found:</strong> {{ translateResult.total_found || 0 }}</li>
-                            <li><strong>Successfully Translated:</strong> {{ translateResult.translated || 0 }}</li>
-                            <li><strong>Failed:</strong> {{ translateResult.failed || 0 }}</li>
-                        </ul>
-                        <div *ngIf="translateResult.failed_games && translateResult.failed_games.length > 0"
-                            class="mt-3">
-                            <p class="text-sm text-gray-600">Failed games:</p>
-                            <ul class="text-sm text-gray-500">
-                                <li *ngFor="let game of translateResult.failed_games">
-                                    {{ game.title }} - {{ game.reason }}
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Error Message -->
-                <div *ngIf="translateError && !isTranslating" class="result-container error">
-                    <p-message severity="error" [text]="translateError"></p-message>
-                </div>
-            </div>
-        </p-card>
-
-        <!-- Review Scheduler Section -->
-        <p-card header="Review Scheduler" subheader="Manage automated review updates" class="mt-4">
-            <div class="sync-section">
-                <h3>Manual Review Update</h3>
-                <p>Manually trigger the daily review update job to fetch new reviews for all games. This normally runs
-                    automatically at 12:00 AM.</p>
-
-                <button pButton type="button" label="Update Reviews Now" icon="pi pi-refresh"
-                    [loading]="isUpdatingReviews" [disabled]="isUpdatingReviews" (click)="triggerReviewUpdate()"
-                    class="sync-button">
-                </button>
-
-                <!-- Loading Spinner -->
-                <div *ngIf="isUpdatingReviews" class="loading-container">
-                    <p-progressSpinner styleClass="custom-spinner" strokeWidth="4" animationDuration="1s">
-                    </p-progressSpinner>
-                    <p>Updating reviews... Check console logs for progress.</p>
-                </div>
-
-                <!-- Success Result -->
-                <div *ngIf="reviewUpdateResult && !isUpdatingReviews" class="result-container success">
-                    <p-message severity="success" text="Review update triggered successfully!"></p-message>
-                    <p class="mt-2">{{ reviewUpdateResult.message }}</p>
-                </div>
-
-                <!-- Error Message -->
-                <div *ngIf="reviewUpdateError && !isUpdatingReviews" class="result-container error">
-                    <p-message severity="error" [text]="reviewUpdateError"></p-message>
-                </div>
-            </div>
-        </p-card>
-
-        <!-- Reported Comments Section -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
-            <h2 class="text-2xl font-bold text-gray-900 mb-6">รายงานความคิดเห็น</h2>
-
-            <!-- Loading State -->
-            <div *ngIf="isLoadingReports" class="flex justify-center py-8">
-                <p-progressSpinner></p-progressSpinner>
-            </div>
-
-            <!-- Error State -->
-            <p-message *ngIf="reportsError && !isLoadingReports" severity="error" [text]="reportsError"></p-message>
-
-            <!-- Reports List -->
-            <div *ngIf="!isLoadingReports && !reportsError">
-                <!-- Empty State -->
-                <div *ngIf="reportedComments.length === 0" class="text-center py-12 text-gray-500">
-                    <i class="pi pi-check-circle text-5xl mb-3 text-green-300"></i>
-                    <p>ไม่มีรายงานความคิดเห็นที่รอการตรวจสอบ</p>
-                </div>
-
-                <!-- Report Items -->
-                <div class="space-y-4">
-                    <div *ngFor="let report of reportedComments" class="border border-red-200 rounded-lg p-5 bg-red-50">
-                        <!-- Report Header -->
-                        <div class="flex items-start justify-between mb-3">
-                            <div class="flex-1">
-                                <div class="flex items-center gap-2 mb-2">
-                                    <span
-                                        class="bg-red-600 text-white px-2 py-1 rounded text-xs font-bold">รายงาน</span>
-                                    <span class="text-sm text-gray-600">
-                                        รายงานโดย: <span class="font-semibold">{{ report.reporter_username }}</span>
-                                    </span>
-                                </div>
-                                <div class="text-sm text-gray-600 mb-2">
-                                    <span class="font-semibold">เกม:</span> {{ report.game_title }}
-                                </div>
-                                <div class="text-sm text-gray-600">
-                                    <span class="font-semibold">เหตุผล:</span> {{ report.reason }}
-                                </div>
-                            </div>
-                            <div class="text-sm text-gray-500">
-                                {{ report.created_at | date:'short' }}
-                            </div>
-                        </div>
-
-                        <!-- Comment Content -->
-                        <div class="bg-white rounded p-4 mb-4 border border-gray-200">
-                            <p class="text-gray-800">{{ report.comment_content }}</p>
-                        </div>
-
-                        <!-- Action Buttons -->
-                        <div class="flex gap-3">
-                            <button (click)="deleteReportedComment(report.comment_id)"
-                                class="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium text-sm">
-                                <i class="pi pi-trash"></i>
-                                <span>ลบความคิดเห็น</span>
-                            </button>
-                            <button (click)="dismissReport(report.id)"
-                                class="flex items-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors font-medium text-sm">
-                                <i class="pi pi-times"></i>
-                                <span>ยกเลิกรายงาน</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <!-- Header Section -->
+        <div class="admin-header">
+            <h1>แดชบอร์ดผู้ดูแลระบบ</h1>
+            <p>จัดการการซิงค์ข้อมูลระบบและดูแลความเรียบร้อยของชุมชน</p>
         </div>
+
+        <p-tabView styleClass="custom-tabs">
+            <!-- TAB 1: System Synchronization -->
+            <p-tabPanel header="ซิงค์ข้อมูลระบบ">
+                <div class="admin-grid animate-fade-in">
+                    <!-- 1. News Sync -->
+                    <p-card header="ซิงค์ข่าวสาร" subheader="ดึงบทความล่าสุด">
+                        <div class="sync-section">
+                            <p>อัปเดตฐานข้อมูลด้วยข่าวสารล่าสุดจาก API</p>
+                            <button pButton type="button" label="ซิงค์ข่าว" icon="pi pi-refresh" [loading]="isLoading"
+                                [disabled]="isLoading" (click)="syncNews()"
+                                style="background: linear-gradient(135deg, #9333ea 0%, #7e22ce 100%) !important; border: none !important; color: white !important;"
+                                class="purple-action-btn w-full mt-4 bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white shadow-md hover:shadow-lg transition-all duration-200 rounded-xl border-none py-3 font-medium">
+                            </button>
+
+
+
+
+                        </div>
+                    </p-card>
+
+                    <!-- 2. Review Update -->
+                    <p-card header="รีวิวภาษาไทย" subheader="ดึงข้อมูลจาก Steam">
+                        <div class="sync-section">
+                            <p>อัปเดตรีวิวภาษาไทยสำหรับเกมทั้งหมด</p>
+                            <button pButton type="button" label="อัปเดตรีวิว" icon="pi pi-comments"
+                                [loading]="isUpdatingReviews" [disabled]="isUpdatingReviews"
+                                (click)="triggerReviewUpdate()"
+                                style="background: linear-gradient(135deg, #9333ea 0%, #7e22ce 100%) !important; border: none !important; color: white !important;"
+                                class="purple-action-btn w-full mt-4 bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white shadow-md hover:shadow-lg transition-all duration-200 rounded-xl border-none py-3 font-medium">
+                            </button>
+
+
+
+                            <div *ngIf="reviewUpdateError && !isUpdatingReviews" class="result-container error">
+                                <p-message severity="error" [text]="reviewUpdateError"></p-message>
+                            </div>
+                        </div>
+                    </p-card>
+
+                    <!-- 5. Game Translation (Moved) -->
+                    <p-card header="แปลภาษาเกม" subheader="แปลด้วย AI">
+                        <div class="sync-section">
+                            <p>แปลคำอธิบายเกมจากภาษาอังกฤษเป็นภาษาไทยทั้งหมด</p>
+                            <button pButton type="button" label="แปลเกมทั้งหมด" icon="pi pi-language"
+                                [loading]="isTranslating" [disabled]="isTranslating" (click)="translateGames()"
+                                style="background: linear-gradient(135deg, #9333ea 0%, #7e22ce 100%) !important; border: none !important; color: white !important;"
+                                class="purple-action-btn w-full mt-4 bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white shadow-md hover:shadow-lg transition-all duration-200 rounded-xl border-none py-3 font-medium">
+                            </button>
+
+
+
+
+                        </div>
+                    </p-card>
+
+                    <!-- 3. Sentiment Cache -->
+                    <p-card header="วิเคราะห์ความเห็น" subheader="รีเฟรชคะแนนความนิยม">
+                        <div class="sync-section">
+                            <p>คำนวณคะแนน Sentiment ของเกมใหม่</p>
+                            <button pButton type="button" label="อัปเดต Sentiment" icon="pi pi-chart-pie"
+                                [loading]="isUpdatingSentiment" [disabled]="isUpdatingSentiment"
+                                (click)="triggerSentimentUpdate()"
+                                style="background: linear-gradient(135deg, #9333ea 0%, #7e22ce 100%) !important; border: none !important; color: white !important;"
+                                class="purple-action-btn w-full mt-4 bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white shadow-md hover:shadow-lg transition-all duration-200 rounded-xl border-none py-3 font-medium">
+                            </button>
+
+
+                        </div>
+                    </p-card>
+
+                    <!-- 4. Review Tags -->
+                    <p-card header="แท็กรีวิว" subheader="สร้างแท็กอธิบายเกม">
+                        <div class="sync-section">
+                            <p>สร้างแท็กจุดเด่น/จุดด้อยจากรีวิวผู้เล่น</p>
+                            <button pButton type="button" label="อัปเดตแท็ก" icon="pi pi-tags"
+                                [loading]="isUpdatingReviewTags" [disabled]="isUpdatingReviewTags"
+                                (click)="triggerReviewTagsUpdate()"
+                                style="background: linear-gradient(135deg, #9333ea 0%, #7e22ce 100%) !important; border: none !important; color: white !important;"
+                                class="purple-action-btn w-full mt-4 bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white shadow-md hover:shadow-lg transition-all duration-200 rounded-xl border-none py-3 font-medium">
+                            </button>
+
+
+                        </div>
+                    </p-card>
+                </div>
+            </p-tabPanel>
+
+            <!-- TAB 2: Moderation -->
+            <p-tabPanel header="การตรวจสอบ">
+                <div class="animate-fade-in">
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h2 class="text-2xl font-bold text-gray-800">ความคิดเห็นที่ถูกรายงาน</h2>
+                            <button pButton icon="pi pi-refresh" label="รีเฟรช" (click)="loadReportedComments()"
+                                [loading]="isLoadingReports" class="p-button-text"></button>
+                        </div>
+
+                        <!-- Loading -->
+                        <div *ngIf="isLoadingReports" class="flex justify-center py-12">
+                            <p-progressSpinner></p-progressSpinner>
+                        </div>
+
+                        <!-- Error -->
+                        <p-message *ngIf="reportsError && !isLoadingReports" severity="error"
+                            [text]="reportsError"></p-message>
+
+                        <!-- Content -->
+                        <div *ngIf="!isLoadingReports && !reportsError">
+                            <!-- Empty State -->
+                            <div *ngIf="reportedComments.length === 0"
+                                class="text-center py-20 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                                <div
+                                    class="w-16 h-16 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <i class="pi pi-check text-2xl"></i>
+                                </div>
+                                <h3 class="text-lg font-semibold text-gray-900">จัดการครบแล้ว!</h3>
+                                <p class="text-gray-500">ไม่มีความคิดเห็นที่ต้องตรวจสอบในขณะนี้</p>
+                            </div>
+
+                            <!-- Reports List -->
+                            <div class="reports-list">
+                                <div *ngFor="let report of reportedComments" class="report-item">
+                                    <div class="flex flex-col md:flex-row gap-6">
+                                        <!-- Meta Info -->
+                                        <div class="w-full md:w-64 flex-shrink-0 space-y-4">
+                                            <!-- Header -->
+                                            <div class="flex items-center gap-2 mb-2">
+                                                <span
+                                                    class="bg-red-50 text-red-600 px-2.5 py-1 rounded-md text-xs font-bold ring-1 ring-red-100">รายงาน</span>
+                                                <span class="text-xs text-gray-400 font-medium">{{ report.created_at |
+                                                    date:'d MMM, HH:mm' }}</span>
+                                            </div>
+
+                                            <!-- Reporter -->
+                                            <div class="group">
+                                                <div
+                                                    class="flex items-center gap-1.5 text-xs text-gray-500 font-medium mb-1.5">
+                                                    <i class="pi pi-user text-gray-400"></i>
+                                                    <span>ผู้รายงาน</span>
+                                                </div>
+                                                <div
+                                                    class="text-sm font-bold text-gray-900 bg-white border border-gray-200 rounded-lg px-3 py-2">
+                                                    {{ report.reporter_username }}</div>
+                                            </div>
+
+                                            <!-- Reason -->
+                                            <div class="group">
+                                                <div
+                                                    class="flex items-center gap-1.5 text-xs text-gray-500 font-medium mb-1.5">
+                                                    <i class="pi pi-flag text-gray-400"></i>
+                                                    <span>เหตุผล</span>
+                                                </div>
+                                                <div
+                                                    class="text-sm font-bold text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                                                    {{ report.reason }}</div>
+                                            </div>
+
+                                            <!-- Game -->
+                                            <div class="group">
+                                                <div
+                                                    class="flex items-center gap-1.5 text-xs text-gray-500 font-medium mb-1.5">
+                                                    <i class="pi pi-desktop text-gray-400"></i>
+                                                    <span>เกม</span>
+                                                </div>
+                                                <div
+                                                    class="text-sm font-bold text-gray-800 break-words bg-white border border-gray-200 rounded-lg px-3 py-2 leading-tight">
+                                                    {{ report.game_title }}</div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Comment Content & Actions -->
+                                        <div
+                                            class="flex-1 border-l border-gray-100 pl-6 md:pl-6 pt-4 md:pt-0 border-t md:border-t-0">
+                                            <div class="bg-gray-50 rounded-xl p-4 mb-4 relative">
+                                                <i
+                                                    class="pi pi-comment text-gray-300 text-4xl absolute -top-2 -left-2 opacity-50"></i>
+                                                <p class="text-gray-800 relative z-10 leading-relaxed">"{{
+                                                    report.comment_content }}"</p>
+                                            </div>
+
+                                            <div class="flex justify-end gap-3 mt-4">
+                                                <button pButton label="ยกเลิกรายงาน" icon="pi pi-times"
+                                                    class="p-button-outlined p-button-secondary p-button-sm"
+                                                    (click)="dismissReport(report.id)">
+                                                </button>
+                                                <button pButton label="ลบความคิดเห็น" icon="pi pi-trash"
+                                                    class="p-button-danger p-button-sm"
+                                                    (click)="deleteReportedComment(report.comment_id)">
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </p-tabPanel>
+        </p-tabView>
     </div>
 </div>
 
-<!-- Dismiss Report Dialog -->
-<p-dialog [(visible)]="showDismissDialog" [modal]="true" [style]="{width: '450px'}" [draggable]="false"
-    [resizable]="false">
-    <ng-template pTemplate="header">
-        <div class="flex items-center gap-3">
-            <i class="pi pi-question-circle text-blue-600 text-2xl"></i>
-            <span class="font-bold text-xl">ยืนยันการยกเลิกรายงาน</span>
+<!-- Dismiss Dialog -->
+<p-dialog [(visible)]="showDismissDialog" [modal]="true" [style]="{width: '400px'}" header="ยกเลิกการรายงาน"
+    [draggable]="false" [resizable]="false" styleClass="custom-dialog">
+    <div class="p-4 text-center">
+        <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <i class="pi pi-info-circle text-2xl"></i>
         </div>
-    </ng-template>
-    <div class="py-4">
-        <p class="text-gray-700 text-lg">คุณต้องการยกเลิกรายงานนี้หรือไม่?</p>
-        <p class="text-gray-500 text-sm mt-2">รายงานจะถูกทำเครื่องหมายว่าตรวจสอบแล้ว</p>
+        <p class="text-gray-700">คุณแน่ใจหรือไม่ที่จะยกเลิกรายงานนี้? ความคิดเห็นจะยังคงแสดงอยู่</p>
     </div>
     <ng-template pTemplate="footer">
-        <button (click)="cancelDismissReport()"
-            class="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg transition-colors font-medium">
-            ยกเลิก
-        </button>
-        <button (click)="confirmDismissReport()"
-            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium">
-            ยืนยัน
-        </button>
+        <div class="flex gap-2 justify-end w-full">
+            <button pButton label="ยกเลิก" class="p-button-text p-button-secondary"
+                (click)="cancelDismissReport()"></button>
+            <button pButton label="ยืนยัน" class="p-button-primary" (click)="confirmDismissReport()"></button>
+        </div>
     </ng-template>
 </p-dialog>
 
-<!-- Delete Comment Dialog -->
-<p-dialog [(visible)]="showDeleteCommentDialog" [modal]="true" [style]="{width: '500px'}" [draggable]="false"
-    [resizable]="false">
-    <ng-template pTemplate="header">
-        <div class="flex items-center gap-3">
-            <i class="pi pi-exclamation-triangle text-red-600 text-2xl"></i>
-            <span class="font-bold text-xl">ยืนยันการลบความคิดเห็น</span>
+<!-- Delete Dialog -->
+<p-dialog [(visible)]="showDeleteCommentDialog" [modal]="true" [style]="{width: '400px'}" header="ลบความคิดเห็น"
+    [draggable]="false" [resizable]="false" styleClass="custom-dialog">
+    <div class="p-4 text-center">
+        <div class="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <i class="pi pi-exclamation-triangle text-2xl"></i>
         </div>
-    </ng-template>
-    <div class="py-4">
-        <p class="text-gray-700 text-lg">คุณต้องการลบความคิดเห็นนี้หรือไม่?</p>
-        <p class="text-gray-500 text-sm mt-2">การดำเนินการนี้ไม่สามารถกู้คืนได้</p>
+        <p class="text-gray-700 font-medium">การดำเนินการนี้ไม่สามารถกู้คืนได้</p>
+        <p class="text-gray-500 text-sm mt-1">ความคิดเห็นจะถูกลบออกจากระบบอย่างถาวร</p>
     </div>
     <ng-template pTemplate="footer">
-        <button (click)="cancelDeleteComment()"
-            class="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg transition-colors font-medium">
-            ยกเลิก
-        </button>
-        <button (click)="confirmDeleteComment()"
-            class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium">
-            ลบความคิดเห็น
-        </button>
+        <div class="flex gap-2 justify-end w-full">
+            <button pButton label="ยกเลิก" class="p-button-text p-button-secondary"
+                (click)="cancelDeleteComment()"></button>
+            <button pButton label="ลบ" class="p-button-danger" (click)="confirmDeleteComment()"></button>
+        </div>
+    </ng-template>
+</p-dialog>
+
+<!-- Result Dialog -->
+<p-dialog [(visible)]="displayResultDialog" [header]="resultDialogTitle" [modal]="true" [style]="{width: '450px'}"
+    [draggable]="false" [resizable]="false" styleClass="custom-dialog">
+    <div *ngIf="resultDialogData" class="flex flex-col">
+        <!-- Success Icon & Message -->
+        <div class="text-center mb-6 pt-4">
+            <div class="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4"
+                style="background-color: #f3e8ff;">
+                <i class="pi pi-check text-4xl text-purple-600" style="color: #7c3aed;"></i>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 mb-1">ดำเนินการเสร็จสิ้น!</h3>
+            <p class="text-gray-500 text-sm">ระบบได้ทำการประมวลผลข้อมูลเรียบร้อยแล้ว</p>
+        </div>
+
+        <!-- Stats Container -->
+        <div class="bg-gray-50 rounded-xl p-5 border border-purple-100 shadow-sm"
+            style="background-color: #f9fafb; border-color: #e9d5ff;">
+            <div class="flex items-center justify-between py-3 border-b border-gray-200 last:border-0"
+                *ngFor="let item of resultDialogData | keyvalue" style="border-bottom: 1px solid #e5e7eb;">
+                <span class="text-gray-600 font-medium">{{ item.key }}</span>
+                <span class="font-bold text-purple-700 text-lg" style="color: #7e22ce;">{{ item.value }}</span>
+            </div>
+        </div>
+    </div>
+    <ng-template pTemplate="footer">
+        <div class="flex justify-center w-full pt-4">
+            <button pButton label="รับทราบ" icon="pi pi-check" (click)="displayResultDialog = false"
+                class="p-button-rounded p-button-primary px-8 py-3 font-bold"
+                style="background: linear-gradient(135deg, #9333ea 0%, #7e22ce 100%) !important; border: none !important; color: white !important;">
+            </button>
+        </div>
     </ng-template>
 </p-dialog>
 

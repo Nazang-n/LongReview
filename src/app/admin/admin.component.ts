@@ -12,6 +12,9 @@ import { GameService } from '../services/game.service';
 import { CommentService, CommentReport } from '../services/comment.service';
 import { AuthService } from '../services/auth.service';
 import { DialogModule } from 'primeng/dialog';
+import { ToastModule } from 'primeng/toast';
+import { MessageService } from 'primeng/api';
+import { TabViewModule } from 'primeng/tabview';
 
 @Component({
     selector: 'app-admin',
@@ -25,8 +28,11 @@ import { DialogModule } from 'primeng/dialog';
         CardModule,
         MessageModule,
         ProgressSpinnerModule,
-        DialogModule
+        DialogModule,
+        ToastModule,
+        TabViewModule
     ],
+    providers: [MessageService],
     templateUrl: './admin.component.html',
     styleUrls: ['./admin.component.css']
 })
@@ -48,19 +54,43 @@ export class AdminComponent implements OnInit {
     // Dialog states
     showDismissDialog = false;
     showDeleteCommentDialog = false;
+    displayResultDialog = false;
+    resultDialogTitle = '';
+    resultDialogData: any = null;
+
     pendingReportId: number | null = null;
     pendingCommentId: number | null = null;
+
+    showResultDialog(title: string, data: any) {
+        this.resultDialogTitle = title;
+        this.resultDialogData = data;
+        this.displayResultDialog = true;
+    }
 
     // Review scheduler
     isUpdatingReviews = false;
     reviewUpdateResult: any = null;
     reviewUpdateError: string | null = null;
 
+    // Sentiment cache
+    isUpdatingSentiment = false;
+    sentimentUpdateResult: any = null;
+    sentimentUpdateError: string | null = null;
+
+    // Review tags
+    isUpdatingReviewTags = false;
+    reviewTagsUpdateResult: any = null;
+    reviewTagsUpdateError: string | null = null;
+
+    // Polling intervals
+    private pollingIntervals: Map<string, any> = new Map();
+
     constructor(
         private newsService: NewsService,
         private gameService: GameService,
         private commentService: CommentService,
-        private authService: AuthService
+        private authService: AuthService,
+        private messageService: MessageService
     ) { }
 
     ngOnInit() {
@@ -74,12 +104,16 @@ export class AdminComponent implements OnInit {
 
         this.newsService.syncNews().subscribe({
             next: (result) => {
-                this.syncResult = result;
                 this.isLoading = false;
+                this.showResultDialog('ซิงค์ข่าวสารสำเร็จ', {
+                    'เพิ่มใหม่': result.added || 0,
+                    'อัปเดต': result.updated || 0,
+                    'ทั้งหมด': result.total_processed || 0
+                });
             },
             error: (err) => {
-                this.error = err.message || 'Failed to sync news';
                 this.isLoading = false;
+                this.messageService.add({ severity: 'error', summary: 'Error', detail: err.message || 'Failed to sync news' });
             }
         });
     }
@@ -91,14 +125,15 @@ export class AdminComponent implements OnInit {
 
         this.gameService.batchTranslateGames().subscribe({
             next: (result: any) => {
-                this.translateResult = result;
                 this.isTranslating = false;
-                console.log('Translation result:', result);
+                this.showResultDialog('การแปลภาษาเสร็จสิ้น', {
+                    'แปลแล้ว': result.translated || 0,
+                    'ล้มเหลว': result.failed || 0
+                });
             },
             error: (err: any) => {
-                this.translateError = err.message || 'Failed to translate games';
                 this.isTranslating = false;
-                console.error('Translation error:', err);
+                this.messageService.add({ severity: 'error', summary: 'Error', detail: err.message || 'Failed to translate games' });
             }
         });
     }
@@ -187,15 +222,131 @@ export class AdminComponent implements OnInit {
         this.reviewUpdateResult = null;
         this.reviewUpdateError = null;
 
+        this.messageService.add({
+            severity: 'info',
+            summary: 'Thai Review Update Started',
+            detail: 'Fetching Thai reviews in background. You will be notified when complete.',
+            life: 3000
+        });
+
         this.gameService.triggerReviewUpdate().subscribe({
             next: (result) => {
                 this.reviewUpdateResult = result;
                 this.isUpdatingReviews = false;
+
+                // Build detailed message from stats
+                const stats = result.stats || {};
+                const detailMessage = `✓ Games: ${stats.games_processed || 0} processed\n✓ Successful: ${stats.successful || 0}\n✗ Failed: ${stats.failed || 0}\n📝 New reviews: ${stats.total_new_reviews || 0}`;
+
+                // Show success toast with statistics
+                this.messageService.add({
+                    severity: 'success',
+                    summary: 'Thai Reviews Updated!',
+                    detail: detailMessage,
+                    life: 8000  // Longer duration for detailed info
+                });
             },
             error: (err) => {
                 this.reviewUpdateError = err.message || 'Failed to trigger review update';
                 this.isUpdatingReviews = false;
+
+                // Show error toast
+                this.messageService.add({
+                    severity: 'error',
+                    summary: 'Update Failed',
+                    detail: this.reviewUpdateError || undefined,
+                    life: 5000
+                });
+            }
+        });
+    }
+
+    triggerSentimentUpdate() {
+        this.isUpdatingSentiment = true;
+        this.sentimentUpdateResult = null;
+        this.sentimentUpdateError = null;
+
+        this.messageService.add({
+            severity: 'info',
+            summary: 'Sentiment Update Started',
+            detail: 'Updating game sentiments in background. You will be notified when complete.',
+            life: 3000
+        });
+
+        this.gameService.triggerSentimentUpdate().subscribe({
+            next: (result: any) => {
+                this.sentimentUpdateResult = result;
+                this.isUpdatingSentiment = false;
+
+                // Build detailed message from stats
+                const stats = result.stats || {};
+                const detailMessage = `✓ Games processed: ${stats.games_processed || 0}\n✓ Updated: ${stats.updated || 0}\n✗ Errors: ${stats.errors || 0}`;
+
+                // Show success toast with statistics
+                this.messageService.add({
+                    severity: 'success',
+                    summary: 'Sentiments Updated!',
+                    detail: detailMessage,
+                    life: 8000
+                });
+            },
+            error: (err: any) => {
+                this.sentimentUpdateError = err.message || 'Failed to trigger sentiment update';
+                this.isUpdatingSentiment = false;
+
+                // Show error toast
+                this.messageService.add({
+                    severity: 'error',
+                    summary: 'Update Failed',
+                    detail: this.sentimentUpdateError || undefined,
+                    life: 5000
+                });
+            }
+        });
+    }
+
+    triggerReviewTagsUpdate() {
+        this.isUpdatingReviewTags = true;
+        this.reviewTagsUpdateResult = null;
+        this.reviewTagsUpdateError = null;
+
+        this.messageService.add({
+            severity: 'info',
+            summary: 'Review Tags Update Started',
+            detail: 'Generating review tags in background. You will be notified when complete.',
+            life: 3000
+        });
+
+        this.gameService.triggerReviewTagsUpdate().subscribe({
+            next: (result: any) => {
+                this.reviewTagsUpdateResult = result;
+                this.isUpdatingReviewTags = false;
+
+                // Build detailed message from stats
+                const stats = result.stats || {};
+                const detailMessage = `✓ Games checked: ${stats.games_checked || 0}\n✓ Updated: ${stats.updated || 0}\n⊘ Skipped: ${stats.skipped || 0}\n✗ Errors: ${stats.errors || 0}`;
+
+                // Show success toast with statistics
+                this.messageService.add({
+                    severity: 'success',
+                    summary: 'Review Tags Updated!',
+                    detail: detailMessage,
+                    life: 8000
+                });
+            },
+            error: (err: any) => {
+                this.reviewTagsUpdateError = err.message || 'Failed to trigger review tags update';
+                this.isUpdatingReviewTags = false;
+
+                // Show error toast
+                this.messageService.add({
+                    severity: 'error',
+                    summary: 'Update Failed',
+                    detail: this.reviewTagsUpdateError || undefined,
+                    life: 5000
+                });
             }
         });
     }
 }
+

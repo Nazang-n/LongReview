@@ -92,7 +92,7 @@
                 <div class="relative">
                     <i class="pi pi-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg"></i>
                     <input type="text" [ngModel]="searchQuery" (ngModelChange)="onSearchChange($event)"
-                        placeholder="ค้นหาเกม... (เช่น Grand Theft Auto)"
+                        placeholder="ค้นหาเกม"
                         class="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-700 placeholder-gray-400" />
                 </div>
             </div>
@@ -144,22 +144,22 @@
 
                         <!-- Review Badge (Top Right) -->
                         <div class="absolute top-3 right-3">
-                            <!-- Positive Reviews -->
+                            <!-- Positive Reviews (Green thumbs up) -->
                             <div *ngIf="game.reviewType === 'positive'"
                                 class="bg-green-500 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-lg">
                                 <i class="pi pi-thumbs-up text-base"></i>
                             </div>
 
-                            <!-- Negative Reviews -->
-                            <div *ngIf="game.reviewType === 'negative'"
-                                class="bg-red-500 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-lg">
-                                <i class="pi pi-thumbs-down text-base"></i>
-                            </div>
-
-                            <!-- Mixed Reviews -->
+                            <!-- Mixed Reviews (Yellow spin icon) -->
                             <div *ngIf="game.reviewType === 'mixed'"
                                 class="bg-yellow-500 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-lg">
                                 <i class="pi pi-sync text-base"></i>
+                            </div>
+
+                            <!-- Negative Reviews (Red thumbs down) -->
+                            <div *ngIf="game.reviewType === 'negative'"
+                                class="bg-red-500 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-lg">
+                                <i class="pi pi-thumbs-down text-base"></i>
                             </div>
                         </div>
 
@@ -185,7 +185,7 @@
                             <!-- Genre and Review Tags -->
                             <div class="flex flex-wrap gap-1.5">
                                 <!-- Genre Tags (Purple) -->
-                                <span *ngFor="let genre of game.genres | slice:0:2"
+                                <span *ngFor="let genre of game.genresTh | slice:0:2"
                                     class="bg-purple-500/90 text-white text-xs px-2 py-1 rounded font-medium backdrop-blur-sm">
                                     {{ genre }}
                                 </span>

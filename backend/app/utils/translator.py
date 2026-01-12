@@ -72,6 +72,38 @@ class AITranslator:
             return None
         
         try:
+            # Chunking logic for long texts
+            if len(text) > 4900:
+                print(f"Text too long ({len(text)} chars). Chunking for Google Translate...")
+                chunks = []
+                current_chunk = ""
+                # Simple split by paragraphs to preserve context
+                paragraphs = text.split('\n')
+                for para in paragraphs:
+                    if len(current_chunk) + len(para) < 4500:
+                        current_chunk += para + "\n"
+                    else:
+                        chunks.append(current_chunk)
+                        current_chunk = para + "\n"
+                if current_chunk:
+                    chunks.append(current_chunk)
+                
+                translated_chunks = []
+                for chunk in chunks:
+                    if not chunk.strip():
+                        translated_chunks.append("")
+                        continue
+                        
+                    res = self.google_translator.translate(chunk)
+                    if res:
+                        translated_chunks.append(res)
+                    else:
+                        translated_chunks.append(chunk) # Fallback to original
+                
+                full_translation = "\n".join(translated_chunks)
+                print("Translation successful (chunked)")
+                return full_translation
+
             print("Using Google Translate fallback...")
             result = self.google_translator.translate(text)
             if result:

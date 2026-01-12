@@ -17,14 +17,18 @@ interface Game {
     description: string;
     releaseDate: string;
     genres: string[];
+    genresTh: string[];
     reviewTags: string[];
     image: string;
     reviewType?: 'positive' | 'negative' | 'mixed';
+    sentimentPercent?: number;
+    reviewScoreDesc?: string;
     isNew?: boolean;
     appId?: string;
     isFavorite?: boolean;
     platform?: string;
     price?: number;
+    playerModes?: string[];
 }
 
 @Component({
@@ -134,18 +138,21 @@ export class GameListComponent implements OnInit {
                 if (gamesFromDb && gamesFromDb.length > 0) {
                     this.allGames = gamesFromDb.map((game: any) => {
                         const genres = game.genre ? game.genre.split(',').map((g: string) => g.trim()) : [];
+                        const genresTh = game.genre_th ? game.genre_th.split(',').map((g: string) => g.trim()) : genres;
                         return {
                             id: game.id,
                             title: game.title || 'Unknown Game',
                             description: game.description || game.developer || 'No description available',
                             releaseDate: game.release_date || 'Unknown',
                             genres: genres,
+                            genresTh: genresTh,
                             reviewTags: [],
                             image: game.image_url || `https://via.placeholder.com/460x215?text=${encodeURIComponent(game.title)}`,
                             reviewType: undefined,
                             isNew: false,
                             platform: game.platform,
-                            price: game.price
+                            price: game.price,
+                            playerModes: game.player_modes || []
                         };
                     });
 
@@ -154,6 +161,7 @@ export class GameListComponent implements OnInit {
 
                     // Initial filter (if any tags selected)
                     this.filterGames();
+                    this.updateTagCounts(); // Calculate initial static counts
 
                     this.isLoading = false;
                     this.updateFavoriteStatus();
@@ -184,7 +192,8 @@ export class GameListComponent implements OnInit {
                 reviewTags: [],
                 image: 'https://cdn.cloudflare.steamstatic.com/steam/apps/1172470/header.jpg',
                 reviewType: 'positive',
-                isNew: false
+                isNew: false,
+                genresTh: ['แบทเทิลรอยัล', 'FPS']
             }
         ];
         this.filterGames();
@@ -235,11 +244,30 @@ export class GameListComponent implements OnInit {
             next: (sentiments) => {
                 this.paginatedGames.forEach(game => {
                     const sentiment = sentiments[game.id];
-                    if (sentiment) {
-                        const diff = Math.abs(sentiment.positive_percent - sentiment.negative_percent);
-                        if (diff <= 10) game.reviewType = 'mixed';
-                        else if (sentiment.positive_percent > sentiment.negative_percent) game.reviewType = 'positive';
-                        else game.reviewType = 'negative';
+                    if (sentiment && sentiment.review_score_desc) {
+                        const desc = sentiment.review_score_desc.toLowerCase();
+
+                        // Store percentage and description for display
+                        (game as any).sentimentPercent = sentiment.positive_percent;
+                        (game as any).reviewScoreDesc = sentiment.review_score_desc;
+
+                        // Positive reviews (Green thumbs up)
+                        if (desc.includes('positive')) {
+                            game.reviewType = 'positive';
+                        }
+                        // Mixed reviews (Yellow spin icon)
+                        else if (desc.includes('mixed')) {
+                            game.reviewType = 'mixed';
+                        }
+                        // Negative reviews (Red thumbs down)
+                        else if (desc.includes('negative')) {
+                            game.reviewType = 'negative';
+                            (game as any).sentimentPercent = sentiment.negative_percent;
+                        }
+                        // No reviews or unknown
+                        else {
+                            game.reviewType = undefined;
+                        }
                     }
                 });
             }
@@ -283,74 +311,200 @@ export class GameListComponent implements OnInit {
             }
         }
 
-        // 4. Player Mode Filter (Placeholder - requires backend update to map to game object)
-        // Currently not available in 'allGames' data.
+        // 4. Player Mode Filter (AND Logic)
+        if (this.selectedPlayerModeIds.length > 0) {
+            const selectedModeNames = this.playerModes
+                .filter(p => this.selectedPlayerModeIds.includes(p.id))
+                .map(p => p.name);
+
+            if (selectedModeNames.length > 0) {
+                filtered = filtered.filter(game =>
+                    selectedModeNames.every(name => (game.playerModes || []).includes(name))
+                );
+            }
+        }
 
         this.games = filtered;
-        this.updateTagCounts(); // Update counts based on current filters
+        this.updateTagCounts(); // Update counts dynamically based on current filters
         this.currentPage = 1;
         this.getPaginatedGames();
     }
 
     updateTagCounts() {
-        // 1. Base Search Filter
-        let searchFiltered = this.allGames;
+        // Calculate dynamic counts based on current filter selection
+        // For each filter option, show how many games would be visible if that option is selected
+
+        // Update Genre counts
+        this.genres.forEach(genre => {
+            genre.game_count = this.getFilteredCountForGenre(genre.id, genre.name);
+        });
+
+        // Update Platform counts
+        this.platforms.forEach(platform => {
+            platform.game_count = this.getFilteredCountForPlatform(platform.id, platform.name);
+        });
+
+        // Update Player Mode counts
+        this.playerModes.forEach(mode => {
+            mode.game_count = this.getFilteredCountForPlayerMode(mode.id, mode.name);
+        });
+    }
+
+    // Helper method: Calculate count for a genre filter option
+    private getFilteredCountForGenre(genreId: number, genreName: string): number {
+        // Start with all games
+        let filtered = this.allGames;
+
+        // Apply search filter
         if (this.searchQuery.trim()) {
             const query = this.searchQuery.toLowerCase();
-            searchFiltered = searchFiltered.filter(game => game.title.toLowerCase().includes(query));
+            filtered = filtered.filter(game => game.title.toLowerCase().includes(query));
         }
 
-        // 2. Prepare Sets for Counting
+        // Apply genre filter (including this genre)
+        const genreIds = [...this.selectedGenreIds];
+        if (!genreIds.includes(genreId)) {
+            genreIds.push(genreId);
+        }
 
-        // For Genre Counts: Filter by Platform ONLY (ignore current genre selection to show potential count)
-        // Actually, users usually expect "Refined Count" (Intersection).
-        // But for AND logic filter (Genre), showing "0" for unselected means "If you click this, you get 0 result".
-        // This is correct. So we applied platform filter.
-        let gamesForGenres = searchFiltered;
+        if (genreIds.length > 0) {
+            const selectedGenreNames = this.genres
+                .filter(g => genreIds.includes(g.id))
+                .map(g => g.name);
 
+            filtered = filtered.filter(game =>
+                selectedGenreNames.every(name => game.genres.includes(name))
+            );
+        }
+
+        // Apply platform filter
         if (this.selectedPlatformIds.length > 0) {
             const selectedPlatformNames = this.platforms
                 .filter(p => this.selectedPlatformIds.includes(p.id))
                 .map(p => p.name.toLowerCase());
 
-            if (selectedPlatformNames.length > 0) {
-                gamesForGenres = gamesForGenres.filter(game => {
-                    const gamePlatform = (game.platform || '').toLowerCase();
-                    return selectedPlatformNames.some(p => gamePlatform.includes(p));
-                });
-            }
+            filtered = filtered.filter(game => {
+                const gamePlatform = (game.platform || '').toLowerCase();
+                return selectedPlatformNames.some(p => gamePlatform.includes(p));
+            });
         }
 
-        // For Platform Counts: Filter by Genre ONLY (ignore current platform selection)
-        // Because Platform is OR logic, we usually want to show "How many games match this platform" 
-        // within the current Genre/Search scope.
-        let gamesForPlatforms = searchFiltered;
+        // Apply player mode filter
+        if (this.selectedPlayerModeIds.length > 0) {
+            const selectedModeNames = this.playerModes
+                .filter(p => this.selectedPlayerModeIds.includes(p.id))
+                .map(p => p.name);
+
+            filtered = filtered.filter(game =>
+                selectedModeNames.every(name => (game.playerModes || []).includes(name))
+            );
+        }
+
+        return filtered.length;
+    }
+
+    // Helper method: Calculate count for a platform filter option
+    private getFilteredCountForPlatform(platformId: number, platformName: string): number {
+        let filtered = this.allGames;
+
+        // Apply search filter
+        if (this.searchQuery.trim()) {
+            const query = this.searchQuery.toLowerCase();
+            filtered = filtered.filter(game => game.title.toLowerCase().includes(query));
+        }
+
+        // Apply genre filter
         if (this.selectedGenreIds.length > 0) {
             const selectedGenreNames = this.genres
                 .filter(g => this.selectedGenreIds.includes(g.id))
                 .map(g => g.name);
 
-            if (selectedGenreNames.length > 0) {
-                gamesForPlatforms = gamesForPlatforms.filter(game =>
-                    selectedGenreNames.every(name => game.genres.includes(name))
-                );
-            }
+            filtered = filtered.filter(game =>
+                selectedGenreNames.every(name => game.genres.includes(name))
+            );
         }
 
-        // 3. Update Counts
+        // Apply platform filter (including this platform)
+        const platformIds = [...this.selectedPlatformIds];
+        if (!platformIds.includes(platformId)) {
+            platformIds.push(platformId);
+        }
 
-        // Update Genres
-        this.genres.forEach(genre => {
-            // Count how many games in the filtered set have this genre
-            genre.game_count = gamesForGenres.filter(g => g.genres.includes(genre.name)).length;
-        });
+        if (platformIds.length > 0) {
+            const selectedPlatformNames = this.platforms
+                .filter(p => platformIds.includes(p.id))
+                .map(p => p.name.toLowerCase());
 
-        // Update Platforms
-        this.platforms.forEach(platform => {
-            const pName = platform.name.toLowerCase();
-            // Match logic must match filter logic (substring check)
-            platform.game_count = gamesForPlatforms.filter(g => (g.platform || '').toLowerCase().includes(pName)).length;
-        });
+            filtered = filtered.filter(game => {
+                const gamePlatform = (game.platform || '').toLowerCase();
+                return selectedPlatformNames.some(p => gamePlatform.includes(p));
+            });
+        }
+
+        // Apply player mode filter
+        if (this.selectedPlayerModeIds.length > 0) {
+            const selectedModeNames = this.playerModes
+                .filter(p => this.selectedPlayerModeIds.includes(p.id))
+                .map(p => p.name);
+
+            filtered = filtered.filter(game =>
+                selectedModeNames.every(name => (game.playerModes || []).includes(name))
+            );
+        }
+
+        return filtered.length;
+    }
+
+    // Helper method: Calculate count for a player mode filter option
+    private getFilteredCountForPlayerMode(modeId: number, modeName: string): number {
+        let filtered = this.allGames;
+
+        // Apply search filter
+        if (this.searchQuery.trim()) {
+            const query = this.searchQuery.toLowerCase();
+            filtered = filtered.filter(game => game.title.toLowerCase().includes(query));
+        }
+
+        // Apply genre filter
+        if (this.selectedGenreIds.length > 0) {
+            const selectedGenreNames = this.genres
+                .filter(g => this.selectedGenreIds.includes(g.id))
+                .map(g => g.name);
+
+            filtered = filtered.filter(game =>
+                selectedGenreNames.every(name => game.genres.includes(name))
+            );
+        }
+
+        // Apply platform filter
+        if (this.selectedPlatformIds.length > 0) {
+            const selectedPlatformNames = this.platforms
+                .filter(p => this.selectedPlatformIds.includes(p.id))
+                .map(p => p.name.toLowerCase());
+
+            filtered = filtered.filter(game => {
+                const gamePlatform = (game.platform || '').toLowerCase();
+                return selectedPlatformNames.some(p => gamePlatform.includes(p));
+            });
+        }
+
+        // Apply player mode filter (including this mode)
+        const modeIds = [...this.selectedPlayerModeIds];
+        if (!modeIds.includes(modeId)) {
+            modeIds.push(modeId);
+        }
+
+        if (modeIds.length > 0) {
+            const selectedModeNames = this.playerModes
+                .filter(p => modeIds.includes(p.id))
+                .map(p => p.name);
+
+            filtered = filtered.filter(game =>
+                selectedModeNames.every(name => (game.playerModes || []).includes(name))
+            );
+        }
+
+        return filtered.length;
     }
 
     // Explicit binding trigger
@@ -361,21 +515,16 @@ export class GameListComponent implements OnInit {
     }
 
     sortByReleaseDate() {
-        this.games.sort((a, b) => {
-            // Handle 'Unknown' or bad dates
+        // Sort logic for Release Date
+        const sortFn = (a: Game, b: Game) => {
             if (a.releaseDate === 'Unknown') return 1;
             if (b.releaseDate === 'Unknown') return -1;
             return new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime();
-        });
-        // Note: this.games is overwritten in filterGames.
-        // Sort should happen strictly on filterGames?
-        // Or allGames should be sorted.
-        this.allGames.sort((a, b) => {
-            if (a.releaseDate === 'Unknown') return 1;
-            if (b.releaseDate === 'Unknown') return -1;
-            return new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime();
-        });
-        this.filterGames();
+        };
+
+        // Sort BOTH allGames (base) and games (filtered)
+        this.allGames.sort(sortFn);
+        this.games.sort(sortFn);
     }
 
     getPaginatedGames() {

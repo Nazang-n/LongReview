@@ -4,11 +4,12 @@ import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { HeaderComponent } from '../../shared/header.component';
 import { FooterComponent } from '../../shared/footer.component';
 import { NewsService, NewsItem } from '../../services/news.service';
+import { DialogModule } from 'primeng/dialog';
 
 @Component({
     selector: 'app-news-detail',
     standalone: true,
-    imports: [CommonModule, RouterModule, HeaderComponent, FooterComponent],
+    imports: [CommonModule, RouterModule, HeaderComponent, FooterComponent, DialogModule],
     templateUrl: './news-detail.component.html',
     styleUrls: ['./news-detail.component.css']
 })
@@ -18,6 +19,7 @@ export class NewsDetailComponent implements OnInit {
     relatedNews: NewsItem[] = [];
     isLoading: boolean = true;
     error: string | null = null;
+    showCopySuccessDialog: boolean = false;
 
     constructor(
         private route: ActivatedRoute,
@@ -87,7 +89,7 @@ export class NewsDetailComponent implements OnInit {
     copyLink() {
         if (this.newsItem?.link) {
             navigator.clipboard.writeText(this.newsItem.link).then(() => {
-                alert('ลิงก์ถูกคัดลอกแล้ว!');
+                this.showCopySuccessDialog = true;
             });
         }
     }

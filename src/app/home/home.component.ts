@@ -3,9 +3,13 @@ import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { HeaderComponent } from '../shared/header.component';
 import { FooterComponent } from '../shared/footer.component';
+import { GameService } from '../services/game.service';
+import { TagService } from '../services/tag.service';
 
 // Import PrimeNG modules
 import { ButtonModule } from 'primeng/button';
+import { SkeletonModule } from 'primeng/skeleton';
+import { CarouselModule } from 'primeng/carousel';
 
 // Interface สำหรับข้อมูลเกม
 interface Game {
@@ -18,8 +22,11 @@ interface Game {
   image: string;
   rating: number;
   tags: string[];
-  reviewType: 'positive' | 'negative' | 'mixed';
+  reviewType: 'positive' | 'negative' | 'mixed' | undefined;
   isNew?: boolean;
+  genresTh?: string[];
+  sentimentPercent?: number;
+  reviewScoreDesc?: string;
 }
 
 @Component({
@@ -29,7 +36,9 @@ interface Game {
     RouterLink,
     HeaderComponent,
     FooterComponent,
-    ButtonModule
+    ButtonModule,
+    SkeletonModule,
+    CarouselModule
   ],
   templateUrl: './home.component.html',
   styleUrls: ['./home.component.css']
@@ -38,146 +47,121 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   currentSlide = 0;
   autoSlideInterval: any;
+  isLoading = true;
 
-  newArrivals: Game[] = [
-    {
-      id: 1,
-      title: 'Naraka: Bladepoint',
-      image: 'https://cdn.akamai.steamstatic.com/steam/apps/1203220/header.jpg',
-      rating: 4.5,
-      tags: ['Action', 'Battle Royale'],
-      description: '',
-      releaseDate: '',
-      genres: [],
-      reviewTags: [],
-      reviewType: 'positive'
-    },
-    {
-      id: 2,
-      title: 'Elden Ring',
-      image: 'https://cdn.akamai.steamstatic.com/steam/apps/1245620/header.jpg',
-      rating: 5.0,
-      tags: ['RPG', 'Open World'],
-      description: '',
-      releaseDate: '',
-      genres: [],
-      reviewTags: [],
-      reviewType: 'positive'
-    },
-    {
-      id: 3,
-      title: 'Black Myth: Wukong',
-      image: 'https://cdn.akamai.steamstatic.com/steam/apps/2358720/header.jpg',
-      rating: 4.8,
-      tags: ['Action', 'Adventure'],
-      description: '',
-      releaseDate: '',
-      genres: [],
-      reviewTags: [],
-      reviewType: 'positive'
-    },
-    {
-      id: 4,
-      title: 'Call of Duty: Black Ops 6',
-      image: 'https://cdn.akamai.steamstatic.com/steam/apps/2933620/header.jpg',
-      rating: 4.2,
-      tags: ['FPS', 'Action'],
-      description: '',
-      releaseDate: '',
-      genres: [],
-      reviewTags: [],
-      reviewType: 'positive'
-    },
-  ];
-
-  // --- Data ส่วนคะแนนรีวิวสูง ---
-  highRatedGames: Game[] = [
-    {
-      id: 101,
-      title: 'Apex Legends',
-      description: 'เกมที่ผสมผสาน Battle Royale ที่มีตัวละครที่แตกต่างกันความสามารถของแต่ละตัวละครที่',
-      releaseDate: '4 ตุลาคม 2562',
-      genres: ['Battle Royale', 'FPS'],
-      reviewTags: ['ยิงปืน', 'เกมไว'],
-      image: 'https://cdn.cloudflare.steamstatic.com/steam/apps/1172470/header.jpg',
-      rating: 4.5,
-      tags: ['ยิงปืน', 'เกมไว'],
-      reviewType: 'positive',
-      isNew: false
-    },
-    {
-      id: 102,
-      title: 'Elden Ring',
-      description: 'เกม Action RPG โอเพ่นเวิลด์จากทีมสร้าง Dark Souls ร่วมกับ George R.R. Martin',
-      releaseDate: '25 กุมภาพันธ์ 2565',
-      genres: ['Action RPG', 'โอเพ่นเวิลด์'],
-      reviewTags: ['ยาก', 'ท้าทาย'],
-      image: 'https://image.api.playstation.com/vulcan/ap/rnd/202110/2000/aGhopp3MHppi7kooGE2Dtt8C.png',
-      rating: 5.0,
-      tags: ['RPG', 'Open World'],
-      reviewType: 'positive',
-      isNew: false
-    },
-    {
-      id: 103,
-      title: 'God of War Ragnarök',
-      description: 'ภาคต่อของ God of War 2018 ที่ชวนให้ไปสำรวจนอร์ดิก',
-      releaseDate: '9 พฤศจิกายน 2565',
-      genres: ['Action', 'ผจญภัย'],
-      reviewTags: ['เนื้อเรื่องดี', 'กราฟิกสวย'],
-      image: 'https://image.api.playstation.com/vulcan/ap/rnd/202207/1210/4xJ8XB3bi888QTLZYdl7Oi0s.png',
-      rating: 4.9,
-      tags: ['Action', 'Story Rich'],
-      reviewType: 'positive',
-      isNew: false
-    },
-    {
-      id: 104,
-      title: 'Baldur\'s Gate 3',
-      description: 'เกม RPG แนว D&D ที่ให้เสรีภาพในการเล่นสูงมาก',
-      releaseDate: '3 สิงหาคม 2566',
-      genres: ['RPG', 'กลยุทธ์'],
-      reviewTags: ['เนื้อหาเยอะ', 'เล่นซ้ำได้'],
-      image: 'https://cdn.cloudflare.steamstatic.com/steam/apps/1086940/header.jpg',
-      rating: 4.8,
-      tags: ['RPG', 'Strategy'],
-      reviewType: 'positive',
-      isNew: true
-    },
-    {
-      id: 105,
-      title: 'Red Dead Redemption 2',
-      description: 'เกมคาวบอยโอเพ่นเวิลด์ที่มีรายละเอียดสูงมาก',
-      releaseDate: '26 ตุลาคม 2561',
-      genres: ['Action', 'โอเพ่นเวิลด์'],
-      reviewTags: ['เนื้อเรื่องดี', 'โลกกว้าง'],
-      image: 'https://cdn.cloudflare.steamstatic.com/steam/apps/1174180/header.jpg',
-      rating: 4.8,
-      tags: ['Action', 'Open World'],
-      reviewType: 'positive',
-      isNew: false
-    },
-    {
-      id: 106,
-      title: 'Spider-Man 2',
-      description: 'ภาคต่อของ Spider-Man ที่ให้คุณเล่นได้ทั้ง Peter Parker และ Miles Morales',
-      releaseDate: '20 ตุลาคม 2566',
-      genres: ['Action', 'ผจญภัย'],
-      reviewTags: ['สนุก', 'กราฟิกสวย'],
-      image: 'https://image.api.playstation.com/vulcan/ap/rnd/202306/1219/1c7b75d8ed9271516546560d219ad0b22ee0a263b4537bd8.png',
-      rating: 4.7,
-      tags: ['Action', 'Adventure'],
-      reviewType: 'positive',
-      isNew: true
-    }
-  ];
+  newArrivals: Game[] = []; // Top 10 New
+  popularGames: Game[] = []; // Top 10 Popular
+  positiveGames: Game[] = []; // Positive Reviews (Placeholder for now, using popular)
 
   @ViewChild('cardList') cardList!: ElementRef;
+  @ViewChild('cardList2') cardList2!: ElementRef;
+  @ViewChild('categoryGameList') categoryGameList!: ElementRef;
 
-  constructor(@Inject(PLATFORM_ID) private platformId: Object) { }
+  constructor(
+    @Inject(PLATFORM_ID) private platformId: Object,
+    private gameService: GameService,
+    private tagService: TagService
+  ) { }
 
   ngOnInit() {
     this.startAutoSlide();
+    this.loadData();
+    this.loadCategories();
+  }
+
+  loadData() {
+    this.isLoading = true;
+
+    // 1. Get New Arrivals (Top 10 Newest)
+    this.gameService.getGames(0, 10, [], 'newest').subscribe({
+      next: (games: any[]) => {
+        this.newArrivals = this.mapGames(games);
+        // Mark isNew = true for slider logic if needed
+        this.newArrivals.forEach(g => g.isNew = true);
+        this.loadGameSentiments(this.newArrivals);
+      },
+      error: (err) => console.error('Error loading new arrivals', err)
+    });
+
+    // 2. Get Popular Games (Top 10 Popular) - Sort by Total Reviews
+    this.gameService.getGames(0, 10, [], 'popular').subscribe({
+      next: (games: any[]) => {
+        this.popularGames = this.mapGames(games);
+        this.isLoading = false;
+        this.loadGameSentiments(this.popularGames);
+      },
+      error: (err) => console.error('Error loading popular games', err)
+    });
+
+    // 3. Get Positive Games (Top Rated) - Sort by Rating (Positive %)
+    this.gameService.getGames(0, 10, [], 'rating').subscribe({
+      next: (games: any[]) => {
+        this.positiveGames = this.mapGames(games);
+        this.loadGameSentiments(this.positiveGames);
+      },
+      error: (err) => console.error('Error loading positive games', err)
+    });
+  }
+
+  loadGameSentiments(games: Game[]) {
+    const gameIds = games.map(g => g.id);
+    if (gameIds.length === 0) return;
+
+    this.gameService.getBatchSentiment(gameIds).subscribe({
+      next: (sentiments) => {
+        games.forEach(game => {
+          const sentiment = sentiments[game.id];
+          if (sentiment && sentiment.review_score_desc) {
+            const desc = sentiment.review_score_desc.toLowerCase();
+
+            // Store percentage and description for display
+            game.sentimentPercent = sentiment.positive_percent;
+            game.reviewScoreDesc = sentiment.review_score_desc;
+
+            // Positive reviews
+            if (desc.includes('positive') || desc.includes('very positive') || desc.includes('overwhelmingly positive')) {
+              game.reviewType = 'positive';
+            }
+            // Mixed reviews
+            else if (desc.includes('mixed')) {
+              game.reviewType = 'mixed';
+            }
+            // Negative reviews
+            else if (desc.includes('negative')) {
+              game.reviewType = 'negative';
+              game.sentimentPercent = sentiment.negative_percent;
+            }
+            // No reviews or unknown
+            else {
+              game.reviewType = undefined;
+            }
+          }
+        });
+      }
+    });
+  }
+
+  mapGames(backendGames: any[]): Game[] {
+    return backendGames.map(game => {
+      // Parse fields using existing logic
+      const genres = game.genre ? game.genre.split(',').map((g: string) => g.trim()) : [];
+      const genresTh = game.genre_th ? game.genre_th.split(',').map((g: string) => g.trim()) : genres;
+
+      return {
+        id: game.id,
+        title: game.title,
+        description: game.about_game_th || game.description || 'No description',
+        releaseDate: game.release_date || '',
+        genres: genres,
+        genresTh: genresTh,
+        reviewTags: [],
+        image: game.image_url || 'https://via.placeholder.com/460x215',
+        rating: game.rating,
+        tags: [],
+        reviewType: undefined, // Will be updated by loadGameSentiments
+        isNew: false
+      };
+    });
   }
 
   ngOnDestroy() {
@@ -199,14 +183,16 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   // --- Logic สำหรับ Hero Slider ---
-  prevSlide() {
-    this.stopAutoSlide(); // Reset timer if manually clicked
-    this.currentSlide = (this.currentSlide === 0) ? this.newArrivals.length - 1 : this.currentSlide - 1;
-    this.startAutoSlide(); // Restart timer
+  nextSlide() {
+    if (this.popularGames.length > 0) {
+      this.currentSlide = (this.currentSlide + 1) % this.popularGames.length;
+    }
   }
 
-  nextSlide() {
-    this.currentSlide = (this.currentSlide === this.newArrivals.length - 1) ? 0 : this.currentSlide + 1;
+  prevSlide() {
+    if (this.popularGames.length > 0) {
+      this.currentSlide = (this.currentSlide - 1 + this.popularGames.length) % this.popularGames.length;
+    }
   }
 
   // Method for manual next button click (resets timer)
@@ -216,8 +202,102 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.startAutoSlide();
   }
 
+  // --- Logic สำหรับ Top 10 Categories ---
+  categories: any[] = [];
+  selectedCategory: number | null = null;
+  categoryGames: Game[] = [];
+  isLoadingCategories = true;
+  isLoadingCategoryGames = false;
+
+  categoryResponsiveOptions = [
+    {
+      breakpoint: '1024px',
+      numVisible: 5,
+      numScroll: 3
+    },
+    {
+      breakpoint: '768px',
+      numVisible: 3,
+      numScroll: 2
+    },
+    {
+      breakpoint: '560px',
+      numVisible: 2,
+      numScroll: 1
+    }
+  ];
+
+  loadCategories() {
+    this.isLoadingCategories = true;
+    this.tagService.getTagStats().subscribe({
+      next: (res) => {
+        if (res.success && res.stats.genres) {
+          // Filter out unwanted genres (same as Game List)
+          const filteredGenres = res.stats.genres.filter(
+            (genre: any) => genre.name !== 'Massively Multiplayer' && genre.name !== 'Early Access'
+          );
+
+          // Sort by game count
+          this.categories = filteredGenres.sort((a: any, b: any) => b.game_count - a.game_count);
+
+          // Select first category by default if available
+          if (this.categories.length > 0) {
+            this.selectCategory(this.categories[0].id);
+          }
+        }
+        this.isLoadingCategories = false;
+      },
+      error: (err) => {
+        console.error('Error loading categories', err);
+        this.isLoadingCategories = false;
+      }
+    });
+  }
+
+  selectCategory(categoryId: number) {
+    this.selectedCategory = categoryId;
+    this.loadCategoryGames();
+  }
+
+  loadCategoryGames() {
+    if (!this.selectedCategory) return;
+
+    this.isLoadingCategoryGames = true;
+    this.categoryGames = []; // Clear current list
+
+    // Fetch top 10 games for this category, sorted by popularity (Total Reviews)
+    this.gameService.getGames(0, 10, [this.selectedCategory], 'popular').subscribe({
+      next: (games: any[]) => {
+        this.categoryGames = this.mapGames(games);
+        this.isLoadingCategoryGames = false;
+        this.loadGameSentiments(this.categoryGames);
+
+        // Reset scroll position after view updates
+        setTimeout(() => {
+          if (this.categoryGameList) {
+            this.categoryGameList.nativeElement.scrollLeft = 0;
+          }
+        }, 0);
+      },
+      error: (err) => {
+        console.error('Error loading category games', err);
+        this.isLoadingCategoryGames = false;
+      }
+    });
+  }
+
   // --- Logic สำหรับ High Rated Scroll ---
   scrollList(offset: number) {
     this.cardList.nativeElement.scrollBy({ left: offset, behavior: 'smooth' });
+  }
+
+  scrollList2(offset: number) {
+    this.cardList2.nativeElement.scrollBy({ left: offset, behavior: 'smooth' });
+  }
+
+  scrollCategoryGames(offset: number) {
+    if (this.categoryGameList) {
+      this.categoryGameList.nativeElement.scrollBy({ left: offset, behavior: 'smooth' });
+    }
   }
 }

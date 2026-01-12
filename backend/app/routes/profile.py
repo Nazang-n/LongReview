@@ -162,6 +162,30 @@ def update_avatar(
     }
 
 
+@router.delete("/{user_id}/avatar")
+def delete_avatar(
+    user_id: int,
+    db: Session = Depends(get_db)
+):
+    """Delete user avatar"""
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    user.avatar_url = None
+    db.commit()
+    
+    return {
+        "success": True,
+        "message": "Avatar deleted successfully"
+    }
+
+
+
 @router.put("/{user_id}/password")
 def change_password(
     user_id: int,

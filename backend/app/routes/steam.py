@@ -103,6 +103,13 @@ def import_game_from_steam(
         ).first()
         
         if existing_game_by_id:
+            # Game exists - check if it needs Thai reviews fetched
+            try:
+                from ..utils.thai_review_helper import fetch_and_cache_thai_reviews
+                fetch_and_cache_thai_reviews(existing_game_by_id.id, app_id, db, max_reviews=50)
+            except Exception as e:
+                print(f"Error fetching Thai reviews for existing game: {e}")
+            
             return {
                 "success": True,
                 "message": "Game already exists (Found by Steam App ID)",
@@ -119,6 +126,13 @@ def import_game_from_steam(
             if not existing_game_by_title.steam_app_id:
                 existing_game_by_title.steam_app_id = app_id
                 db.commit()
+            
+            # Check if it needs Thai reviews fetched
+            try:
+                from ..utils.thai_review_helper import fetch_and_cache_thai_reviews
+                fetch_and_cache_thai_reviews(existing_game_by_title.id, app_id, db, max_reviews=50)
+            except Exception as e:
+                print(f"Error fetching Thai reviews for existing game: {e}")
                 
             return {
                 "success": True,
@@ -249,10 +263,69 @@ def import_game_from_steam(
         except Exception as e:
             print(f"Error auto-tagging player modes: {e}")
             # Don't fail the import just because tagging failed
+
+        # Auto-tag Genres
+        try:
+            genres = app_details_en.get('genres', [])
+            for genre_data in genres:
+                genre_name = genre_data.get('description')
+                if not genre_name:
+                    continue
+                    
+                # Find or create Genre tag
+                genre_tag = db.query(models.Tag).filter(
+                    models.Tag.name == genre_name,
+                    models.Tag.type == 'genre'
+                ).first()
+                
+                if not genre_tag:
+                    genre_tag = models.Tag(name=genre_name, type='genre')
+                    db.add(genre_tag)
+                    db.flush()
+                
+                # Link game to Genre tag
+                existing_link = db.query(models.GameTag).filter(
+                    models.GameTag.game_id == new_game.id,
+                    models.GameTag.tag_id == genre_tag.id
+                ).first()
+                
+                if not existing_link:
+                    game_tag = models.GameTag(game_id=new_game.id, tag_id=genre_tag.id)
+                    db.add(game_tag)
+                    print(f"   ✓ Auto-linked Genre: {genre_name}")
+            db.commit()
+        except Exception as e:
+            print(f"Error auto-tagging genres: {e}")
         
-        # Reviews will be fetched automatically by hourly scheduler
-        # Disabled synchronous fetching to prevent page freezing during import
-        print(f"✓ Game imported. Reviews will be fetched by hourly scheduler.")
+        # Fetch and cache sentiment data
+        try:
+            from ..utils.sentiment_helper import fetch_and_cache_sentiment
+            fetch_and_cache_sentiment(new_game.id, app_id, db)
+        except Exception as e:
+            print(f"Error fetching sentiment: {e}")
+            # Don't fail import if sentiment fetch fails
+        
+        # Fetch and cache Thai reviews
+        try:
+            from ..utils.thai_review_helper import fetch_and_cache_thai_reviews
+            fetch_and_cache_thai_reviews(new_game.id, app_id, db, max_reviews=50)
+        except Exception as e:
+            print(f"Error fetching Thai reviews: {e}")
+            # Don't fail import if review fetch fails
+        
+        # Generate review tags automatically
+        try:
+            from ..services.review_tags_service import ReviewTagsService
+            print(f"[Import] Generating review tags for {new_game.title}...")
+            tags_service = ReviewTagsService(db)
+            tags_result = tags_service.generate_tags_for_game(new_game.id, top_n=10, max_reviews=1500)
+            if tags_result.get('success'):
+                print(f"[Import] ✓ Generated {len(tags_result.get('positive_tags', []))} positive and {len(tags_result.get('negative_tags', []))} negative tags")
+            else:
+                print(f"[Import] ✗ Failed to generate tags: {tags_result.get('error')}")
+        except Exception as e:
+            print(f"[Import] Error generating review tags: {e}")
+            # Don't fail import if tag generation fails
         
         return {
             "success": True,
@@ -683,10 +756,61 @@ def import_games_batch_from_steamspy(
                         db.add(game_tag)
                         print(f"   ✓ Auto-linked Massively Multiplayer game to Multi-player tag")
                 
+                # Auto-tag Genres (NEW logic)
+                genres = steam_details_en.get('genres', [])
+                for genre_data in genres:
+                    genre_name = genre_data.get('description')
+                    if not genre_name:
+                        continue
+                        
+                    # Find or create Genre tag
+                    genre_tag = db.query(models.Tag).filter(
+                        models.Tag.name == genre_name,
+                        models.Tag.type == 'genre'
+                    ).first()
+                    
+                    if not genre_tag:
+                        genre_tag = models.Tag(name=genre_name, type='genre')
+                        db.add(genre_tag)
+                        db.flush()
+                    
+                    # Link game to Genre tag
+                    existing_link = db.query(models.GameTag).filter(
+                        models.GameTag.game_id == new_game.id,
+                        models.GameTag.tag_id == genre_tag.id
+                    ).first()
+                    
+                    if not existing_link:
+                        game_tag = models.GameTag(game_id=new_game.id, tag_id=genre_tag.id)
+                        db.add(game_tag)
+                        print(f"   ✓ Auto-linked Genre: {genre_name}")
+                
                 imported_count += 1
                 
-                # Reviews will be fetched automatically by hourly scheduler
-                # Disabled synchronous fetching to prevent page freezing during batch import
+                # Fetch and cache sentiment data for the newly imported game
+                try:
+                    from ..utils.sentiment_helper import fetch_and_cache_sentiment
+                    fetch_and_cache_sentiment(new_game.id, int(app_id), db)
+                except Exception as e:
+                    print(f"   ✗ Error fetching sentiment: {e}")
+                
+                # Fetch and cache Thai reviews for the newly imported game
+                try:
+                    from ..utils.thai_review_helper import fetch_and_cache_thai_reviews
+                    fetch_and_cache_thai_reviews(new_game.id, int(app_id), db, max_reviews=50)
+                except Exception as e:
+                    print(f"   ✗ Error fetching Thai reviews: {e}")
+                
+                # Generate review tags automatically
+                try:
+                    from ..services.review_tags_service import ReviewTagsService
+                    print(f"   [Batch] Generating review tags...")
+                    tags_service = ReviewTagsService(db)
+                    tags_result = tags_service.generate_tags_for_game(new_game.id, top_n=10, max_reviews=1500)
+                    if tags_result.get('success'):
+                        print(f"   ✓ Generated {len(tags_result.get('positive_tags', []))} positive and {len(tags_result.get('negative_tags', []))} negative tags")
+                except Exception as e:
+                    print(f"   ✗ Error generating review tags: {e}")
                 
                 # Commit every 10 games to avoid losing progress
                 if imported_count % 10 == 0:
@@ -976,8 +1100,30 @@ def import_newest_games_from_steamspy(
                 
                 imported_count += 1
                 
-                # Reviews will be fetched automatically by hourly scheduler
-                # Disabled synchronous fetching to prevent page freezing during batch import
+                # Fetch and cache sentiment data for the newly imported game
+                try:
+                    from ..utils.sentiment_helper import fetch_and_cache_sentiment
+                    fetch_and_cache_sentiment(new_game.id, int(app_id), db)
+                except Exception as e:
+                    print(f"   ✗ Error fetching sentiment: {e}")
+                
+                # Fetch and cache Thai reviews for the newly imported game
+                try:
+                    from ..utils.thai_review_helper import fetch_and_cache_thai_reviews
+                    fetch_and_cache_thai_reviews(new_game.id, int(app_id), db, max_reviews=50)
+                except Exception as e:
+                    print(f"   ✗ Error fetching Thai reviews: {e}")
+                
+                # Generate review tags automatically
+                try:
+                    from ..services.review_tags_service import ReviewTagsService
+                    print(f"   [Batch] Generating review tags...")
+                    tags_service = ReviewTagsService(db)
+                    tags_result = tags_service.generate_tags_for_game(new_game.id, top_n=10, max_reviews=1500)
+                    if tags_result.get('success'):
+                        print(f"   ✓ Generated {len(tags_result.get('positive_tags', []))} positive and {len(tags_result.get('negative_tags', []))} negative tags")
+                except Exception as e:
+                    print(f"   ✗ Error generating review tags: {e}")
                 
                 # Commit every 10 games to avoid losing progress
                 if imported_count % 10 == 0:
