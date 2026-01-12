@@ -211,10 +211,25 @@ export class GameDetailComponent implements OnInit {
             this.gameId = params.get('id');
             if (this.gameId) {
                 const id = parseInt(this.gameId);
+
+                // Reset states when navigating to a new game
+                this.isLoading = true;
+                this.error = null;
+                this.steamReviews = [];
+                this.chunkedReviews = [];
+                this.comments = [];
+                this.similarGames = [];
+                this.newComment = '';
+                this.editingCommentId = null;
+                this.loadingSentiment = true;
+                this.loadingSteamReviews = false;
+
+                // Load all game data
                 this.loadGameDetails(id);
                 this.loadFavoriteStatus(id);
                 this.loadComments();
                 this.loadSimilarGames(id);
+
                 // Scroll to top on navigation
                 window.scrollTo(0, 0);
             }

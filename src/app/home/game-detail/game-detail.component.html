@@ -244,7 +244,7 @@
                     <!-- Steam Reviews (Carousel) -->
                     <div *ngIf="steamReviews.length > 0">
                         <p-carousel [value]="chunkedReviews" [numVisible]="2" [numScroll]="1" [circular]="false"
-                            [responsiveOptions]="responsiveOptions">
+                            [responsiveOptions]="responsiveOptions" [showIndicators]="false">
                             <ng-template let-chunk pTemplate="item">
                                 <div class="p-2 h-full flex flex-col space-y-2">
                                     <div *ngFor="let review of chunk"
@@ -406,7 +406,7 @@
 
                 <!-- Grid View (Show if 4 or fewer games) -->
                 <div *ngIf="similarGames.length <= 4" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                    <div *ngFor="let relatedGame of similarGames" [routerLink]="['/games', relatedGame.id]"
+                    <div *ngFor="let relatedGame of similarGames" [routerLink]="['/game', relatedGame.id]"
                         class="bg-white rounded-lg overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer group border border-gray-100">
                         <div class="relative h-40 overflow-hidden">
                             <img [src]="relatedGame.image_url" [alt]="relatedGame.title"
@@ -459,7 +459,7 @@
                         {breakpoint: '560px', numVisible: 1, numScroll: 1}
                     ]">
                     <ng-template pTemplate="item" let-relatedGame>
-                        <div [routerLink]="['/games', relatedGame.id]"
+                        <div [routerLink]="['/game', relatedGame.id]"
                             class="bg-white rounded-lg overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer group border border-gray-100 mx-2 h-full">
                             <div class="relative h-40 overflow-hidden">
                                 <img [src]="relatedGame.image_url" [alt]="relatedGame.title"
