@@ -110,6 +110,9 @@ export class AdminComponent implements OnInit {
     todayReports = 0;
     monthlyReports = 0;
 
+    // Global processing flag to prevent concurrent operations
+    private isAnyProcessing = false;
+
     // Polling intervals
     private pollingIntervals: Map<string, any> = new Map();
 
@@ -127,14 +130,39 @@ export class AdminComponent implements OnInit {
         this.loadDashboardAnalytics();
     }
 
+    // Check if any operation is currently processing
+    private checkIfProcessing(): boolean {
+        if (this.isAnyProcessing) {
+            this.messageService.add({
+                severity: 'warn',
+                summary: 'กรุณารอสักครู่',
+                detail: 'กรุณารอการประมวลผลอื่นให้สำเร็จก่อน',
+                life: 3000
+            });
+            return true;
+        }
+        return false;
+    }
+
     syncNews() {
+        if (this.checkIfProcessing()) return;
+
+        this.isAnyProcessing = true;
         this.isLoading = true;
         this.syncResult = null;
         this.error = null;
 
+        this.messageService.add({
+            severity: 'info',
+            summary: 'ซิงค์ข่าวสารเริ่มต้น',
+            detail: 'กำลังดึงข่าวล่าสุดจาก API คุณจะได้รับการแจ้งเตือนเมื่อเสร็จสิ้น',
+            life: 3000
+        });
+
         this.newsService.syncNews().subscribe({
             next: (result) => {
                 this.isLoading = false;
+                this.isAnyProcessing = false;
                 this.showResultDialog('ซิงค์ข่าวสารสำเร็จ', {
                     'เพิ่มใหม่': result.added || 0,
                     'อัปเดต': result.updated || 0,
@@ -143,19 +171,31 @@ export class AdminComponent implements OnInit {
             },
             error: (err) => {
                 this.isLoading = false;
-                this.messageService.add({ severity: 'error', summary: 'Error', detail: err.message || 'Failed to sync news' });
+                this.isAnyProcessing = false;
+                this.messageService.add({ severity: 'error', summary: 'เกิดข้อผิดพลาด', detail: err.message || 'ไม่สามารถซิงค์ข่าวได้' });
             }
         });
     }
 
     translateGames() {
+        if (this.checkIfProcessing()) return;
+
+        this.isAnyProcessing = true;
         this.isTranslating = true;
         this.translateResult = null;
         this.translateError = null;
 
+        this.messageService.add({
+            severity: 'info',
+            summary: 'การแปลภาษาเริ่มต้น',
+            detail: 'กำลังแปลข้อมูลเกมเป็นภาษาไทย คุณจะได้รับการแจ้งเตือนเมื่อเสร็จสิ้น',
+            life: 3000
+        });
+
         this.gameService.batchTranslateGames().subscribe({
             next: (result: any) => {
                 this.isTranslating = false;
+                this.isAnyProcessing = false;
                 this.showResultDialog('การแปลภาษาเสร็จสิ้น', {
                     'แปลแล้ว': result.translated || 0,
                     'ล้มเหลว': result.failed || 0
@@ -163,7 +203,8 @@ export class AdminComponent implements OnInit {
             },
             error: (err: any) => {
                 this.isTranslating = false;
-                this.messageService.add({ severity: 'error', summary: 'Error', detail: err.message || 'Failed to translate games' });
+                this.isAnyProcessing = false;
+                this.messageService.add({ severity: 'error', summary: 'เกิดข้อผิดพลาด', detail: err.message || 'ไม่สามารถแปลเกมได้' });
             }
         });
     }
@@ -248,14 +289,17 @@ export class AdminComponent implements OnInit {
     }
 
     triggerReviewUpdate() {
+        if (this.checkIfProcessing()) return;
+
+        this.isAnyProcessing = true;
         this.isUpdatingReviews = true;
         this.reviewUpdateResult = null;
         this.reviewUpdateError = null;
 
         this.messageService.add({
             severity: 'info',
-            summary: 'Thai Review Update Started',
-            detail: 'Fetching Thai reviews in background. You will be notified when complete.',
+            summary: 'อัปเดตรีวิวภาษาไทยเริ่มต้น',
+            detail: 'กำลังดึงรีวิวภาษาไทย คุณจะได้รับการแจ้งเตือนเมื่อเสร็จสิ้น',
             life: 3000
         });
 
@@ -263,27 +307,28 @@ export class AdminComponent implements OnInit {
             next: (result) => {
                 this.reviewUpdateResult = result;
                 this.isUpdatingReviews = false;
+                this.isAnyProcessing = false;
 
                 // Build detailed message from stats
                 const stats = result.stats || {};
-                const detailMessage = `✓ Games: ${stats.games_processed || 0} processed\n✓ Successful: ${stats.successful || 0}\n✗ Failed: ${stats.failed || 0}\n📝 New reviews: ${stats.total_new_reviews || 0}`;
 
-                // Show success toast with statistics
-                this.messageService.add({
-                    severity: 'success',
-                    summary: 'Thai Reviews Updated!',
-                    detail: detailMessage,
-                    life: 8000  // Longer duration for detailed info
+                // Show result dialog
+                this.showResultDialog('อัปเดตรีวิวภาษาไทยสำเร็จ', {
+                    'เกมที่ประมวลผล': stats.games_processed || 0,
+                    'สำเร็จ': stats.successful || 0,
+                    'ล้มเหลว': stats.failed || 0,
+                    'รีวิวใหม่': stats.total_new_reviews || 0
                 });
             },
             error: (err) => {
                 this.reviewUpdateError = err.message || 'Failed to trigger review update';
                 this.isUpdatingReviews = false;
+                this.isAnyProcessing = false;
 
                 // Show error toast
                 this.messageService.add({
                     severity: 'error',
-                    summary: 'Update Failed',
+                    summary: 'อัปเดตล้มเหลว',
                     detail: this.reviewUpdateError || undefined,
                     life: 5000
                 });
@@ -292,14 +337,17 @@ export class AdminComponent implements OnInit {
     }
 
     triggerSentimentUpdate() {
+        if (this.checkIfProcessing()) return;
+
+        this.isAnyProcessing = true;
         this.isUpdatingSentiment = true;
         this.sentimentUpdateResult = null;
         this.sentimentUpdateError = null;
 
         this.messageService.add({
             severity: 'info',
-            summary: 'Sentiment Update Started',
-            detail: 'Updating game sentiments in background. You will be notified when complete.',
+            summary: 'อัปเดต Sentiment เริ่มต้น',
+            detail: 'กำลังอัปเดต Sentiment ของเกม คุณจะได้รับการแจ้งเตือนเมื่อเสร็จสิ้น',
             life: 3000
         });
 
@@ -307,27 +355,27 @@ export class AdminComponent implements OnInit {
             next: (result: any) => {
                 this.sentimentUpdateResult = result;
                 this.isUpdatingSentiment = false;
+                this.isAnyProcessing = false;
 
                 // Build detailed message from stats
                 const stats = result.stats || {};
-                const detailMessage = `✓ Games processed: ${stats.games_processed || 0}\n✓ Updated: ${stats.updated || 0}\n✗ Errors: ${stats.errors || 0}`;
 
-                // Show success toast with statistics
-                this.messageService.add({
-                    severity: 'success',
-                    summary: 'Sentiments Updated!',
-                    detail: detailMessage,
-                    life: 8000
+                // Show result dialog
+                this.showResultDialog('อัปเดต Sentiment สำเร็จ', {
+                    'เกมที่ประมวลผล': stats.games_processed || 0,
+                    'อัปเดต': stats.updated || 0,
+                    'ข้อผิดพลาด': stats.errors || 0
                 });
             },
             error: (err: any) => {
                 this.sentimentUpdateError = err.message || 'Failed to trigger sentiment update';
                 this.isUpdatingSentiment = false;
+                this.isAnyProcessing = false;
 
                 // Show error toast
                 this.messageService.add({
                     severity: 'error',
-                    summary: 'Update Failed',
+                    summary: 'อัปเดตล้มเหลว',
                     detail: this.sentimentUpdateError || undefined,
                     life: 5000
                 });
@@ -336,14 +384,17 @@ export class AdminComponent implements OnInit {
     }
 
     triggerReviewTagsUpdate() {
+        if (this.checkIfProcessing()) return;
+
+        this.isAnyProcessing = true;
         this.isUpdatingReviewTags = true;
         this.reviewTagsUpdateResult = null;
         this.reviewTagsUpdateError = null;
 
         this.messageService.add({
             severity: 'info',
-            summary: 'Review Tags Update Started',
-            detail: 'Generating review tags in background. You will be notified when complete.',
+            summary: 'อัปเดต Review Tags เริ่มต้น',
+            detail: 'กำลังสร้าง Review Tags คุณจะได้รับการแจ้งเตือนเมื่อเสร็จสิ้น',
             life: 3000
         });
 
@@ -351,27 +402,28 @@ export class AdminComponent implements OnInit {
             next: (result: any) => {
                 this.reviewTagsUpdateResult = result;
                 this.isUpdatingReviewTags = false;
+                this.isAnyProcessing = false;
 
                 // Build detailed message from stats
                 const stats = result.stats || {};
-                const detailMessage = `✓ Games checked: ${stats.games_checked || 0}\n✓ Updated: ${stats.updated || 0}\n⊘ Skipped: ${stats.skipped || 0}\n✗ Errors: ${stats.errors || 0}`;
 
-                // Show success toast with statistics
-                this.messageService.add({
-                    severity: 'success',
-                    summary: 'Review Tags Updated!',
-                    detail: detailMessage,
-                    life: 8000
+                // Show result dialog
+                this.showResultDialog('อัปเดต Review Tags สำเร็จ', {
+                    'เกมที่ตรวจสอบ': stats.games_checked || 0,
+                    'อัปเดต': stats.updated || 0,
+                    'ข้าม': stats.skipped || 0,
+                    'ข้อผิดพลาด': stats.errors || 0
                 });
             },
             error: (err: any) => {
                 this.reviewTagsUpdateError = err.message || 'Failed to trigger review tags update';
                 this.isUpdatingReviewTags = false;
+                this.isAnyProcessing = false;
 
                 // Show error toast
                 this.messageService.add({
                     severity: 'error',
-                    summary: 'Update Failed',
+                    summary: 'อัปเดตล้มเหลว',
                     detail: this.reviewTagsUpdateError || undefined,
                     life: 5000
                 });
@@ -380,6 +432,8 @@ export class AdminComponent implements OnInit {
     }
 
     importGame() {
+        if (this.checkIfProcessing()) return;
+
         // Validate inputs based on selected method
         if (this.selectedImportMethod === 'by_id') {
             if (!this.gameAppId) {
@@ -404,6 +458,7 @@ export class AdminComponent implements OnInit {
         }
 
         this.isImportingGame = true;
+        this.isAnyProcessing = true;
 
         this.messageService.add({
             severity: 'info',
@@ -432,22 +487,23 @@ export class AdminComponent implements OnInit {
         importObservable.subscribe({
             next: (result: any) => {
                 this.isImportingGame = false;
+                this.isAnyProcessing = false;
 
-                // Build detailed message from result
-                let detailMessage = '';
+                // Build result data for dialog
                 if (this.selectedImportMethod === 'by_id') {
-                    detailMessage = `✓ เพิ่มเกม: ${result.game?.title || 'สำเร็จ'}`;
+                    // Single game import
+                    this.showResultDialog('นำเข้าเกมสำเร็จ', {
+                        'ชื่อเกม': result.game?.title || 'สำเร็จ'
+                    });
                 } else {
+                    // Batch import
                     const stats = result.stats || result;
-                    detailMessage = `✓ เพิ่มแล้ว: ${stats.added || stats.imported || 0}\n✓ อัปเดต: ${stats.updated || 0}\n✗ ล้มเหลว: ${stats.failed || stats.errors || 0}`;
+                    this.showResultDialog('นำเข้าเกมสำเร็จ', {
+                        'เพิ่มแล้ว': stats.added || stats.imported || 0,
+                        'อัปเดต': stats.updated || 0,
+                        'ล้มเหลว': stats.failed || stats.errors || 0
+                    });
                 }
-
-                this.messageService.add({
-                    severity: 'success',
-                    summary: 'นำเข้าเกมสำเร็จ!',
-                    detail: detailMessage,
-                    life: 8000
-                });
 
                 // Reset form
                 if (this.selectedImportMethod === 'by_id') {
@@ -456,6 +512,7 @@ export class AdminComponent implements OnInit {
             },
             error: (err: any) => {
                 this.isImportingGame = false;
+                this.isAnyProcessing = false;
 
                 this.messageService.add({
                     severity: 'error',
