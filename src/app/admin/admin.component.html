@@ -12,6 +12,61 @@
         </div>
 
         <p-tabView styleClass="custom-tabs">
+            <!-- TAB 0: Dashboard -->
+            <p-tabPanel header="Dashboard">
+                <div class="animate-fade-in">
+                    <!-- Loading State -->
+                    <div *ngIf="isLoadingAnalytics" class="flex justify-center py-12">
+                        <p-progressSpinner></p-progressSpinner>
+                    </div>
+
+                    <!-- Error State -->
+                    <p-message *ngIf="analyticsError && !isLoadingAnalytics" severity="error" [text]="analyticsError">
+                    </p-message>
+
+                    <!-- Dashboard Grid -->
+                    <div *ngIf="!isLoadingAnalytics && !analyticsError" class="dashboard-grid">
+                        <!-- 1. Comments Analytics -->
+                        <p-card header="ความคิดเห็นผู้ใช้" subheader="จำนวนความคิดเห็น">
+                            <div class="stat-summary">
+                                <div class="stat-item">
+                                    <span class="stat-label">วันนี้</span>
+                                    <span class="stat-value">{{ todayComments }}</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">เดือนนี้</span>
+                                    <span class="stat-value">{{ monthlyComments }}</span>
+                                </div>
+                            </div>
+                        </p-card>
+
+                        <!-- 2. News Analytics -->
+                        <p-card header="ข่าวสาร" subheader="จำนวนข่าวที่เพิ่ม">
+                            <div class="stat-summary">
+                                <div class="stat-item">
+                                    <span class="stat-label">วันนี้</span>
+                                    <span class="stat-value">{{ todayNews }}</span>
+                                </div>
+                            </div>
+                        </p-card>
+
+                        <!-- 3. Reports Analytics -->
+                        <p-card header="รายงานความคิดเห็น" subheader="รายงานที่รอดำเนินการ">
+                            <div class="stat-summary">
+                                <div class="stat-item">
+                                    <span class="stat-label">วันนี้</span>
+                                    <span class="stat-value">{{ todayReports }}</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">เดือนนี้</span>
+                                    <span class="stat-value">{{ monthlyReports }}</span>
+                                </div>
+                            </div>
+                        </p-card>
+                    </div>
+                </div>
+            </p-tabPanel>
+
             <!-- TAB 1: System Synchronization -->
             <p-tabPanel header="ซิงค์ข้อมูลระบบ">
                 <div class="admin-grid animate-fade-in">
@@ -268,13 +323,17 @@
 </div>
 
 <!-- Dismiss Dialog -->
-<p-dialog [(visible)]="showDismissDialog" [modal]="true" [style]="{width: '400px'}" header="ยกเลิกการรายงาน"
-    [draggable]="false" [resizable]="false" styleClass="custom-dialog">
-    <div class="p-4 text-center">
-        <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-            <i class="pi pi-info-circle text-2xl"></i>
+<p-dialog [(visible)]="showDismissDialog" [modal]="true" [style]="{width: '400px'}" [draggable]="false"
+    [resizable]="false" [closable]="false" styleClass="custom-dialog">
+    <ng-template pTemplate="header">
+        <div class="flex items-center gap-2">
+            <i class="pi pi-times-circle text-blue-600"></i>
+            <span>ยกเลิกการรายงาน</span>
         </div>
-        <p class="text-gray-700">คุณแน่ใจหรือไม่ที่จะยกเลิกรายงานนี้? ความคิดเห็นจะยังคงแสดงอยู่</p>
+    </ng-template>
+    <div class="p-4">
+        <p class="text-gray-700">คุณแน่ใจหรือไม่ที่จะยกเลิกรายงานนี้?</p>
+        <p class="text-gray-700 mt-2">ความคิดเห็นจะยังคงแสดงอยู่</p>
     </div>
     <ng-template pTemplate="footer">
         <div class="flex gap-2 justify-end w-full">
@@ -286,14 +345,17 @@
 </p-dialog>
 
 <!-- Delete Dialog -->
-<p-dialog [(visible)]="showDeleteCommentDialog" [modal]="true" [style]="{width: '400px'}" header="ลบความคิดเห็น"
-    [draggable]="false" [resizable]="false" styleClass="custom-dialog">
-    <div class="p-4 text-center">
-        <div class="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
-            <i class="pi pi-exclamation-triangle text-2xl"></i>
+<p-dialog [(visible)]="showDeleteCommentDialog" [modal]="true" [style]="{width: '400px'}" [draggable]="false"
+    [resizable]="false" [closable]="false" styleClass="custom-dialog">
+    <ng-template pTemplate="header">
+        <div class="flex items-center gap-2">
+            <i class="pi pi-trash text-red-600"></i>
+            <span>ลบความคิดเห็น</span>
         </div>
-        <p class="text-gray-700 font-medium">การดำเนินการนี้ไม่สามารถกู้คืนได้</p>
-        <p class="text-gray-500 text-sm mt-1">ความคิดเห็นจะถูกลบออกจากระบบอย่างถาวร</p>
+    </ng-template>
+    <div class="p-4">
+        <p class="text-gray-700">การดำเนินการนี้ไม่สามารถกู้คืนได้</p>
+        <p class="text-gray-700 mt-2">ความคิดเห็นจะถูกลบออกจากระบบอย่างถาวร</p>
     </div>
     <ng-template pTemplate="footer">
         <div class="flex gap-2 justify-end w-full">

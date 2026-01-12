@@ -17,6 +17,7 @@ import { MessageService } from 'primeng/api';
 import { TabViewModule } from 'primeng/tabview';
 import { DropdownModule } from 'primeng/dropdown';
 import { InputNumberModule } from 'primeng/inputnumber';
+import { AnalyticsService } from '../services/analytics.service';
 
 @Component({
     selector: 'app-admin',
@@ -98,6 +99,17 @@ export class AdminComponent implements OnInit {
         { label: 'เพิ่มเกมแบบ Batch', value: 'batch' }
     ];
 
+    // Dashboard analytics
+    isLoadingAnalytics = false;
+    analyticsError: string | null = null;
+
+    // Statistics
+    todayComments = 0;
+    monthlyComments = 0;
+    todayNews = 0;
+    todayReports = 0;
+    monthlyReports = 0;
+
     // Polling intervals
     private pollingIntervals: Map<string, any> = new Map();
 
@@ -106,11 +118,13 @@ export class AdminComponent implements OnInit {
         private gameService: GameService,
         private commentService: CommentService,
         private authService: AuthService,
-        private messageService: MessageService
+        private messageService: MessageService,
+        private analyticsService: AnalyticsService
     ) { }
 
     ngOnInit() {
         this.loadReportedComments();
+        this.loadDashboardAnalytics();
     }
 
     syncNews() {
@@ -450,6 +464,35 @@ export class AdminComponent implements OnInit {
                     life: 5000
                 });
             }
+        });
+    }
+
+    loadDashboardAnalytics() {
+        this.isLoadingAnalytics = true;
+        this.analyticsError = null;
+
+        // Load all analytics data concurrently
+        Promise.all([
+            this.analyticsService.getCommentAnalytics().toPromise(),
+            this.analyticsService.getNewsAnalytics().toPromise(),
+            this.analyticsService.getReportAnalytics().toPromise()
+        ]).then(([comments, news, reports]) => {
+            // Update comment data
+            this.todayComments = comments?.today_count || 0;
+            this.monthlyComments = comments?.monthly_total || 0;
+
+            // Update news data
+            this.todayNews = news?.today_count || 0;
+
+            // Update reports data
+            this.todayReports = reports?.today_count || 0;
+            this.monthlyReports = reports?.monthly_total || 0;
+
+            this.isLoadingAnalytics = false;
+        }).catch(error => {
+            console.error('Error loading analytics:', error);
+            this.analyticsError = 'ไม่สามารถโหลดข้อมูลสถิติได้';
+            this.isLoadingAnalytics = false;
         });
     }
 }

@@ -112,3 +112,144 @@ async def trigger_thai_reviews_update(background_tasks: BackgroundTasks) -> Dict
                 "total_new_reviews": 0
             }
         }
+
+
+@router.get("/analytics/comments")
+async def get_comment_analytics(db: Session = Depends(get_db)) -> Dict:
+    """
+    Get comment statistics for the current month
+    Returns daily counts, today's count, and monthly total
+    """
+    from sqlalchemy import func, extract
+    from datetime import datetime, timedelta
+    from ..models import Comment
+    
+    try:
+        now = datetime.now()
+        first_day_of_month = datetime(now.year, now.month, 1)
+        
+        # Get daily counts for current month
+        daily_stats = db.query(
+            func.date(Comment.created_at).label('date'),
+            func.count(Comment.id).label('count')
+        ).filter(
+            Comment.created_at >= first_day_of_month
+        ).group_by(
+            func.date(Comment.created_at)
+        ).order_by(
+            func.date(Comment.created_at)
+        ).all()
+        
+        # Get today's count
+        today_start = datetime(now.year, now.month, now.day)
+        today_count = db.query(func.count(Comment.id)).filter(
+            Comment.created_at >= today_start
+        ).scalar() or 0
+        
+        # Get monthly total
+        monthly_total = db.query(func.count(Comment.id)).filter(
+            Comment.created_at >= first_day_of_month
+        ).scalar() or 0
+        
+        return {
+            "daily": [{"date": str(stat.date), "count": stat.count} for stat in daily_stats],
+            "today_count": today_count,
+            "monthly_total": monthly_total
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch comment analytics: {str(e)}")
+
+
+@router.get("/analytics/news")
+async def get_news_analytics(db: Session = Depends(get_db)) -> Dict:
+    """
+    Get news statistics for the current month
+    Returns daily counts, today's count, and monthly total
+    """
+    from sqlalchemy import func
+    from datetime import datetime
+    from ..models import News
+    
+    try:
+        now = datetime.now()
+        first_day_of_month = datetime(now.year, now.month, 1)
+        
+        # Get daily counts for current month
+        daily_stats = db.query(
+            func.date(News.created_at).label('date'),
+            func.count(News.id).label('count')
+        ).filter(
+            News.created_at >= first_day_of_month
+        ).group_by(
+            func.date(News.created_at)
+        ).order_by(
+            func.date(News.created_at)
+        ).all()
+        
+        # Get today's count
+        today_start = datetime(now.year, now.month, now.day)
+        today_count = db.query(func.count(News.id)).filter(
+            News.created_at >= today_start
+        ).scalar() or 0
+        
+        # Get monthly total
+        monthly_total = db.query(func.count(News.id)).filter(
+            News.created_at >= first_day_of_month
+        ).scalar() or 0
+        
+        return {
+            "daily": [{"date": str(stat.date), "count": stat.count} for stat in daily_stats],
+            "today_count": today_count,
+            "monthly_total": monthly_total
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch news analytics: {str(e)}")
+
+
+@router.get("/analytics/reports")
+async def get_report_analytics(db: Session = Depends(get_db)) -> Dict:
+    """
+    Get comment report statistics for the current month (pending reports only)
+    Returns daily counts, today's count, and monthly total of pending reports
+    """
+    from sqlalchemy import func
+    from datetime import datetime
+    from ..models import CommentReport
+    
+    try:
+        now = datetime.now()
+        first_day_of_month = datetime(now.year, now.month, 1)
+        
+        # Get daily counts for current month (pending only)
+        daily_stats = db.query(
+            func.date(CommentReport.created_at).label('date'),
+            func.count(CommentReport.id).label('count')
+        ).filter(
+            CommentReport.created_at >= first_day_of_month,
+            CommentReport.status == 'pending'
+        ).group_by(
+            func.date(CommentReport.created_at)
+        ).order_by(
+            func.date(CommentReport.created_at)
+        ).all()
+        
+        # Get today's count (pending only)
+        today_start = datetime(now.year, now.month, now.day)
+        today_count = db.query(func.count(CommentReport.id)).filter(
+            CommentReport.created_at >= today_start,
+            CommentReport.status == 'pending'
+        ).scalar() or 0
+        
+        # Get monthly total (pending only)
+        monthly_total = db.query(func.count(CommentReport.id)).filter(
+            CommentReport.created_at >= first_day_of_month,
+            CommentReport.status == 'pending'
+        ).scalar() or 0
+        
+        return {
+            "daily": [{"date": str(stat.date), "count": stat.count} for stat in daily_stats],
+            "today_count": today_count,
+            "monthly_total": monthly_total
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch report analytics: {str(e)}")
