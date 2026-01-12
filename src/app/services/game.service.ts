@@ -226,4 +226,19 @@ export class GameService {
     triggerReviewTagsUpdate(): Observable<any> {
         return this.http.post<any>('http://localhost:8000/api/admin/review-tags/update', {});
     }
+
+    /**
+     * Import a single game by Steam App ID
+     */
+    importGameById(appId: number): Observable<any> {
+        return this.http.post<any>(`${this.steamApiUrl}/import/game/${appId}`, {});
+    }
+
+    /**
+     * Import newest games in batch
+     */
+    importNewestGames(limit: number): Observable<any> {
+        const params = new HttpParams().set('limit', limit.toString());
+        return this.http.post<any>(`${this.steamApiUrl}/steamspy/import/batch/newest`, null, { params });
+    }
 }

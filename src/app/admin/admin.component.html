@@ -95,6 +95,60 @@
 
                         </div>
                     </p-card>
+
+                    <!-- 6. Add Game -->
+                    <p-card header="เพิ่มเกม" subheader="นำเข้าเกมใหม่จาก Steam">
+                        <div class="sync-section">
+                            <p>เลือกวิธีการนำเข้าเกมจาก Steam API</p>
+
+                            <!-- Import Method Dropdown -->
+                            <div class="mt-4">
+                                <label for="importMethod"
+                                    class="block text-sm font-medium text-gray-700 mb-2">วิธีการนำเข้า</label>
+                                <p-dropdown id="importMethod" [(ngModel)]="selectedImportMethod"
+                                    [options]="importMethods" optionLabel="label" optionValue="value"
+                                    placeholder="เลือกวิธีการนำเข้า" [style]="{'width': '100%'}" styleClass="w-full">
+                                </p-dropdown>
+                            </div>
+
+                            <!-- Conditional Input: Game ID -->
+                            <div *ngIf="selectedImportMethod === 'by_id'" class="mt-4">
+                                <label for="gameAppId" class="block text-sm font-medium text-gray-700 mb-2">Steam App
+                                    ID</label>
+                                <p-inputNumber id="gameAppId" [(ngModel)]="gameAppId" [useGrouping]="false"
+                                    placeholder="กรอก Steam App ID (เช่น 730)" [style]="{'width': '100%'}"
+                                    styleClass="w-full">
+                                </p-inputNumber>
+                            </div>
+
+                            <!-- Conditional Input: Batch Size for Newest -->
+                            <div *ngIf="selectedImportMethod === 'newest'" class="mt-4">
+                                <label for="newestBatchSize"
+                                    class="block text-sm font-medium text-gray-700 mb-2">จำนวนเกมใหม่ล่าสุด</label>
+                                <p-inputNumber id="newestBatchSize" [(ngModel)]="batchSize" [useGrouping]="false"
+                                    [min]="1" [max]="1000" placeholder="กรอกจำนวนเกม (เช่น 50)"
+                                    [style]="{'width': '100%'}" styleClass="w-full">
+                                </p-inputNumber>
+                            </div>
+
+                            <!-- Conditional Input: Batch Size for General Batch -->
+                            <div *ngIf="selectedImportMethod === 'batch'" class="mt-4">
+                                <label for="batchSize"
+                                    class="block text-sm font-medium text-gray-700 mb-2">จำนวนเกม</label>
+                                <p-inputNumber id="batchSize" [(ngModel)]="batchSize" [useGrouping]="false" [min]="1"
+                                    [max]="1000" placeholder="กรอกจำนวนเกม (เช่น 100)" [style]="{'width': '100%'}"
+                                    styleClass="w-full">
+                                </p-inputNumber>
+                            </div>
+
+                            <!-- Import Button -->
+                            <button pButton type="button" label="เพิ่มเกม" icon="pi pi-plus" [loading]="isImportingGame"
+                                [disabled]="isImportingGame" (click)="importGame()"
+                                style="background: linear-gradient(135deg, #9333ea 0%, #7e22ce 100%) !important; border: none !important; color: white !important;"
+                                class="purple-action-btn w-full mt-4 bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white shadow-md hover:shadow-lg transition-all duration-200 rounded-xl border-none py-3 font-medium">
+                            </button>
+                        </div>
+                    </p-card>
                 </div>
             </p-tabPanel>
 

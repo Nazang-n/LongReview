@@ -15,6 +15,8 @@ import { DialogModule } from 'primeng/dialog';
 import { ToastModule } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
 import { TabViewModule } from 'primeng/tabview';
+import { DropdownModule } from 'primeng/dropdown';
+import { InputNumberModule } from 'primeng/inputnumber';
 
 @Component({
     selector: 'app-admin',
@@ -30,7 +32,9 @@ import { TabViewModule } from 'primeng/tabview';
         ProgressSpinnerModule,
         DialogModule,
         ToastModule,
-        TabViewModule
+        TabViewModule,
+        DropdownModule,
+        InputNumberModule
     ],
     providers: [MessageService],
     templateUrl: './admin.component.html',
@@ -81,6 +85,18 @@ export class AdminComponent implements OnInit {
     isUpdatingReviewTags = false;
     reviewTagsUpdateResult: any = null;
     reviewTagsUpdateError: string | null = null;
+
+    // Game import
+    selectedImportMethod: string = 'by_id';
+    gameAppId: number | null = null;
+    batchSize: number = 50;
+    isImportingGame = false;
+
+    importMethods = [
+        { label: 'เพิ่มเกมด้วย Game ID', value: 'by_id' },
+        { label: 'เพิ่มเกมใหม่ล่าสุด', value: 'newest' },
+        { label: 'เพิ่มเกมแบบ Batch', value: 'batch' }
+    ];
 
     // Polling intervals
     private pollingIntervals: Map<string, any> = new Map();
@@ -343,6 +359,94 @@ export class AdminComponent implements OnInit {
                     severity: 'error',
                     summary: 'Update Failed',
                     detail: this.reviewTagsUpdateError || undefined,
+                    life: 5000
+                });
+            }
+        });
+    }
+
+    importGame() {
+        // Validate inputs based on selected method
+        if (this.selectedImportMethod === 'by_id') {
+            if (!this.gameAppId) {
+                this.messageService.add({
+                    severity: 'warn',
+                    summary: 'กรุณากรอกข้อมูล',
+                    detail: 'กรุณากรอก Steam App ID',
+                    life: 3000
+                });
+                return;
+            }
+        } else {
+            if (!this.batchSize || this.batchSize <= 0) {
+                this.messageService.add({
+                    severity: 'warn',
+                    summary: 'กรุณากรอกข้อมูล',
+                    detail: 'กรุณากรอกจำนวนเกมที่ต้องการเพิ่ม',
+                    life: 3000
+                });
+                return;
+            }
+        }
+
+        this.isImportingGame = true;
+
+        this.messageService.add({
+            severity: 'info',
+            summary: 'เริ่มนำเข้าเกม',
+            detail: 'กำลังดำเนินการนำเข้าเกม...',
+            life: 3000
+        });
+
+        let importObservable;
+
+        switch (this.selectedImportMethod) {
+            case 'by_id':
+                importObservable = this.gameService.importGameById(this.gameAppId!);
+                break;
+            case 'newest':
+                importObservable = this.gameService.importNewestGames(this.batchSize);
+                break;
+            case 'batch':
+                importObservable = this.gameService.importGamesFromSteamSpy(this.batchSize);
+                break;
+            default:
+                this.isImportingGame = false;
+                return;
+        }
+
+        importObservable.subscribe({
+            next: (result: any) => {
+                this.isImportingGame = false;
+
+                // Build detailed message from result
+                let detailMessage = '';
+                if (this.selectedImportMethod === 'by_id') {
+                    detailMessage = `✓ เพิ่มเกม: ${result.game?.title || 'สำเร็จ'}`;
+                } else {
+                    const stats = result.stats || result;
+                    detailMessage = `✓ เพิ่มแล้ว: ${stats.added || stats.imported || 0}\n✓ อัปเดต: ${stats.updated || 0}\n✗ ล้มเหลว: ${stats.failed || stats.errors || 0}`;
+                }
+
+                this.messageService.add({
+                    severity: 'success',
+                    summary: 'นำเข้าเกมสำเร็จ!',
+                    detail: detailMessage,
+                    life: 8000
+                });
+
+                // Reset form
+                if (this.selectedImportMethod === 'by_id') {
+                    this.gameAppId = null;
+                }
+            },
+            error: (err: any) => {
+                this.isImportingGame = false;
+
+                this.messageService.add({
+                    severity: 'error',
+                    summary: 'นำเข้าเกมล้มเหลว',
+                    detail: err.error?.detail || err.message || 'เกิดข้อผิดพลาดในการนำเข้าเกม',
                     life: 5000
                 });
             }
