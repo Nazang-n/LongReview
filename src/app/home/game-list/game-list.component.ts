@@ -325,33 +325,186 @@ export class GameListComponent implements OnInit {
         }
 
         this.games = filtered;
-        // this.updateTagCounts(); // Counts are now static (updated only on load)
+        this.updateTagCounts(); // Update counts dynamically based on current filters
         this.currentPage = 1;
         this.getPaginatedGames();
     }
 
     updateTagCounts() {
-        // Calculate counts based on ALL games (Static Counts)
-        // This ensures counts show total games in category, not filtered results.
+        // Calculate dynamic counts based on current filter selection
+        // For each filter option, show how many games would be visible if that option is selected
 
-        // Update Genres
+        // Update Genre counts
         this.genres.forEach(genre => {
-            genre.game_count = this.allGames.filter(g => g.genres.includes(genre.name)).length;
+            genre.game_count = this.getFilteredCountForGenre(genre.id, genre.name);
         });
 
-        // Update Platforms
+        // Update Platform counts
         this.platforms.forEach(platform => {
-            const pName = platform.name.toLowerCase();
-            platform.game_count = this.allGames.filter(g => (g.platform || '').toLowerCase().includes(pName)).length;
+            platform.game_count = this.getFilteredCountForPlatform(platform.id, platform.name);
         });
 
-        // Update Player Modes
+        // Update Player Mode counts
         this.playerModes.forEach(mode => {
-            // Standard check
-            mode.game_count = this.allGames.filter(g => (g.playerModes || []).includes(mode.name)).length;
+            mode.game_count = this.getFilteredCountForPlayerMode(mode.id, mode.name);
         });
+    }
 
-        console.log('--- End Debug ---');
+    // Helper method: Calculate count for a genre filter option
+    private getFilteredCountForGenre(genreId: number, genreName: string): number {
+        // Start with all games
+        let filtered = this.allGames;
+
+        // Apply search filter
+        if (this.searchQuery.trim()) {
+            const query = this.searchQuery.toLowerCase();
+            filtered = filtered.filter(game => game.title.toLowerCase().includes(query));
+        }
+
+        // Apply genre filter (including this genre)
+        const genreIds = [...this.selectedGenreIds];
+        if (!genreIds.includes(genreId)) {
+            genreIds.push(genreId);
+        }
+
+        if (genreIds.length > 0) {
+            const selectedGenreNames = this.genres
+                .filter(g => genreIds.includes(g.id))
+                .map(g => g.name);
+
+            filtered = filtered.filter(game =>
+                selectedGenreNames.every(name => game.genres.includes(name))
+            );
+        }
+
+        // Apply platform filter
+        if (this.selectedPlatformIds.length > 0) {
+            const selectedPlatformNames = this.platforms
+                .filter(p => this.selectedPlatformIds.includes(p.id))
+                .map(p => p.name.toLowerCase());
+
+            filtered = filtered.filter(game => {
+                const gamePlatform = (game.platform || '').toLowerCase();
+                return selectedPlatformNames.some(p => gamePlatform.includes(p));
+            });
+        }
+
+        // Apply player mode filter
+        if (this.selectedPlayerModeIds.length > 0) {
+            const selectedModeNames = this.playerModes
+                .filter(p => this.selectedPlayerModeIds.includes(p.id))
+                .map(p => p.name);
+
+            filtered = filtered.filter(game =>
+                selectedModeNames.every(name => (game.playerModes || []).includes(name))
+            );
+        }
+
+        return filtered.length;
+    }
+
+    // Helper method: Calculate count for a platform filter option
+    private getFilteredCountForPlatform(platformId: number, platformName: string): number {
+        let filtered = this.allGames;
+
+        // Apply search filter
+        if (this.searchQuery.trim()) {
+            const query = this.searchQuery.toLowerCase();
+            filtered = filtered.filter(game => game.title.toLowerCase().includes(query));
+        }
+
+        // Apply genre filter
+        if (this.selectedGenreIds.length > 0) {
+            const selectedGenreNames = this.genres
+                .filter(g => this.selectedGenreIds.includes(g.id))
+                .map(g => g.name);
+
+            filtered = filtered.filter(game =>
+                selectedGenreNames.every(name => game.genres.includes(name))
+            );
+        }
+
+        // Apply platform filter (including this platform)
+        const platformIds = [...this.selectedPlatformIds];
+        if (!platformIds.includes(platformId)) {
+            platformIds.push(platformId);
+        }
+
+        if (platformIds.length > 0) {
+            const selectedPlatformNames = this.platforms
+                .filter(p => platformIds.includes(p.id))
+                .map(p => p.name.toLowerCase());
+
+            filtered = filtered.filter(game => {
+                const gamePlatform = (game.platform || '').toLowerCase();
+                return selectedPlatformNames.some(p => gamePlatform.includes(p));
+            });
+        }
+
+        // Apply player mode filter
+        if (this.selectedPlayerModeIds.length > 0) {
+            const selectedModeNames = this.playerModes
+                .filter(p => this.selectedPlayerModeIds.includes(p.id))
+                .map(p => p.name);
+
+            filtered = filtered.filter(game =>
+                selectedModeNames.every(name => (game.playerModes || []).includes(name))
+            );
+        }
+
+        return filtered.length;
+    }
+
+    // Helper method: Calculate count for a player mode filter option
+    private getFilteredCountForPlayerMode(modeId: number, modeName: string): number {
+        let filtered = this.allGames;
+
+        // Apply search filter
+        if (this.searchQuery.trim()) {
+            const query = this.searchQuery.toLowerCase();
+            filtered = filtered.filter(game => game.title.toLowerCase().includes(query));
+        }
+
+        // Apply genre filter
+        if (this.selectedGenreIds.length > 0) {
+            const selectedGenreNames = this.genres
+                .filter(g => this.selectedGenreIds.includes(g.id))
+                .map(g => g.name);
+
+            filtered = filtered.filter(game =>
+                selectedGenreNames.every(name => game.genres.includes(name))
+            );
+        }
+
+        // Apply platform filter
+        if (this.selectedPlatformIds.length > 0) {
+            const selectedPlatformNames = this.platforms
+                .filter(p => this.selectedPlatformIds.includes(p.id))
+                .map(p => p.name.toLowerCase());
+
+            filtered = filtered.filter(game => {
+                const gamePlatform = (game.platform || '').toLowerCase();
+                return selectedPlatformNames.some(p => gamePlatform.includes(p));
+            });
+        }
+
+        // Apply player mode filter (including this mode)
+        const modeIds = [...this.selectedPlayerModeIds];
+        if (!modeIds.includes(modeId)) {
+            modeIds.push(modeId);
+        }
+
+        if (modeIds.length > 0) {
+            const selectedModeNames = this.playerModes
+                .filter(p => modeIds.includes(p.id))
+                .map(p => p.name);
+
+            filtered = filtered.filter(game =>
+                selectedModeNames.every(name => (game.playerModes || []).includes(name))
+            );
+        }
+
+        return filtered.length;
     }
 
     // Explicit binding trigger
