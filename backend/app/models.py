@@ -201,3 +201,16 @@ class GameTag(Base):
     game_id = Column(Integer, nullable=False, index=True)
     tag_id = Column(Integer, nullable=False, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class PasswordResetToken(Base):
+    """Password Reset Token model - stores verification codes for password reset"""
+    __tablename__ = "password_reset_tokens"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("user.id"), nullable=False, index=True)
+    token = Column(String(255), unique=True, nullable=False, index=True)  # Secure token
+    code = Column(String(6), nullable=False)  # 6-digit verification code
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    used = Column(Boolean, default=False, nullable=False)

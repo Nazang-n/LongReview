@@ -38,6 +38,12 @@ class Settings(BaseSettings):
     # Cache Settings
     CACHE_TTL: int = 600  # 10 minutes in seconds (reduced for fresher news)
     
+    # Email Configuration
+    GMAIL_USER: Optional[str] = None
+    GMAIL_APP_PASSWORD: Optional[str] = None
+    EMAIL_FROM_NAME: str = "LongReview"
+    RESET_CODE_EXPIRY_MINUTES: int = 10
+    
     class Config:
         env_file = ".env"
         case_sensitive = True

@@ -113,7 +113,10 @@ def import_game_from_steam(
             return {
                 "success": True,
                 "message": "Game already exists (Found by Steam App ID)",
-                "game": existing_game_by_id
+                "game": {
+                    "title": existing_game_by_id.title,
+                    "id": existing_game_by_id.id
+                }
             }
             
         # Then check by Title
@@ -137,7 +140,10 @@ def import_game_from_steam(
             return {
                 "success": True,
                 "message": "Game already exists (Found by Title)",
-                "game": existing_game_by_title
+                "game": {
+                    "title": existing_game_by_title.title,
+                    "id": existing_game_by_title.id
+                }
             }
         
         # Fetch Thai details for description
@@ -330,7 +336,10 @@ def import_game_from_steam(
         return {
             "success": True,
             "message": "Game imported successfully",
-            "game": new_game
+            "game": {
+                "title": new_game.title,
+                "id": new_game.id
+            }
         }
         
     except HTTPException:

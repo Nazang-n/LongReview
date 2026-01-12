@@ -12,6 +12,7 @@ import { ProfileComponent } from './home/profile/profile.component';
 import { LoginComponent } from './auth/login.component';
 import { RegisterComponent } from './auth/register.component';
 import { NewsDetailComponent } from './home/news-detail/news-detail.component';
+import { ForgotPasswordComponent } from './auth/forgot-password.component';
 
 import { AuthGuard } from './guards/auth.guard';
 import { AdminGuard } from './guards/admin.guard';
@@ -29,6 +30,7 @@ const routes: Routes = [
   { path: 'profile', component: ProfileComponent, canActivate: [AuthGuard] },
   { path: 'login', component: LoginComponent },
   { path: 'register', component: RegisterComponent },
+  { path: 'forgot-password', component: ForgotPasswordComponent },
   { path: 'admin', component: AdminComponent, canActivate: [AdminGuard] },
 
   // (Optional) กรณีพิมพ์ URL ผิดให้กลับไปหน้าแรก

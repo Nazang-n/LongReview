@@ -20,6 +20,10 @@ import { AuthService } from '../services/auth.service';
 
         <label for="login-password">Password</label>
         <input id="login-password" type="password" placeholder="Password" [(ngModel)]="password" (keyup.enter)="onLogin()" />
+        
+        <div style="text-align: right; margin-top: 4px;">
+          <a routerLink="/forgot-password" style="font-size: 0.9rem; color: #7c3aed;">ลืมรหัสผ่าน?</a>
+        </div>
 
         <div class="error-message" *ngIf="errorMessage">
           {{ errorMessage }}

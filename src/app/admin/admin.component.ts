@@ -506,11 +506,20 @@ export class AdminComponent implements OnInit, OnDestroy {
                 this.isImportingGame = false;
                 this.isAnyProcessing = false;
 
+                // Debug: Log the full response to see structure
+                console.log('Import game response:', result);
+
                 // Build result data for dialog
                 if (this.selectedImportMethod === 'by_id') {
-                    // Single game import
+                    // Single game import - try different possible response structures
+                    const gameTitle = result.game?.title || result.game?.name || result.title || result.name || 'ไม่ทราบชื่อเกม';
+
+                    // Debug: Log what we found
+                    console.log('Game title found:', gameTitle);
+                    console.log('result.game:', result.game);
+
                     this.showResultDialog('นำเข้าเกมสำเร็จ', {
-                        'ชื่อเกม': result.game?.title || 'สำเร็จ'
+                        'ชื่อเกม': gameTitle
                     });
                 } else {
                     // Batch import
