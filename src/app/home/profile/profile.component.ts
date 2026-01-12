@@ -64,6 +64,9 @@ export class ProfileComponent implements OnInit {
     showDeleteDialog = false;
     showAvatarDialog = false;
     showDeleteAvatarConfirm = false;
+    showLogoutDialog = false;
+    showLogoutSuccessDialog = false;
+    showEditSuccessDialog = false;
     editingComment: UserComment | null = null;
     editingContent = '';
     deletingCommentId: number | null = null;
@@ -193,6 +196,7 @@ export class ProfileComponent implements OnInit {
                 this.editingComment = null;
                 this.editingContent = '';
                 this.loadComments(user.id);
+                this.showEditSuccessDialog = true;
             },
             error: (err) => {
                 console.error('Error editing comment:', err);
@@ -344,7 +348,17 @@ export class ProfileComponent implements OnInit {
     }
 
     logout(): void {
+        this.showLogoutDialog = true;
+    }
+
+    confirmLogout(): void {
+        this.showLogoutDialog = false;
         this.authService.logout();
+        this.showLogoutSuccessDialog = true;
+    }
+
+    handleLogoutSuccess(): void {
+        this.showLogoutSuccessDialog = false;
         this.router.navigate(['/']);
     }
 

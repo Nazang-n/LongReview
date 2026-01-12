@@ -19,7 +19,7 @@ import { AuthService } from '../services/auth.service';
         <input id="login-email" type="email" placeholder="Email" [(ngModel)]="email" />
 
         <label for="login-password">Password</label>
-        <input id="login-password" type="password" placeholder="Password" [(ngModel)]="password" />
+        <input id="login-password" type="password" placeholder="Password" [(ngModel)]="password" (keyup.enter)="onLogin()" />
 
         <div class="error-message" *ngIf="errorMessage">
           {{ errorMessage }}
@@ -51,7 +51,7 @@ export class LoginComponent {
   isLoading: boolean = false;
   errorMessage: string = '';
 
-  constructor(private authService: AuthService, private router: Router) {}
+  constructor(private authService: AuthService, private router: Router) { }
 
   onLogin() {
     // Validate inputs

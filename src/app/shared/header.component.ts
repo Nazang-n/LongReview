@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
+import { DialogModule } from 'primeng/dialog';
 
 import { AuthService, User } from '../services/auth.service';
 import { ProfileService, UserProfile } from '../services/profile.service';
@@ -12,7 +13,7 @@ import { isPlatformBrowser } from '@angular/common';
 @Component({
   selector: 'app-header',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, DialogModule],
   template: `
   <header class="navbar">
     <div class="container-nav">
@@ -64,6 +65,53 @@ import { isPlatformBrowser } from '@angular/common';
       </div>
     </div>
   </header>
+
+  <!-- Logout Confirmation Dialog -->
+  <p-dialog 
+    [(visible)]="showLogoutDialog" 
+    [modal]="true" 
+    [closable]="false"
+    [style]="{width: '400px'}"
+    header="ยืนยันการออกจากระบบ">
+    <p style="margin: 0; padding: 16px 0;">คุณต้องการออกจากระบบหรือไม่?</p>
+    <ng-template pTemplate="footer">
+      <button 
+        class="btn-cancel" 
+        (click)="showLogoutDialog = false"
+        style="padding: 8px 16px; margin-right: 8px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">
+        ยกเลิก
+      </button>
+      <button 
+        class="btn-confirm" 
+        (click)="confirmLogout()"
+        style="padding: 8px 16px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">
+        ออกจากระบบ
+      </button>
+    </ng-template>
+  </p-dialog>
+
+  <!-- Logout Success Dialog -->
+  <p-dialog 
+    [(visible)]="showLogoutSuccessDialog" 
+    [modal]="true" 
+    [closable]="false"
+    [style]="{width: '400px'}">
+    <ng-template pTemplate="header">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <i class="pi pi-check-circle" style="color: #28a745; font-size: 1.5rem;"></i>
+        <span style="font-weight: 600; font-size: 1.1rem;">ออกจากระบบสำเร็จ</span>
+      </div>
+    </ng-template>
+    <p style="margin: 0; padding: 16px 0;">คุณได้ออกจากระบบเรียบร้อยแล้ว</p>
+    <ng-template pTemplate="footer">
+      <button 
+        class="btn-confirm" 
+        (click)="handleLogoutSuccess()"
+        style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
+        ตกลง
+      </button>
+    </ng-template>
+  </p-dialog>
   `,
   styles: [`
     .user-info { 
@@ -148,6 +196,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
   currentUser$: Observable<User | null>;
   isBrowser: boolean;
   isDropdownOpen = false;
+  showLogoutDialog = false;
+  showLogoutSuccessDialog = false;
   userProfile: UserProfile | null = null;
   private destroy$ = new Subject<void>();
 
@@ -237,7 +287,17 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   logout() {
     this.isDropdownOpen = false;
+    this.showLogoutDialog = true;
+  }
+
+  confirmLogout() {
+    this.showLogoutDialog = false;
     this.authService.logout();
+    this.showLogoutSuccessDialog = true;
+  }
+
+  handleLogoutSuccess() {
+    this.showLogoutSuccessDialog = false;
     this.router.navigate(['/']);
   }
 }
