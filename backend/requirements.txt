@@ -18,3 +18,6 @@ textblob>=0.17.1
 email-validator>=2.1.0
 dnspython>=2.4.0
 aiosmtplib>=3.0.0
+transformers
+torch
+accelerate

@@ -106,11 +106,11 @@
                 <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
                     <i class="pi pi-chart-bar text-red-600"></i>
                     การวิเคราะห์ความรู้สึก
-                    <!-- <button (click)="refreshTags()" [disabled]="isLoadingTags" title="วิเคราะห์ใหม่ (AI Polish)"
+                    <button (click)="refreshTags()" [disabled]="isLoadingTags" title="วิเคราะห์ใหม่ (AI Polish)"
                         class="ml-auto text-sm bg-purple-100 text-purple-700 hover:bg-purple-200 px-3 py-1 rounded-full transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                         <i class="pi" [ngClass]="isLoadingTags ? 'pi-spin pi-spinner' : 'pi-sparkles'"></i>
-                        <span>{{ isLoadingTags ? 'Analyzing...' : 'AI Polish' }}</span>
-                    </button> -->
+                        <span>{{ isLoadingTags ? 'Generating...' : 'Generate Tags (AI)' }}</span>
+                    </button>
                 </h3>
 
                 <!-- Loading State -->
@@ -384,10 +384,9 @@
                         <!-- Comment Footer (Voting) -->
                         <div class="flex items-center gap-4 text-sm">
                             <button (click)="voteComment(comment.id, 'up')"
-                                [ngClass]="comment.user_vote === 'up' ? 'text-green-600' : 'text-gray-600 hover:text-green-600'"
+                                [ngClass]="comment.user_voted ? 'text-green-600' : 'text-gray-600 hover:text-green-600'"
                                 class="flex items-center gap-2 transition-colors">
-                                <i class="pi"
-                                    [ngClass]="comment.user_vote === 'up' ? 'pi-thumbs-up-fill' : 'pi-thumbs-up'"></i>
+                                <i class="pi" [ngClass]="comment.user_voted ? 'pi-thumbs-up-fill' : 'pi-thumbs-up'"></i>
                                 <span class="font-semibold">{{ comment.upvotes }}</span>
                             </button>
                         </div>

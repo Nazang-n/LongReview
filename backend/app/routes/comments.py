@@ -48,6 +48,7 @@ class CommentResponse(BaseModel):
     created_at: str
     updated_at: str
     upvotes: int
+    user_voted: Optional[bool] = None
 
 
 class ReportResponse(BaseModel):
@@ -122,7 +123,7 @@ def get_comments(
     Get all comments for a game.
     
     - **game_id**: The ID of the game
-    - **user_id**: Optional - not used anymore (kept for compatibility)
+    - **user_id**: Optional - ID of the current user to check vote status
     """
     comments = db.query(models.Comment).filter(
         models.Comment.game_id == game_id
@@ -134,6 +135,18 @@ def get_comments(
         user = db.query(models.User).filter(models.User.id == comment.user_id).first()
         username = user.username if user else "Unknown User"
         
+        # Check if current user has voted on this comment
+        user_voted = False
+        if user_id:
+            existing_vote = db.query(models.CommentVote).filter(
+                and_(
+                    models.CommentVote.comment_id == comment.id,
+                    models.CommentVote.user_id == user_id,
+                    models.CommentVote.vote_type == 'up'
+                )
+            ).first()
+            user_voted = existing_vote is not None
+        
         result.append({
             "id": comment.id,
             "game_id": comment.game_id,
@@ -143,7 +156,8 @@ def get_comments(
             "is_edited": comment.is_edited,
             "created_at": comment.created_at.isoformat() if comment.created_at else None,
             "updated_at": comment.updated_at.isoformat() if comment.updated_at else None,
-            "upvotes": comment.upvotes
+            "upvotes": comment.upvotes,
+            "user_voted": user_voted
         })
     
     return result
@@ -250,10 +264,10 @@ def like_comment(
     db: Session = Depends(get_db)
 ):
     """
-    Like a comment (increment upvotes).
+    Toggle vote on a comment (like/unlike).
     
     - **comment_id**: The ID of the comment
-    - **user_id**: The ID of the user liking
+    - **user_id**: The ID of the user voting
     """
     # Verify comment exists
     comment = db.query(models.Comment).filter(models.Comment.id == comment_id).first()
@@ -263,15 +277,44 @@ def like_comment(
             detail="Comment not found"
         )
     
-    # Increment upvotes
-    comment.upvotes += 1
-    db.commit()
+    # Check if user has already voted
+    existing_vote = db.query(models.CommentVote).filter(
+        and_(
+            models.CommentVote.comment_id == comment_id,
+            models.CommentVote.user_id == request.user_id,
+            models.CommentVote.vote_type == 'up'
+        )
+    ).first()
     
-    return {
-        "success": True,
-        "message": "Comment liked",
-        "upvotes": comment.upvotes
-    }
+    if existing_vote:
+        # User has already voted - remove vote (toggle off)
+        db.delete(existing_vote)
+        comment.upvotes = max(0, comment.upvotes - 1)  # Prevent negative votes
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": "Vote removed",
+            "upvotes": comment.upvotes,
+            "user_voted": False
+        }
+    else:
+        # User hasn't voted - add vote (toggle on)
+        new_vote = models.CommentVote(
+            comment_id=comment_id,
+            user_id=request.user_id,
+            vote_type='up'
+        )
+        db.add(new_vote)
+        comment.upvotes += 1
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": "Comment liked",
+            "upvotes": comment.upvotes,
+            "user_voted": True
+        }
 
 
 @router.post("/{comment_id}/report")
