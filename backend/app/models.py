@@ -33,7 +33,6 @@ class Game(Base):
     price = Column(String(255))  # Price from Steam
     video = Column(String(255))  # Video URL
     release_date = Column(Date)  # Release date
-    admin_id = Column(Integer)  # Admin ID
     
     # Additional columns for Steam API data (add these to DB if needed)
     genre = Column(String(100))  # Game genres
@@ -55,7 +54,6 @@ class Review(Base):
     
     # Existing columns in database
     game_id = Column(Integer, nullable=False, index=True)
-    admin_id = Column(Integer)
     content = Column(Text, nullable=False)
     owner = Column(String(255))
     

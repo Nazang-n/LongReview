@@ -384,10 +384,9 @@
                         <!-- Comment Footer (Voting) -->
                         <div class="flex items-center gap-4 text-sm">
                             <button (click)="voteComment(comment.id, 'up')"
-                                [ngClass]="comment.user_vote === 'up' ? 'text-green-600' : 'text-gray-600 hover:text-green-600'"
+                                [ngClass]="comment.user_voted ? 'text-green-600' : 'text-gray-600 hover:text-green-600'"
                                 class="flex items-center gap-2 transition-colors">
-                                <i class="pi"
-                                    [ngClass]="comment.user_vote === 'up' ? 'pi-thumbs-up-fill' : 'pi-thumbs-up'"></i>
+                                <i class="pi" [ngClass]="comment.user_voted ? 'pi-thumbs-up-fill' : 'pi-thumbs-up'"></i>
                                 <span class="font-semibold">{{ comment.upvotes }}</span>
                             </button>
                         </div>

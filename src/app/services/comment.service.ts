@@ -14,6 +14,7 @@ export interface Comment {
     upvotes: number;
     downvotes: number;
     user_vote: string | null;
+    user_voted?: boolean;
 }
 
 export interface CommentReport {
