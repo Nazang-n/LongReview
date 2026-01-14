@@ -40,11 +40,12 @@ class NewsService:
             "แมนยู", "แมนซิตี้", "ลิเวอร์พูล", "เชลซี", "อาร์เซน่อล",
             "บาร์เซโลน่า", "เรอัลมาดริด", "พรีเมียร์ลีก", "ลาลีกา",
             "ยูฟ่า", "ชปล.", "ฟีฟ่า", "กุนซือ", "ผู้จัดการทีม",
+            "นัดถัดไป", "โปรแกรม 5 นัด", "เจอของหนัก", "ยุคไร้กุนซือ",
             # Badminton specific
             "กุลวุฒิ", "คริสตี้", "แบดมินตัน โอเพ่น", "โอเพ่น 20",
             "น้องเมย์", "เฟม", "บาส-เฟม", "อินเดีย โอเพ่น", "india open",
             "คู่เสือเหลือง", "แบดอินเดีย", "ลุยต่อรอบสอง", "ฉลุยเข้ารอบสอง",
-            "ไล่ต้อนสาวญี่ปุ่น", "เฉือนคู่", "ชนะเซต",
+            "ไล่ต้อนสาวญี่ปุ่น", "เฉือนคู่", "ชนะเซต", "ไล่ต้อน", "รอบสอง",
             # Basketball specific  
             "บาส", "nba", "บาสเกตบอล", "สนามบาส", "ลูกบาส",
             # Children's day and non-gaming events
@@ -352,6 +353,9 @@ class NewsService:
             }
             
         except httpx.HTTPStatusError as e:
+            import traceback
+            print(f"HTTP Status Error: {str(e)}")
+            print(f"Traceback: {traceback.format_exc()}")
             if e.response.status_code == 429:
                 raise HTTPException(
                     status_code=429,
@@ -362,10 +366,14 @@ class NewsService:
                 detail=f"Failed to sync news: {str(e)}"
             )
         except Exception as e:
+            import traceback
+            print(f"General Error: {str(e)}")
+            print(f"Traceback: {traceback.format_exc()}")
             raise HTTPException(
                 status_code=500,
                 detail=f"Failed to sync news: {str(e)}"
             )
+
     
     @staticmethod
     def save_article_to_db(db: Session, article: Dict[str, Any]) -> str:
