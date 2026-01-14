@@ -307,6 +307,22 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.gameService.getGames(0, 10, [this.selectedCategory], 'popular').subscribe({
       next: (games: any[]) => {
         this.categoryGames = this.mapGames(games);
+
+        // Reorder tags: Put the current category tag FIRST so it's always visible
+        const currentCategory = this.categories.find(c => c.id === this.selectedCategory);
+        if (currentCategory && currentCategory.name_th) {
+          const categoryNameTh = currentCategory.name_th;
+          this.categoryGames.forEach(game => {
+            if (game.genresTh && game.genresTh.includes(categoryNameTh)) {
+              // Remove existing occurrence and unshift to front
+              game.genresTh = [
+                categoryNameTh,
+                ...game.genresTh.filter(g => g !== categoryNameTh)
+              ];
+            }
+          });
+        }
+
         this.isLoadingCategoryGames = false;
         this.loadGameSentiments(this.categoryGames);
 

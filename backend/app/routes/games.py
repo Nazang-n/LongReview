@@ -13,15 +13,25 @@ router = APIRouter(
 )
 
 
-def serialize_game(game: models.Game, sentiment: Optional[models.GameSentiment] = None) -> dict:
+def serialize_game(game: models.Game, sentiment: Optional[models.GameSentiment] = None, genres_list: Optional[List[str]] = None) -> dict:
     """Convert Game model to dict with proper date serialization"""
     # Try to get steam_app_id - it may not be loaded if backend wasn't restarted
     steam_app_id = getattr(game, 'steam_app_id', None)
     
     # Translate genres
     genre_th = None
-    if game.genre:
+    
+    # Use provided genres_list if available (from GameTags), else fallback to game.genre string
+    genres = []
+    if genres_list is not None:
+        genres = genres_list
+    elif game.genre:
         genres = [g.strip() for g in game.genre.split(',')]
+        
+    # Filter out 'Massively Multiplayer' as it's handled in player_modes
+    genres = [g for g in genres if g.lower() != 'massively multiplayer']
+        
+    if genres:
         genres_th = [translate_tag(g, 'genre') for g in genres]
         genre_th = ", ".join(genres_th)
         
@@ -42,7 +52,7 @@ def serialize_game(game: models.Game, sentiment: Optional[models.GameSentiment] 
         "id": game.id,
         "title": game.title,
         "description": game.description,
-        "genre": game.genre,
+        "genre": ", ".join(genres) if genres else game.genre,
         "genre_th": genre_th,
         "rating": game.rating,
         "image_url": game.image_url,
@@ -162,28 +172,37 @@ def get_games(
         
     games = query.offset(skip).limit(limit).all()
     
-    # Fetch player modes for these games
+    # Fetch player modes AND genres for these games
     results = []
     if games:
         game_ids = [g.id for g in games]
         
-        # Query player mode tags
-        pm_tags = db.query(models.GameTag.game_id, models.Tag.name)\
+        # Query tags (both player_mode and genre)
+        tags_data = db.query(models.GameTag.game_id, models.Tag.name, models.Tag.type)\
             .join(models.Tag, models.GameTag.tag_id == models.Tag.id)\
             .filter(models.GameTag.game_id.in_(game_ids))\
-            .filter(models.Tag.type == 'player_mode')\
+            .filter(models.Tag.type.in_(['player_mode', 'genre']))\
             .all()
             
         # Group by game_id
         pm_map = {}
-        for gid, tname in pm_tags:
-            if gid not in pm_map:
-                pm_map[gid] = []
-            pm_map[gid].append(tname)
+        genre_map = {}
+        
+        for gid, tname, ttype in tags_data:
+            if ttype == 'player_mode':
+                if gid not in pm_map:
+                    pm_map[gid] = []
+                pm_map[gid].append(tname)
+            elif ttype == 'genre':
+                if gid not in genre_map:
+                    genre_map[gid] = []
+                genre_map[gid].append(tname)
             
         # Serialize and attach
         for game in games:
-            g_dict = serialize_game(game)
+            # Pass full genre list from DB relationships
+            game_genres = genre_map.get(game.id, None)
+            g_dict = serialize_game(game, genres_list=game_genres)
             g_dict['player_modes'] = pm_map.get(game.id, [])
             results.append(g_dict)
             
@@ -260,7 +279,26 @@ def get_game(game_id: int, db: Session = Depends(get_db)):
     )
     row = result.fetchone()
     
-    game_dict = serialize_game(game)
+    # Fetch genres from GameTag
+    genre_tags = db.query(models.Tag.name)\
+        .join(models.GameTag, models.GameTag.tag_id == models.Tag.id)\
+        .filter(models.GameTag.game_id == game_id)\
+        .filter(models.Tag.type == 'genre')\
+        .all()
+    
+    genre_list = [g[0] for g in genre_tags] if genre_tags else None
+
+    # Fetch player modes
+    pm_tags = db.query(models.Tag.name)\
+        .join(models.GameTag, models.GameTag.tag_id == models.Tag.id)\
+        .filter(models.GameTag.game_id == game_id)\
+        .filter(models.Tag.type == 'player_mode')\
+        .all()
+    
+    pm_list = [t[0] for t in pm_tags] if pm_tags else []
+    
+    game_dict = serialize_game(game, genres_list=genre_list)
+    game_dict["player_modes"] = pm_list
     game_dict["app_id"] = row[0] if row else None
     
     return game_dict
@@ -345,6 +383,9 @@ def create_game(game: schemas.GameCreate, db: Session = Depends(get_db)):
     db.add(db_game)
     db.commit()
     db.refresh(db_game)
+    
+    # Attach empty player_modes for schema validation
+    setattr(db_game, 'player_modes', [])
     return db_game
 
 
@@ -374,6 +415,9 @@ def update_game(
     
     db.commit()
     db.refresh(db_game)
+    
+    # Attach player_modes for schema validation
+    setattr(db_game, 'player_modes', [])
     return db_game
 
 
@@ -413,7 +457,21 @@ def search_games(
     games = db.query(models.Game).filter(
         models.Game.title.ilike(f"%{query}%")
     ).order_by(models.Game.release_date.desc()).offset(skip).limit(limit).all()
-    return games
+    
+    results = []
+    if games:
+        # For search, we can probably skip heavy tag fetching or do it if needed.
+        # Let's just return basic info + empty player_modes to be fast and safe
+        # Or reuse serialize_game for consistency
+        for game in games:
+            g_dict = serialize_game(game)
+            # We didn't fetch tags, so pass empty list or whatever serialize_game behavior is
+            # serialize_game handles missing tags gracefully?
+            # get_games logic fetches tags separately.
+            g_dict['player_modes'] = [] 
+            results.append(g_dict)
+            
+    return results
 
 
 @router.post("/translate/batch")
