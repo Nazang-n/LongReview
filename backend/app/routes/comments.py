@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, func, or_
+from sqlalchemy import func, or_
 from typing import List, Optional
 from pydantic import BaseModel
 from datetime import datetime
@@ -138,14 +138,12 @@ def get_comments(
         # Check if current user has voted on this comment
         user_voted = False
         if user_id:
-            existing_vote = db.query(models.CommentVote).filter(
-                and_(
-                    models.CommentVote.comment_id == comment.id,
-                    models.CommentVote.user_id == user_id,
-                    models.CommentVote.vote_type == 'up'
-                )
-            ).first()
-            user_voted = existing_vote is not None
+            import json
+            try:
+                voted_ids = json.loads(comment.voted_user_ids or '[]')
+                user_voted = user_id in voted_ids
+            except:
+                user_voted = False
         
         result.append({
             "id": comment.id,
@@ -269,6 +267,8 @@ def like_comment(
     - **comment_id**: The ID of the comment
     - **user_id**: The ID of the user voting
     """
+    import json
+    
     # Verify comment exists
     comment = db.query(models.Comment).filter(models.Comment.id == comment_id).first()
     if not comment:
@@ -277,19 +277,18 @@ def like_comment(
             detail="Comment not found"
         )
     
-    # Check if user has already voted
-    existing_vote = db.query(models.CommentVote).filter(
-        and_(
-            models.CommentVote.comment_id == comment_id,
-            models.CommentVote.user_id == request.user_id,
-            models.CommentVote.vote_type == 'up'
-        )
-    ).first()
+    # Parse voted user IDs
+    try:
+        voted_ids = json.loads(comment.voted_user_ids or '[]')
+    except:
+        voted_ids = []
     
-    if existing_vote:
+    # Check if user has already voted
+    if request.user_id in voted_ids:
         # User has already voted - remove vote (toggle off)
-        db.delete(existing_vote)
+        voted_ids.remove(request.user_id)
         comment.upvotes = max(0, comment.upvotes - 1)  # Prevent negative votes
+        comment.voted_user_ids = json.dumps(voted_ids)
         db.commit()
         
         return {
@@ -300,13 +299,9 @@ def like_comment(
         }
     else:
         # User hasn't voted - add vote (toggle on)
-        new_vote = models.CommentVote(
-            comment_id=comment_id,
-            user_id=request.user_id,
-            vote_type='up'
-        )
-        db.add(new_vote)
+        voted_ids.append(request.user_id)
         comment.upvotes += 1
+        comment.voted_user_ids = json.dumps(voted_ids)
         db.commit()
         
         return {

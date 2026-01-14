@@ -148,24 +148,9 @@ class Comment(Base):
     content = Column(Text, nullable=False)
     is_edited = Column(Boolean, default=False, nullable=False)
     upvotes = Column(Integer, default=0, nullable=False)  # Store upvotes directly
+    voted_user_ids = Column(Text, default='[]', nullable=False)  # JSON array of user IDs who voted
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-
-
-class CommentVote(Base):
-    """CommentVote model - tracks thumbs up/down votes on comments"""
-    __tablename__ = "comment_vote"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    comment_id = Column(Integer, nullable=False, index=True)
-    user_id = Column(Integer, nullable=False, index=True)
-    vote_type = Column(String(10), nullable=False)  # 'up' or 'down'
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
-    # Ensure a user can only vote once per comment
-    __table_args__ = (
-        {'mysql_engine': 'InnoDB', 'mysql_charset': 'utf8mb4'}
-    )
 
 
 class CommentReport(Base):
