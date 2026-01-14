@@ -5,6 +5,7 @@ Automatically updates game sentiment data and review tags from Steam API every h
 """
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy.orm import Session
 from .database import SessionLocal
 from .steam_api import SteamAPIClient
@@ -181,6 +182,60 @@ def update_review_tags():
     finally:
         db.close()
 
+def cleanup_password_reset_tokens():
+    """Delete expired, used, and old password reset tokens (daily cleanup)"""
+    db = SessionLocal()
+    stats = {
+        'total_deleted': 0,
+        'expired_deleted': 0,
+        'used_deleted': 0,
+        'old_deleted': 0,
+        'errors': 0
+    }
+    
+    try:
+        from datetime import timedelta
+        
+        print("[Token Cleanup] Starting password reset token cleanup...")
+        
+        # Delete expired tokens
+        expired_count = db.query(models.PasswordResetToken).filter(
+            models.PasswordResetToken.expires_at < datetime.utcnow()
+        ).delete(synchronize_session=False)
+        stats['expired_deleted'] = expired_count
+        
+        # Delete used tokens
+        used_count = db.query(models.PasswordResetToken).filter(
+            models.PasswordResetToken.used == True
+        ).delete(synchronize_session=False)
+        stats['used_deleted'] = used_count
+        
+        # Delete old tokens (>7 days)
+        cutoff_date = datetime.utcnow() - timedelta(days=7)
+        old_count = db.query(models.PasswordResetToken).filter(
+            models.PasswordResetToken.created_at < cutoff_date
+        ).delete(synchronize_session=False)
+        stats['old_deleted'] = old_count
+        
+        db.commit()
+        
+        stats['total_deleted'] = expired_count + used_count + old_count
+        
+        print(f"[Token Cleanup] Complete! Deleted {stats['total_deleted']} tokens:")
+        print(f"  - Expired: {expired_count}")
+        print(f"  - Used: {used_count}")
+        print(f"  - Old (>7 days): {old_count}")
+        
+        return stats
+        
+    except Exception as e:
+        print(f"[Token Cleanup] Error: {e}")
+        stats['errors'] = 1
+        db.rollback()
+        return stats
+    finally:
+        db.close()
+
 # Initialize scheduler
 scheduler = BackgroundScheduler()
 
@@ -202,11 +257,20 @@ scheduler.add_job(
     replace_existing=True
 )
 
+# Password reset token cleanup job (daily at midnight)
+scheduler.add_job(
+    func=cleanup_password_reset_tokens,
+    trigger=CronTrigger(hour=0, minute=0),
+    id='cleanup_password_tokens',
+    name='Clean up expired and old password reset tokens',
+    replace_existing=True
+)
+
 def start_scheduler():
     """Start the background scheduler"""
     if not scheduler.running:
         scheduler.start()
-        print("[Scheduler] Started - Sentiment updates every hour, Review tags every hour")
+        print("[Scheduler] Started - Sentiment updates every hour, Review tags every hour, Token cleanup daily at midnight")
 
 def stop_scheduler():
     """Stop the background scheduler"""
