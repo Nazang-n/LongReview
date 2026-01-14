@@ -176,10 +176,12 @@ CRITICAL INSTRUCTIONS - READ CAREFULLY:
      ✓ Features: "เล่นกับเพื่อน 4 คน", "มีสกินเยอะ", "มีโหมดออนไลน์"
 
 3. SPECIFICITY EXAMPLES - Good vs Bad:
-   ❌ BAD (too generic): "ตัวละครดี" → ✅ GOOD: "ตัวละครมีบุคลิก"
-   ❌ BAD: "เกมเพลย์สนุก" → ✅ GOOD: "ระบบต่อสู้สนุก" or "ปริศนาท้าทาย"
-   ❌ BAD: "กราฟิกสวย" → ✅ GOOD: "กราฟิกสไตล์อนิเมะ" or "ภาพวาดมือสวย"
-   ❌ BAD: "มีเนื้อหา" → ✅ GOOD: "มีด่าน 100 ด่าน" or "มีโหมดเยอะ"
+   ❌ BAD (too generic): "ตัวละครดี" → ✅ GOOD: "ตัวละครมีมิติ" or "ตัวละครผูกพัน"
+   ❌ BAD: "เกมเพลย์สนุก" → ✅ GOOD: "ระบบลอบเร้นตื่นเต้น" or "ยิงซอมบี้สะใจ"
+   ❌ BAD: "กราฟิกสวย" → ✅ GOOD: "กราฟิกสมจริง 4K" or "แสงเงาสวยงาม"
+   ❌ BAD: "มีเนื้อหา" → ✅ GOOD: "เล่นได้ 20+ ชม." or "มีโหมด New Game+"
+   ❌ BAD: "เสียงดี" → ✅ GOOD: "เสียงพากย์ไทยดี" or "ดนตรีประกอบซึ้ง"
+   ❌ BAD: "บ่อย" / "ค้าง" / "หลุด" → ✅ GOOD: "เกมค้างบ่อย" or "หลุดบ่อย" (MUST include noun)
 
 4. NO VAGUE WORDS - Be concrete:
    * Instead of "มีเมม" → "มีมีมตลก" or "ชุมชนสร้างมีม"
@@ -268,7 +270,13 @@ Output JSON:"""
 
             # Helper function to check if tag is complete (not ending with connecting words)
             def is_complete_tag(tag):
-                incomplete_endings = ['และ', 'หรือ', 'กับ', 'ที่', 'ของ', 'ใน', 'ไป', 'มา']
+                incomplete_endings = ['และ', 'หรือ', 'กับ', 'ที่', 'ของ', 'ใน', 'ไป', 'มา', 'บ่อย', 'มาก', 'น้อย', 'เกินไป']
+                incomplete_starts = ['ไม่', 'มี', 'การ', 'ความ', 'อย่าง', 'แบบ'] # Words that shouldn't stand alone or start a weird phrase if short
+                
+                # Check for single generic words that slip through
+                if len(tag) < 4 and tag in ['บ่อย', 'มาก', 'น้อย', 'ดี', 'แย่']:
+                    return False
+                    
                 return not any(tag.endswith(ending) for ending in incomplete_endings)
 
             final_json = {"positive": [], "negative": []}
