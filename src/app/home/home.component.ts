@@ -63,10 +63,54 @@ export class HomeComponent implements OnInit, OnDestroy {
     private tagService: TagService
   ) { }
 
+  // --- Logic สำหรับเกมเด็ดประจำปี ---
+  years: number[] = [];
+  selectedYear: number = new Date().getFullYear();
+  isLoadingPositive = true;
+
   ngOnInit() {
+    this.initYears();
     this.startAutoSlide();
     this.loadData();
     this.loadCategories();
+  }
+
+  initYears() {
+    const currentYear = new Date().getFullYear();
+    // Generate last 5 years
+    for (let i = 0; i < 5; i++) {
+      this.years.push(currentYear - i);
+    }
+  }
+
+  selectYear(year: number) {
+    this.selectedYear = year;
+    this.loadPositiveGames();
+
+    // Reset scroll position to start (Force immediate jump)
+    if (this.cardList2 && this.cardList2.nativeElement) {
+      setTimeout(() => {
+        this.cardList2.nativeElement.scrollTo({ left: 0, behavior: 'auto' });
+      }, 0);
+    }
+  }
+
+  loadPositiveGames() {
+    this.isLoadingPositive = true;
+    this.positiveGames = []; // Clear list while loading (optional, or keep old data)
+
+    // Get Popular + Specific Year (With Positive > 70% filter)
+    this.gameService.getGames(0, 10, [], 'popular', 'positive', this.selectedYear).subscribe({
+      next: (games: any[]) => {
+        this.positiveGames = this.mapGames(games);
+        this.loadGameSentiments(this.positiveGames);
+        this.isLoadingPositive = false;
+      },
+      error: (err) => {
+        console.error('Error loading positive games', err);
+        this.isLoadingPositive = false;
+      }
+    });
   }
 
   loadData() {
@@ -93,14 +137,8 @@ export class HomeComponent implements OnInit, OnDestroy {
       error: (err) => console.error('Error loading popular games', err)
     });
 
-    // 3. Get Positive Games (Top Rated) - Sort by Rating (Positive %)
-    this.gameService.getGames(0, 10, [], 'rating').subscribe({
-      next: (games: any[]) => {
-        this.positiveGames = this.mapGames(games);
-        this.loadGameSentiments(this.positiveGames);
-      },
-      error: (err) => console.error('Error loading positive games', err)
-    });
+    // 3. Get Positive Games (Default to current year)
+    this.loadPositiveGames();
   }
 
   loadGameSentiments(games: Game[]) {
