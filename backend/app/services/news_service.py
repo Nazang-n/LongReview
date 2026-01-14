@@ -40,8 +40,13 @@ class NewsService:
             "แมนยู", "แมนซิตี้", "ลิเวอร์พูล", "เชลซี", "อาร์เซน่อล",
             "บาร์เซโลน่า", "เรอัลมาดริด", "พรีเมียร์ลีก", "ลาลีกา",
             "ยูฟ่า", "ชปล.", "ฟีฟ่า", "กุนซือ", "ผู้จัดการทีม",
-            # Badminton and other sports
+            # Badminton specific
             "กุลวุฒิ", "คริสตี้", "แบดมินตัน โอเพ่น", "โอเพ่น 20",
+            "น้องเมย์", "เฟม", "บาส-เฟม", "อินเดีย โอเพ่น", "india open",
+            "คู่เสือเหลือง", "แบดอินเดีย", "ลุยต่อรอบสอง", "ฉลุยเข้ารอบสอง",
+            "ไล่ต้อนสาวญี่ปุ่น", "เฉือนคู่", "ชนะเซต",
+            # Basketball specific  
+            "บาส", "nba", "บาสเกตบอล", "สนามบาส", "ลูกบาส",
             # Children's day and non-gaming events
             "วันเด็ก", "เพลย์แลนด์", "สวนสนุก", "พิกัดเที่ยว",
             "กิจกรรมสร้างสรรค์", "งานวันเด็ก"
@@ -61,6 +66,17 @@ class NewsService:
         entertainment_keywords = [
             "บิลบอร์ด", "คอนเสิร์ต", "แฟนมีต", "งานแถลงข่าว",
             "เซเลบ", "ดารา", "นักร้อง", "นักแสดง"
+        ]
+        
+        # Political keywords (filter out political news)
+        political_keywords = [
+            "การเมือง", "นักการเมือง", "พรรคการเมือง", "รัฐบาล",
+            "นายกรัฐมนตรี", "รัฐมนตรี", "ส.ส.", "ส.ว.", "ผู้ว่าฯ",
+            "เลือกตั้ง", "โหวต", "ลงคะแนน", "ประชามติ",
+            "ปชป.", "พปชร.", "เพื่อไทย", "ก้าวไกล", "ประชาธิปัตย์",
+            "อภิสิทธิ์", "เศรษฐา", "พิธา", "ทักษิณ", "ยิ่งลักษณ์",
+            "แดง-น้ำเงิน", "โยนกันไปมา", "กลับมาแข็งแกร่ง",
+            "รัฐสภา", "สภาผู้แทนราษฎร", "วุฒิสภา", "คณะรัฐมนตรี"
         ]
         
         # Non-gaming content keywords
@@ -93,6 +109,10 @@ class NewsService:
         
         # Check for entertainment keywords (any one is enough)
         if any(keyword in content for keyword in entertainment_keywords):
+            return True
+        
+        # Check for political keywords (any one is enough)
+        if any(keyword in content for keyword in political_keywords):
             return True
         
         # Check for non-gaming keywords (filter out if found)

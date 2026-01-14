@@ -7,8 +7,8 @@ import { FooterComponent } from '../../shared/footer.component';
 import { GameService } from '../../services/game.service';
 import { FavoriteService } from '../../services/favorite.service';
 import { AuthService } from '../../services/auth.service';
-import { TagService, TagWithCount } from '../../services/tag.service'; // Added Back for Sidebar
-import { DialogModule } from 'primeng/dialog';
+import { TagService, TagWithCount } from '../../services/tag.service';
+import { RemoveFavoriteDialogComponent } from '../../shared/components/remove-favorite-dialog/remove-favorite-dialog.component';
 import { forkJoin } from 'rxjs';
 
 interface Game {
@@ -34,7 +34,7 @@ interface Game {
 @Component({
     selector: 'app-game-list',
     standalone: true,
-    imports: [CommonModule, RouterModule, HeaderComponent, FooterComponent, FormsModule, DialogModule],
+    imports: [CommonModule, RouterModule, HeaderComponent, FooterComponent, FormsModule, RemoveFavoriteDialogComponent],
     templateUrl: './game-list.component.html',
     styleUrls: ['./game-list.component.css']
 })

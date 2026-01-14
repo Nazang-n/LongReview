@@ -99,6 +99,12 @@ export class AdminComponent implements OnInit, OnDestroy {
         { label: 'เพิ่มเกมแบบ Batch', value: 'batch' }
     ];
 
+    // Game deletion
+    games: any[] = [];
+    selectedGameId: number | null = null;
+    isDeletingGame = false;
+    showDeleteGameDialog = false;
+
     // Dashboard analytics
     isLoadingAnalytics = false;
     analyticsError: string | null = null;
@@ -131,6 +137,7 @@ export class AdminComponent implements OnInit, OnDestroy {
     ngOnInit() {
         this.loadReportedComments();
         this.loadDashboardAnalytics();
+        this.loadGames();
 
         // Auto-refresh dashboard analytics every 30 seconds
         this.dashboardRefreshInterval = setInterval(() => {
@@ -577,6 +584,73 @@ export class AdminComponent implements OnInit, OnDestroy {
             this.analyticsError = 'ไม่สามารถโหลดข้อมูลสถิติได้';
             this.isLoadingAnalytics = false;
         });
+    }
+
+    loadGames() {
+        this.gameService.getGamesList().subscribe({
+            next: (response: any) => {
+                this.games = response.games || [];
+            },
+            error: (err: any) => {
+                console.error('Error loading games:', err);
+                this.messageService.add({
+                    severity: 'error',
+                    summary: 'เกิดข้อผิดพลาด',
+                    detail: 'ไม่สามารถโหลดรายการเกมได้',
+                    life: 3000
+                });
+            }
+        });
+    }
+
+    deleteGame() {
+        if (!this.selectedGameId) {
+            this.messageService.add({
+                severity: 'warn',
+                summary: 'กรุณาเลือกเกม',
+                detail: 'กรุณาเลือกเกมที่ต้องการลบ',
+                life: 3000
+            });
+            return;
+        }
+
+        this.showDeleteGameDialog = true;
+    }
+
+    confirmDeleteGame() {
+        if (!this.selectedGameId) return;
+
+        this.isDeletingGame = true;
+        this.showDeleteGameDialog = false;
+
+        this.gameService.deleteGame(this.selectedGameId).subscribe({
+            next: (result: any) => {
+                this.isDeletingGame = false;
+                this.selectedGameId = null;
+                this.loadGames(); // Refresh game list
+
+                const deleted = result.deleted || {};
+                this.showResultDialog('ลบเกมสำเร็จ', {
+                    'เกม': deleted.game || 'ไม่ทราบชื่อ',
+                    'ความคิดเห็น': deleted.comments || 0,
+                    'รายการโปรด': deleted.favorites || 0,
+                    'รีวิว': deleted.reviews || 0
+                });
+            },
+            error: (err) => {
+                this.isDeletingGame = false;
+                this.messageService.add({
+                    severity: 'error',
+                    summary: 'ลบเกมล้มเหลว',
+                    detail: err.error?.detail || 'เกิดข้อผิดพลาดในการลบเกม',
+                    life: 5000
+                });
+            }
+        });
+    }
+
+    cancelDeleteGame() {
+        this.showDeleteGameDialog = false;
     }
 }
 

@@ -242,7 +242,7 @@
 
 <!-- Success/Error Message Dialog -->
 <p-dialog [(visible)]="showMessageDialog" [modal]="true" [style]="{width: '450px'}" [draggable]="false"
-    [resizable]="false">
+    [resizable]="false" [closable]="false">
     <ng-template pTemplate="header">
         <div class="flex items-center gap-3">
             <i class="pi text-2xl"
@@ -286,7 +286,7 @@
 
 <!-- Delete Avatar Confirmation Dialog -->
 <p-dialog [(visible)]="showDeleteAvatarConfirm" [modal]="true" [style]="{width: '450px'}" [draggable]="false"
-    [resizable]="false">
+    [resizable]="false" [closable]="false">
     <ng-template pTemplate="header">
         <div class="flex items-center gap-3">
             <i class="pi pi-exclamation-triangle text-red-600 text-2xl"></i>

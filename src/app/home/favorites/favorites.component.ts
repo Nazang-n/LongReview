@@ -7,7 +7,7 @@ import { FooterComponent } from '../../shared/footer.component';
 import { FavoriteService } from '../../services/favorite.service';
 import { AuthService } from '../../services/auth.service';
 import { GameService } from '../../services/game.service';
-import { DialogModule } from 'primeng/dialog';
+import { RemoveFavoriteDialogComponent } from '../../shared/components/remove-favorite-dialog/remove-favorite-dialog.component';
 
 interface Game {
     id: number;
@@ -24,7 +24,7 @@ interface Game {
 @Component({
     selector: 'app-favorites',
     standalone: true,
-    imports: [CommonModule, RouterModule, HeaderComponent, FooterComponent, DialogModule, FormsModule],
+    imports: [CommonModule, RouterModule, HeaderComponent, FooterComponent, RemoveFavoriteDialogComponent, FormsModule],
     templateUrl: './favorites.component.html',
     styleUrls: ['./favorites.component.css']
 })

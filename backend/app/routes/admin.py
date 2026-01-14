@@ -253,3 +253,89 @@ async def get_report_analytics(db: Session = Depends(get_db)) -> Dict:
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch report analytics: {str(e)}")
+
+
+@router.get("/games/list")
+async def get_games_list(db: Session = Depends(get_db)) -> Dict:
+    """
+    Get list of all games (id and title) for admin dropdown
+    """
+    from ..models import Game
+    
+    try:
+        games = db.query(Game.id, Game.title).order_by(Game.title).all()
+        return {
+            "games": [{"id": game.id, "title": game.title} for game in games]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch games list: {str(e)}")
+
+
+@router.delete("/games/{game_id}")
+async def delete_game(game_id: int, db: Session = Depends(get_db)) -> Dict:
+    """
+    Delete a game and all related data from the database
+    
+    This will delete:
+    - Game sentiment data
+    - Review tags
+    - Steam reviews
+    - Favorites
+    - Comments (and comment reports)
+    - The game itself
+    """
+    from ..models import Game, GameSentiment, Review, Favorite, Comment, CommentReport
+    from sqlalchemy import text
+    
+    try:
+        # Get game info before deletion
+        game = db.query(Game).filter(Game.id == game_id).first()
+        if not game:
+            raise HTTPException(status_code=404, detail="Game not found")
+        
+        game_title = game.title
+        
+        # Delete related data in order (to respect foreign key constraints)
+        # 1. Delete comment reports first
+        comment_ids = db.query(Comment.id).filter(Comment.game_id == game_id).all()
+        comment_ids = [c.id for c in comment_ids]
+        if comment_ids:
+            db.query(CommentReport).filter(CommentReport.comment_id.in_(comment_ids)).delete(synchronize_session=False)
+        
+        # 2. Delete comments
+        comments_deleted = db.query(Comment).filter(Comment.game_id == game_id).delete(synchronize_session=False)
+        
+        # 3. Delete favorites
+        favorites_deleted = db.query(Favorite).filter(Favorite.game_id == game_id).delete(synchronize_session=False)
+        
+        # 4. Delete reviews
+        reviews_deleted = db.query(Review).filter(Review.game_id == game_id).delete(synchronize_session=False)
+        
+        # 5. Delete review tags (using parameterized query to prevent SQL injection)
+        db.execute(text("DELETE FROM game_review_tags WHERE game_id = :game_id"), {"game_id": game_id})
+        
+        # 6. Delete game sentiment
+        sentiment_deleted = db.query(GameSentiment).filter(GameSentiment.game_id == game_id).delete(synchronize_session=False)
+        
+        # 7. Finally delete the game
+        db.delete(game)
+        db.commit()
+        
+        return {
+            "status": "success",
+            "message": f"Successfully deleted game: {game_title}",
+            "deleted": {
+                "game": game_title,
+                "comments": comments_deleted,
+                "favorites": favorites_deleted,
+                "reviews": reviews_deleted,
+                "sentiment": sentiment_deleted
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to delete game: {str(e)}")
+
+

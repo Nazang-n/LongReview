@@ -111,13 +111,6 @@ export class GameService {
     }
 
     /**
-     * Delete a game
-     */
-    deleteGame(id: number): Observable<void> {
-        return this.http.delete<void>(`${this.apiUrl}/${id}`);
-    }
-
-    /**
      * Search games by query
      */
     searchGames(query: string, skip: number = 0, limit: number = 100): Observable<Game[]> {
@@ -240,5 +233,19 @@ export class GameService {
     importNewestGames(limit: number): Observable<any> {
         const params = new HttpParams().set('limit', limit.toString());
         return this.http.post<any>(`${this.steamApiUrl}/steamspy/import/batch/newest`, null, { params });
+    }
+
+    /**
+     * Get list of all games for admin dropdown (id and title only)
+     */
+    getGamesList(): Observable<any> {
+        return this.http.get<any>('http://localhost:8000/api/admin/games/list');
+    }
+
+    /**
+     * Delete a game (admin only) - deletes game and all related data
+     */
+    deleteGame(gameId: number): Observable<any> {
+        return this.http.delete<any>(`http://localhost:8000/api/admin/games/${gameId}`);
     }
 }
