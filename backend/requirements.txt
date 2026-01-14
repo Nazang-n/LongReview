@@ -18,3 +18,4 @@ textblob>=0.17.1
 transformers
 torch
 accelerate
+groq

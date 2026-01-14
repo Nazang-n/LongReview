@@ -167,29 +167,36 @@ class ReviewTagsService:
                 f.write(f"[Info] Starting analysis for language: {language}\n")
                 
             if language == "english":
-                # --- EXPERIMENT: DIRECT AI SUMMARIZATION ---
+                # --- AI APPROACH: Direct Summarization with Extensive Rules ---
                 with open("debug_backend.log", "a", encoding="utf-8") as f:
-                    f.write(f"[Info] EXPERIMENT: Asking Groq to read top 40 reviews and summarize directly...\n")
+                    f.write(f"[Info] Using Groq AI to read reviews and summarize directly...\n")
 
                 ai_summary = self.polisher.summarize_reviews(positive_reviews, negative_reviews)
                 
                 # Convert AI JSON to Frontend format List[{ 'word': tag, 'count': x }]
-                # AI returns ordered list (Most important first). We assign fake counts to preserve order in UI.
+                # AI returns ordered list (Most important first). Set count to 0 since they're not real counts.
                 
                 positive_tags = []
-                count = 50 # Start high
                 for tag in ai_summary.get("positive", []):
-                    positive_tags.append({'word': tag, 'count': count})
-                    count -= 1
+                    positive_tags.append({'word': tag, 'count': 0})
                     
                 negative_tags = []
-                count = 50 
                 for tag in ai_summary.get("negative", []):
-                    negative_tags.append({'word': tag, 'count': count})
-                    count -= 1
+                    negative_tags.append({'word': tag, 'count': 0})
                     
                 with open("debug_backend.log", "a", encoding="utf-8") as f:
                      f.write(f"[Info] AI Summary Complete. Pos: {len(positive_tags)}, Neg: {len(negative_tags)}\n")
+                
+                # --- OLD APPROACH: Rule-based EnglishTextAnalyzer (COMMENTED OUT) ---
+                # base_min_count = 2 if len(positive_reviews) < 200 else 5
+                # print(f"[ReviewTags] Using EnglishTextAnalyzer (min_count={base_min_count}, filtering '{game_name}')")
+                # positive_tags, negative_tags = self.english_analyzer.analyze_reviews_by_sentiment(
+                #     positive_reviews,
+                #     negative_reviews,
+                #     top_n,
+                #     min_count=base_min_count,
+                #     game_name=game_name
+                # )
 
             else:
                 analyzer = self.thai_analyzer
@@ -200,15 +207,68 @@ class ReviewTagsService:
                     top_n
                 )
             
-            # --- Skipping Old Dedup/Translation Logic for English (AI did it already) ---
+            # --- Deduplication & Game Name Filtering (ONLY for Thai, AI handles English) ---
             if language != "english":
-                # Original Thai logic (keep as is)
                 import re
                 def normalize_text(text):
                     return re.sub(r'[^a-z0-9]', '', text.lower())
                 
                 norm_game_name = normalize_text(game_name)
-                # ... (rest of Thai logic if needed, but we are focusing on English experiment)
+                
+                def is_title_tag(tag_word):
+                    norm_tag = normalize_text(tag_word)
+                    if norm_tag == norm_game_name:
+                        return True
+                    if len(norm_tag) > 5 and (norm_tag in norm_game_name or norm_game_name in norm_tag):
+                         return True
+                    return False
+
+                positive_tags = [t for t in positive_tags if not is_title_tag(t['word'])]
+                negative_tags = [t for t in negative_tags if not is_title_tag(t['word'])]
+                
+                # Resolve Conflicting Tags (Dominance Rule)
+                pos_dict = {tag['word']: tag['count'] for tag in positive_tags}
+                neg_dict = {tag['word']: tag['count'] for tag in negative_tags}
+                
+                final_pos_tags = []
+                final_neg_tags = []
+                
+                for tag in positive_tags:
+                    word = tag['word']
+                    p_count = tag['count']
+                    n_count = neg_dict.get(word, 0)
+                    if n_count > p_count:
+                        continue 
+                    elif n_count == p_count and n_count > 0:
+                         pass 
+                    final_pos_tags.append(tag)
+                    
+                for tag in negative_tags:
+                    word = tag['word']
+                    n_count = tag['count']
+                    p_count = pos_dict.get(word, 0)
+                    if p_count >= n_count:
+                        continue
+                    final_neg_tags.append(tag)
+                
+                positive_tags = final_pos_tags
+                negative_tags = final_neg_tags
+                
+                # --- AI Polishing Step for Thai ---
+                try:
+                    all_tag_words = [t['word'] for t in positive_tags] + [t['word'] for t in negative_tags]
+                    if all_tag_words:
+                        print(f"[ReviewTags] Polishing {len(all_tag_words)} tags with AI...")
+                        polished_map = self.polisher.polish_and_translate_tags(all_tag_words)
+                        
+                        for tag in positive_tags:
+                            tag['word'] = polished_map.get(tag['word'], tag['word'])
+                        for tag in negative_tags:
+                            tag['word'] = polished_map.get(tag['word'], tag['word'])
+                        print("[ReviewTags] AI Polishing complete.")
+                        
+                except Exception as e:
+                    print(f"[ReviewTags] AI Polishing failed (skipping): {e}")
                         
 
 
