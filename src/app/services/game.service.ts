@@ -211,7 +211,7 @@ export class GameService {
      * Manually trigger Thai review update from Steam
      */
     triggerReviewUpdate(): Observable<any> {
-        return this.http.post<any>('http://localhost:8000/api/admin/reviews/update', {});
+        return this.http.post<any>('http://localhost:8000/api/reviews/update-all-thai', {});
     }
 
     /**

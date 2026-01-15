@@ -31,7 +31,8 @@ class Game(Base):
     # Existing columns in database
     platform = Column(String(255))  # Platform (windows, mac, linux)
     price = Column(String(255))  # Price from Steam
-    video = Column(String(255))  # Video URL
+    video = Column(Text)  # Video URL (can store JSON for multiple videos)
+    screenshots = Column(Text)  # Screenshots JSON array
     release_date = Column(Date)  # Release date
     
     # Additional columns for Steam API data (add these to DB if needed)
@@ -74,8 +75,8 @@ class AnalyReview(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     game_id = Column(Integer, ForeignKey("game.id"), nullable=False, index=True)
-    steam_review_id = Column(BigInteger, unique=True, index=True)  # Steam's recommendationid for duplicate detection
-    voted_up = Column(Boolean, nullable=False)
+    tag_word = Column(String(100), nullable=False)
+    sentiment = Column(String(20), nullable=False)  # 'positive' or 'negative'
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -118,7 +119,6 @@ class GameReviewTag(Base):
     game_id = Column(Integer, nullable=False, index=True)
     tag_type = Column(String(20), nullable=False)  # 'positive' or 'negative'
     tag_word = Column(String(100), nullable=False)
-    tag_count = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

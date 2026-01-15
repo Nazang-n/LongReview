@@ -103,11 +103,15 @@ export class GameDetailComponent implements OnInit {
             negative: 0
         },
         reviewTags: [],
-        minRequirements: ''
-    };
+        minRequirements: '',
 
-    // Steam reviews
-    // Steam reviews
+    };
+    // Media gallery properties
+    videos: any[] = [];
+    screenshots: any[] = [];
+    allMedia: any[] = []; // Combined: header image + videos + screenshots
+    currentMediaIndex: number = 0;
+
     steamReviews: any[] = [];
     chunkedReviews: any[][] = [];
     loadingSteamReviews = false;
@@ -287,6 +291,70 @@ export class GameDetailComponent implements OnInit {
                     reviewTags: [],  // Will be loaded from API
                     minRequirements: gameData.price || 'N/A'
                 };
+
+                // Parse videos and screenshots JSON
+                try {
+                    if (gameData.video && gameData.video !== 'null') {
+                        this.videos = JSON.parse(gameData.video);
+                        console.log('Parsed videos:', this.videos);
+                    } else {
+                        this.videos = [];
+                        console.log('No video data available');
+                    }
+                } catch (e) {
+                    console.error('Error parsing videos:', e);
+                    console.error('Video data:', gameData.video);
+                    this.videos = [];
+                }
+
+                try {
+                    if (gameData.screenshots && gameData.screenshots !== 'null') {
+                        this.screenshots = JSON.parse(gameData.screenshots);
+                        console.log('Parsed screenshots:', this.screenshots);
+                    } else {
+                        this.screenshots = [];
+                        console.log('No screenshot data available');
+                    }
+                } catch (e) {
+                    console.error('Error parsing screenshots:', e);
+                    console.error('Screenshot data:', gameData.screenshots);
+                    this.screenshots = [];
+                }
+
+                console.log(`Loaded ${this.videos.length} videos and ${this.screenshots.length} screenshots`);
+
+                // Build unified media array: header image + videos + screenshots
+                this.allMedia = [];
+
+                // 1. Add header image first
+                this.allMedia.push({
+                    type: 'image',
+                    url: gameData.image_url,
+                    thumbnail: gameData.image_url
+                });
+
+                // 2. Add all videos
+                this.videos.forEach(video => {
+                    this.allMedia.push({
+                        type: 'video',
+                        url: video.hls_url || video.url,
+                        thumbnail: video.thumbnail,
+                        name: video.name
+                    });
+                });
+
+                // 3. Add all screenshots
+                this.screenshots.forEach(screenshot => {
+                    this.allMedia.push({
+                        type: 'screenshot',
+                        url: screenshot.path_full,
+                        thumbnail: screenshot.path_thumbnail
+                    });
+                });
+
+                console.log(`Total media items: ${this.allMedia.length}`);
+                this.currentMediaIndex = 0; // Start with header image
+
                 this.isLoading = false;
 
                 // Always load Steam reviews for game 727 (or any game)
@@ -357,7 +425,7 @@ export class GameDetailComponent implements OnInit {
         this.loadingSteamReviews = true;
         this.steamReviewsError = null;
 
-        this.gameService.syncSteamReviews(gameId, 20).subscribe({
+        this.gameService.syncSteamReviews(gameId, 100).subscribe({
             next: (response: any) => {
                 if (response.success) {
                     this.steamReviews = response.reviews || [];
@@ -763,5 +831,30 @@ export class GameDetailComponent implements OnInit {
 
     closeSuccessDialog() {
         this.showSuccessDialog = false;
+    }
+
+    // Media navigation methods
+    previousMedia() {
+        if (this.currentMediaIndex > 0) {
+            this.currentMediaIndex--;
+        } else {
+            this.currentMediaIndex = this.allMedia.length - 1; // Loop to end
+        }
+    }
+
+    nextMedia() {
+        if (this.currentMediaIndex < this.allMedia.length - 1) {
+            this.currentMediaIndex++;
+        } else {
+            this.currentMediaIndex = 0; // Loop to start
+        }
+    }
+
+    selectMediaByIndex(index: number) {
+        this.currentMediaIndex = index;
+    }
+
+    getCurrentMedia() {
+        return this.allMedia[this.currentMediaIndex];
     }
 }

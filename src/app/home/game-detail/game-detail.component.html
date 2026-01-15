@@ -33,12 +33,55 @@
 
 
 
-                <!-- Left: Game Image -->
+                <!-- Left: Unified Media Gallery -->
                 <div class="lg:col-span-2 mt-2">
+                    <div class="media-gallery-container bg-white rounded-lg shadow-md overflow-hidden"
+                        *ngIf="allMedia.length > 0">
+                        <!-- Main Display with Navigation -->
+                        <div class="main-media-wrapper relative">
+                            <!-- Current Media Display -->
+                            <div class="main-media bg-black">
+                                <!-- Header Image -->
+                                <img *ngIf="getCurrentMedia()?.type === 'image'" [src]="getCurrentMedia()?.url"
+                                    [alt]="game.title" class="w-full h-full object-contain">
 
-                    <div class="bg-white rounded-lg shadow-md overflow-hidden">
-                        <img [src]="game.image" [alt]="game.title" class="w-full h-auto object-cover"
-                            onerror="this.src='/games/placeholder.jpg'">
+                                <!-- Video -->
+                                <video *ngIf="getCurrentMedia()?.type === 'video'" [src]="getCurrentMedia()?.url"
+                                    controls muted class="w-full h-full">
+                                </video>
+
+                                <!-- Screenshot -->
+                                <img *ngIf="getCurrentMedia()?.type === 'screenshot'" [src]="getCurrentMedia()?.url"
+                                    [alt]="'Screenshot'" class="w-full h-full object-contain">
+                            </div>
+
+                            <!-- Navigation Buttons -->
+                            <button *ngIf="allMedia.length > 1" (click)="previousMedia()" class="nav-button nav-left">
+                                <i class="pi pi-chevron-left"></i>
+                            </button>
+                            <button *ngIf="allMedia.length > 1" (click)="nextMedia()" class="nav-button nav-right">
+                                <i class="pi pi-chevron-right"></i>
+                            </button>
+
+                            <!-- Media Counter -->
+                            <div class="media-counter">
+                                {{ currentMediaIndex + 1 }} / {{ allMedia.length }}
+                            </div>
+                        </div>
+
+                        <!-- Thumbnails -->
+                        <div class="thumbnails-container">
+                            <div class="thumbnails">
+                                <div *ngFor="let media of allMedia; let i = index" (click)="selectMediaByIndex(i)"
+                                    [class.active]="currentMediaIndex === i" class="thumbnail-item">
+                                    <img [src]="media.thumbnail" [alt]="media.name || 'Media'"
+                                        class="w-full h-full object-cover">
+                                    <div *ngIf="media.type === 'video'" class="play-icon">
+                                        <i class="pi pi-play"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

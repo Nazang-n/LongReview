@@ -48,7 +48,7 @@ def serialize_game(game: models.Game, sentiment: Optional[models.GameSentiment] 
     elif game.rating:
         review_type = "positive" if game.rating >= 7 else "mixed" if game.rating >= 4 else "negative"
     
-    return {
+    result = {
         "id": game.id,
         "title": game.title,
         "description": game.description,
@@ -62,11 +62,14 @@ def serialize_game(game: models.Game, sentiment: Optional[models.GameSentiment] 
         "platform": game.platform,
         "price": game.price,
         "video": game.video,
+        "screenshots": game.screenshots,
         "about_game_th": game.about_game_th,
         "app_id": steam_app_id,
         "player_modes": [],  # Default empty list
         "review_type": review_type
     }
+    print(f"DEBUG: serialize_game returning 'screenshots' field: {'screenshots' in result}")
+    return result
 
 
 @router.get("/", response_model=List[schemas.Game])

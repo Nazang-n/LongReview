@@ -193,11 +193,36 @@ def import_game_from_steam(
         price_overview = app_details_en.get('price_overview', {})
         price_str = price_overview.get('final_formatted') if price_overview else None
         
-        # Extract video URL
+        # Extract video URLs - store ALL videos as JSON
+        import json
         movies = app_details_en.get('movies', [])
-        video_url = None
+        videos_json = None
         if movies:
-            video_url = movies[0].get('webm', {}).get('480') or movies[0].get('mp4', {}).get('480')
+            videos_data = []
+            for movie in movies:
+                # Steam now uses HLS/DASH streaming instead of direct mp4/webm
+                video_url = movie.get('mp4', {}).get('480') or movie.get('webm', {}).get('480') or movie.get('hls_h264')
+                videos_data.append({
+                    'id': movie.get('id'),
+                    'name': movie.get('name', 'Trailer'),
+                    'thumbnail': movie.get('thumbnail'),
+                    'url': video_url,
+                    'highlight': movie.get('highlight', False)
+                })
+            videos_json = json.dumps(videos_data)
+        
+        # Extract screenshots - store ALL screenshots as JSON
+        screenshots = app_details_en.get('screenshots', [])
+        screenshots_json = None
+        if screenshots:
+            screenshots_data = []
+            for screenshot in screenshots:
+                screenshots_data.append({
+                    'id': screenshot.get('id'),
+                    'path_thumbnail': screenshot.get('path_thumbnail'),
+                    'path_full': screenshot.get('path_full')
+                })
+            screenshots_json = json.dumps(screenshots_data)
             
         # Parse release date securely
         release_date_info = app_details_en.get('release_date', {})
@@ -229,7 +254,8 @@ def import_game_from_steam(
             publisher=", ".join(app_details_en.get("publishers", [])),
             platform=platform_str,
             price=price_str,
-            video=video_url,
+            video=videos_json,  # Store all videos as JSON
+            screenshots=screenshots_json,  # Store all screenshots as JSON
             steam_app_id=app_id
         )
         
@@ -691,7 +717,8 @@ def import_games_batch_from_steamspy(
                         publisher=", ".join(steam_details_en.get('publishers', [])),
                         platform=platform_str,
                         price=price_str,
-                        video=video_url,
+                        video=videos_json,
+                        screenshots=screenshots_json,
                         steam_app_id=int(app_id)  # Store Steam App ID
                     )
                 
