@@ -9,7 +9,7 @@ import { CommonModule } from '@angular/common';
     <footer class="footer">
       <div class="container-footer">
         <div class="logo-section">
-          <div class="logo-icon-sm">L</div>
+          <div class="logo-icon-sm"><img src="/Logo.png" alt="Logo"></div>
           <span class="brand-name">LongReview</span>
         </div>
         <div class="footer-links">
@@ -21,4 +21,4 @@ import { CommonModule } from '@angular/common';
   `,
   // styles are global (in src/styles.css)
 })
-export class FooterComponent {}
+export class FooterComponent { }
