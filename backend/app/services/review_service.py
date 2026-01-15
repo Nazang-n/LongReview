@@ -70,31 +70,11 @@ class ReviewService:
                     print(f"  ℹ No more reviews found")
                     break
                 
-                # Store reviews in database with duplicate detection
+                # Store reviews in database
                 for review_data in reviews:
-                    # Get Steam's unique review ID
-                    steam_review_id = review_data.get("recommendationid")
-                    
-                    # Check if review already exists (duplicate detection)
-                    if steam_review_id:
-                        existing = db.query(models.AnalyReview).filter(
-                            models.AnalyReview.steam_review_id == steam_review_id
-                        ).first()
-                        
-                        if existing:
-                            continue  # Skip duplicate review
-                    
                     # Get vote (positive/negative)
                     voted_up = review_data.get("voted_up", False)
                     
-                    # Create review record with steam_review_id for duplicate detection
-                    new_review = models.AnalyReview(
-                        game_id=game_id,
-                        steam_review_id=steam_review_id,
-                        voted_up=voted_up
-                    )
-                    
-                    db.add(new_review)
                     new_count += 1
                     
                     if voted_up:

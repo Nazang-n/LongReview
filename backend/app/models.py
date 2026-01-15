@@ -70,15 +70,6 @@ class Review(Base):
     playtime_hours = Column(Float)
 
 
-class AnalyReview(Base):
-    __tablename__ = "analyreview"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    game_id = Column(Integer, ForeignKey("game.id"), nullable=False, index=True)
-    tag_word = Column(String(100), nullable=False)
-    sentiment = Column(String(20), nullable=False)  # 'positive' or 'negative'
-    created_at = Column(DateTime, default=datetime.utcnow)
-
 
 class GameSentiment(Base):
     """Game sentiment cache - stores Steam review sentiment data"""

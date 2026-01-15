@@ -463,19 +463,19 @@ scheduler.add_job(
     replace_existing=True
 )
 
-# Review tags update job (daily at 1:00 AM)
+# Review tags update job (daily at 2:00 AM)
 scheduler.add_job(
     func=update_review_tags,
-    trigger=CronTrigger(hour=1, minute=0),
+    trigger=CronTrigger(hour=2, minute=0),
     id='update_review_tags',
     name='Update game review tags from Steam reviews',
     replace_existing=True
 )
 
-# Password reset token cleanup job (daily at 2:00 AM)
+# Password reset token cleanup job (daily at 1:00 AM)
 scheduler.add_job(
     func=cleanup_password_reset_tokens,
-    trigger=CronTrigger(hour=2, minute=0),
+    trigger=CronTrigger(hour=1, minute=0),
     id='cleanup_password_tokens',
     name='Clean up expired and old password reset tokens',
     replace_existing=True

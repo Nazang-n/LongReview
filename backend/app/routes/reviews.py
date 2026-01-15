@@ -346,17 +346,28 @@ def sync_steam_reviews(
 
 @router.get("/sentiment/{game_id}")
 def get_steam_sentiment(game_id: int, db: Session = Depends(get_db)):
-    """Get sentiment from Steam reviews - stores only voted_up in analyreview table"""
-    from ..steam_api import SteamAPIClient
-    from sqlalchemy import text
-    
+    """Get sentiment from game_sentiment cache table"""
     try:
-        # Get steam_app_id
-        result = db.execute(text("SELECT steam_app_id FROM game WHERE id = :game_id"), {"game_id": game_id})
-        game_row = result.fetchone()
-        if not game_row or not game_row[0]:
-            # Game doesn't have steam_app_id, return empty result
-            print(f"[Sentiment] Game {game_id} has no steam_app_id")
+        # Query game_sentiment table for cached data
+        sentiment = db.query(models.GameSentiment).filter(
+            models.GameSentiment.game_id == game_id
+        ).first()
+        
+        if sentiment:
+            # Return cached data
+            return {
+                "success": True,
+                "total_reviews": sentiment.total_reviews or 0,
+                "positive_count": 0,  # Not stored separately
+                "negative_count": 0,  # Not stored separately
+                "positive_percent": sentiment.positive_percent or 0,
+                "negative_percent": sentiment.negative_percent or 0,
+                "cached": True,
+                "last_updated": sentiment.last_updated.isoformat() if sentiment.last_updated else None
+            }
+        else:
+            # No cached data - return empty (scheduler will update it later)
+            print(f"[Sentiment] No cached data for game {game_id}")
             return {
                 "success": True,
                 "total_reviews": 0,
@@ -364,53 +375,9 @@ def get_steam_sentiment(game_id: int, db: Session = Depends(get_db)):
                 "negative_count": 0,
                 "positive_percent": 0,
                 "negative_percent": 0,
-                "cached": False
+                "cached": False,
+                "message": "No cached data available. Sentiment will be updated by scheduler."
             }
-        
-        steam_app_id = int(game_row[0])
-        
-        # Use Steam API query_summary (Fast & Real-time)
-        review_summary = SteamAPIClient.get_app_reviews(
-            app_id=steam_app_id, 
-            language="all", 
-            num_per_page=0 # We only want summary, not actual reviews
-        )
-        
-        if review_summary and review_summary.get("success") == 1:
-            summary = review_summary.get("query_summary", {})
-            total = summary.get("total_reviews", 0)
-            positive = summary.get("total_positive", 0)
-            negative = summary.get("total_negative", 0)
-            
-            # Calculate percentages
-            if total > 0:
-                pos_pct = round((positive / total * 100), 1)
-                neg_pct = round((negative / total * 100), 1)
-            else:
-                pos_pct = 0
-                neg_pct = 0
-                
-            return {
-                "success": True,
-                "total_reviews": total,
-                "positive_count": positive,
-                "negative_count": negative,
-                "positive_percent": pos_pct,
-                "negative_percent": neg_pct,
-                "cached": False
-            }
-        
-        # Fallback to empty result if API fails
-        return {
-            "success": False,
-            "total_reviews": 0,
-            "positive_count": 0,
-            "negative_count": 0,
-            "positive_percent": 0,
-            "negative_percent": 0,
-            "cached": False,
-            "error": "Failed to fetch from Steam API"
-        }
             
     except HTTPException:
         raise

@@ -284,9 +284,9 @@ export class GameDetailComponent implements OnInit {
                         poor: 3
                     },
                     sentiment: {
-                        positive: 82,
-                        neutral: 12,
-                        negative: 6
+                        positive: 0,  // Will be loaded from API
+                        neutral: 0,
+                        negative: 0   // Will be loaded from API
                     },
                     reviewTags: [],  // Will be loaded from API
                     minRequirements: gameData.price || 'N/A'
