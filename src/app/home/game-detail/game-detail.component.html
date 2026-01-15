@@ -33,42 +33,53 @@
 
 
 
-                <!-- Left: Game Image -->
+                <!-- Left: Unified Media Gallery -->
                 <div class="lg:col-span-2 mt-2">
+                    <div class="media-gallery-container bg-white rounded-lg shadow-md overflow-hidden"
+                        *ngIf="allMedia.length > 0">
+                        <!-- Main Display with Navigation -->
+                        <div class="main-media-wrapper relative">
+                            <!-- Current Media Display -->
+                            <div class="main-media bg-black">
+                                <!-- Header Image -->
+                                <img *ngIf="getCurrentMedia()?.type === 'image'" [src]="getCurrentMedia()?.url"
+                                    [alt]="game.title" class="w-full h-full object-contain">
 
-                    <div class="bg-white rounded-lg shadow-md overflow-hidden">
-                        <img [src]="game.image" [alt]="game.title" class="w-full h-auto object-cover"
-                            onerror="this.src='/games/placeholder.jpg'">
-                    </div>
+                                <!-- Video -->
+                                <video *ngIf="getCurrentMedia()?.type === 'video'" [src]="getCurrentMedia()?.url"
+                                    controls muted class="w-full h-full">
+                                </video>
 
-                    <!-- Media Gallery -->
-                    <div class="media-gallery mt-6" *ngIf="videos.length > 0 || screenshots.length > 0">
-                        <!-- Main Display -->
-                        <div class="main-media bg-black rounded-lg overflow-hidden">
-                            <video *ngIf="currentMediaType === 'video' && videos[selectedMediaIndex]"
-                                [src]="getVideoUrl(videos[selectedMediaIndex])" controls autoplay class="w-full h-full">
-                            </video>
-                            <img *ngIf="currentMediaType === 'screenshot' && screenshots[selectedMediaIndex]"
-                                [src]="screenshots[selectedMediaIndex].path_full"
-                                [alt]="'Screenshot ' + (selectedMediaIndex + 1)" class="w-full h-full object-contain">
+                                <!-- Screenshot -->
+                                <img *ngIf="getCurrentMedia()?.type === 'screenshot'" [src]="getCurrentMedia()?.url"
+                                    [alt]="'Screenshot'" class="w-full h-full object-contain">
+                            </div>
+
+                            <!-- Navigation Buttons -->
+                            <button *ngIf="allMedia.length > 1" (click)="previousMedia()" class="nav-button nav-left">
+                                <i class="pi pi-chevron-left"></i>
+                            </button>
+                            <button *ngIf="allMedia.length > 1" (click)="nextMedia()" class="nav-button nav-right">
+                                <i class="pi pi-chevron-right"></i>
+                            </button>
+
+                            <!-- Media Counter -->
+                            <div class="media-counter">
+                                {{ currentMediaIndex + 1 }} / {{ allMedia.length }}
+                            </div>
                         </div>
 
                         <!-- Thumbnails -->
-                        <div class="thumbnails mt-4 flex gap-2 overflow-x-auto pb-2">
-                            <div *ngFor="let video of videos; let i = index" (click)="selectMedia('video', i)"
-                                [class.active]="currentMediaType === 'video' && selectedMediaIndex === i"
-                                class="thumbnail-item">
-                                <img [src]="video.thumbnail" [alt]="video.name" class="w-full h-full object-cover">
-                                <div class="play-icon">
-                                    <i class="pi pi-play"></i>
+                        <div class="thumbnails-container">
+                            <div class="thumbnails">
+                                <div *ngFor="let media of allMedia; let i = index" (click)="selectMediaByIndex(i)"
+                                    [class.active]="currentMediaIndex === i" class="thumbnail-item">
+                                    <img [src]="media.thumbnail" [alt]="media.name || 'Media'"
+                                        class="w-full h-full object-cover">
+                                    <div *ngIf="media.type === 'video'" class="play-icon">
+                                        <i class="pi pi-play"></i>
+                                    </div>
                                 </div>
-                            </div>
-                            <div *ngFor="let screenshot of screenshots; let i = index"
-                                (click)="selectMedia('screenshot', i)"
-                                [class.active]="currentMediaType === 'screenshot' && selectedMediaIndex === i"
-                                class="thumbnail-item">
-                                <img [src]="screenshot.path_thumbnail" [alt]="'Screenshot ' + (i + 1)"
-                                    class="w-full h-full object-cover">
                             </div>
                         </div>
                     </div>

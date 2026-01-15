@@ -106,10 +106,11 @@ export class GameDetailComponent implements OnInit {
         minRequirements: '',
 
     };
+    // Media gallery properties
     videos: any[] = [];
     screenshots: any[] = [];
-    selectedMediaIndex: number = 0;
-    currentMediaType: 'video' | 'screenshot' = 'video';
+    allMedia: any[] = []; // Combined: header image + videos + screenshots
+    currentMediaIndex: number = 0;
 
     steamReviews: any[] = [];
     chunkedReviews: any[][] = [];
@@ -322,14 +323,37 @@ export class GameDetailComponent implements OnInit {
 
                 console.log(`Loaded ${this.videos.length} videos and ${this.screenshots.length} screenshots`);
 
-                // Set initial media type
-                if (this.videos.length > 0) {
-                    this.currentMediaType = 'video';
-                    this.selectedMediaIndex = 0;
-                } else if (this.screenshots.length > 0) {
-                    this.currentMediaType = 'screenshot';
-                    this.selectedMediaIndex = 0;
-                }
+                // Build unified media array: header image + videos + screenshots
+                this.allMedia = [];
+
+                // 1. Add header image first
+                this.allMedia.push({
+                    type: 'image',
+                    url: gameData.image_url,
+                    thumbnail: gameData.image_url
+                });
+
+                // 2. Add all videos
+                this.videos.forEach(video => {
+                    this.allMedia.push({
+                        type: 'video',
+                        url: video.hls_url || video.url,
+                        thumbnail: video.thumbnail,
+                        name: video.name
+                    });
+                });
+
+                // 3. Add all screenshots
+                this.screenshots.forEach(screenshot => {
+                    this.allMedia.push({
+                        type: 'screenshot',
+                        url: screenshot.path_full,
+                        thumbnail: screenshot.path_thumbnail
+                    });
+                });
+
+                console.log(`Total media items: ${this.allMedia.length}`);
+                this.currentMediaIndex = 0; // Start with header image
 
                 this.isLoading = false;
 
@@ -799,18 +823,28 @@ export class GameDetailComponent implements OnInit {
         this.showSuccessDialog = false;
     }
 
-    selectMedia(type: 'video' | 'screenshot', index: number) {
-        this.currentMediaType = type;
-        this.selectedMediaIndex = index;
-        console.log(`Selected ${type} at index ${index}`);
-        if (type === 'video' && this.videos[index]) {
-            console.log('Video URL:', this.getVideoUrl(this.videos[index]));
+    // Media navigation methods
+    previousMedia() {
+        if (this.currentMediaIndex > 0) {
+            this.currentMediaIndex--;
+        } else {
+            this.currentMediaIndex = this.allMedia.length - 1; // Loop to end
         }
     }
 
-    getVideoUrl(video: any): string | null {
-        if (!video) return null;
-        // Backend now stores video URL in 'url' field (HLS format)
-        return video.url || null;
+    nextMedia() {
+        if (this.currentMediaIndex < this.allMedia.length - 1) {
+            this.currentMediaIndex++;
+        } else {
+            this.currentMediaIndex = 0; // Loop to start
+        }
+    }
+
+    selectMediaByIndex(index: number) {
+        this.currentMediaIndex = index;
+    }
+
+    getCurrentMedia() {
+        return this.allMedia[this.currentMediaIndex];
     }
 }
