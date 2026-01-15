@@ -432,7 +432,7 @@ def dismiss_report(
     db: Session = Depends(get_db)
 ):
     """
-    Dismiss a comment report (admin only).
+    Dismiss a comment report (admin only) - deletes the report from database.
     
     - **report_id**: The ID of the report to dismiss
     - **user_id**: The ID of the admin user
@@ -456,14 +456,11 @@ def dismiss_report(
             detail="Report not found"
         )
     
-    # Update report
-    report.status = 'dismissed'
-    # report.reviewed_by = user_id
-    # report.reviewed_at = datetime.now()
-    
+    # Delete the report from database instead of updating status
+    db.delete(report)
     db.commit()
     
     return {
         "success": True,
-        "message": "Report dismissed successfully"
+        "message": "Report dismissed and deleted successfully"
     }
