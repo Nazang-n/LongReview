@@ -153,25 +153,63 @@ class ReviewTagsService:
             for r in steam_reviews:
                 content = r.get('review', '')
                 voted = r.get('voted_up', True)
+                votes_up = r.get('votes_up', 0)
                 if content:
-                    db_reviews.append((content, voted))
+                    db_reviews.append({
+                        'content': content,
+                        'voted_up': voted,
+                        'votes_up': votes_up
+                    })
             
             # Separate reviews by sentiment
-            positive_reviews = [r[0] for r in db_reviews if r[1] == True]
-            negative_reviews = [r[0] for r in db_reviews if r[1] == False]
+            positive_reviews_data = [r for r in db_reviews if r['voted_up'] == True]
+            negative_reviews_data = [r for r in db_reviews if r['voted_up'] == False]
             
-            print(f"[ReviewTags] Positive: {len(positive_reviews)}, Negative: {len(negative_reviews)}")
+            # ATTEMPT 1: Classic (Full Input)
+            print(f"[ReviewTags] Attempt 1: Classic Mode (Full {len(positive_reviews_data)}/{len(negative_reviews_data)})")
             
-            # 3. Analyze Texts (CPU Intensive)
-            with open("debug_backend.log", "a", encoding="utf-8") as f:
-                f.write(f"[Info] Starting analysis for language: {language}\n")
-                
+            positive_reviews = [r['content'] for r in positive_reviews_data]
+            negative_reviews = [r['content'] for r in negative_reviews_data]
+
             if language == "english":
-                # --- AI APPROACH: Direct Summarization with Extensive Rules ---
+                # --- AI APPROACH ---
                 with open("debug_backend.log", "a", encoding="utf-8") as f:
-                    f.write(f"[Info] Using Groq AI to read reviews and summarize directly...\n")
+                    f.write(f"[Info] Attempt 1: Using Groq AI with FULL context...\n")
 
                 ai_summary = self.polisher.summarize_reviews(positive_reviews, negative_reviews)
+                
+                # Check for Rate Limit Fallback
+                if ai_summary is None:
+                    print(f"[ReviewTags] Attempt 1 Failed (Rate Limit). Switching to Hybrid Fallback...")
+                    with open("debug_backend.log", "a", encoding="utf-8") as f:
+                        f.write(f"[Info] Rate Limit Hit! Engaging Hybrid Strategy (Top 30 + Truncate)...\n")
+                    
+                    # ATTEMPT 2: Hybrid Fallback (Smart Filter)
+                    # 1. Filter Short
+                    positive_reviews_data = [r for r in positive_reviews_data if len(r['content']) >= 30]
+                    negative_reviews_data = [r for r in negative_reviews_data if len(r['content']) >= 30]
+                    
+                    # 2. Sort by Helpfulness
+                    positive_reviews_data.sort(key=lambda x: x['votes_up'], reverse=True)
+                    negative_reviews_data.sort(key=lambda x: x['votes_up'], reverse=True)
+                    
+                    # 3. Slice Top 30
+                    top_positive = positive_reviews_data[:30]
+                    top_negative = negative_reviews_data[:30]
+                    
+                    # 4. Extract & Truncate to 300 chars
+                    positive_reviews = [r['content'][:300] for r in top_positive]
+                    negative_reviews = [r['content'][:300] for r in top_negative]
+                    
+                    with open("debug_backend.log", "a", encoding="utf-8") as f:
+                         f.write(f"[Info] Fallback Stats: Sent {len(positive_reviews)} Pos / {len(negative_reviews)} Neg\n")
+
+                    # Retry AI
+                    ai_summary = self.polisher.summarize_reviews(positive_reviews, negative_reviews)
+                    if ai_summary is None:
+                         # Still failed? Return empty to avoid crashes
+                         ai_summary = {"positive": [], "negative": []}
+
                 
                 # Convert AI JSON to Frontend format List[{ 'word': tag, 'count': x }]
                 # AI returns ordered list (Most important first). Set count to 0 since they're not real counts.

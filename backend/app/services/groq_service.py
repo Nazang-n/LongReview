@@ -56,76 +56,92 @@ Input: {tags_str}
 Output JSON:"""
 
         start_time = time.time()
-        try:
-            chat_completion = self.client.chat.completions.create(
-                messages=[
-                    {
-                        "role": "system",
-                        "content": system_prompt,
-                    },
-                    {
-                        "role": "user",
-                        "content": user_prompt,
-                    }
-                ],
-                model="llama-3.3-70b-versatile", # Update to latest supported model
-                temperature=0.3,
-                max_tokens=1024,
-                top_p=1,
-                stream=False,
-                response_format={"type": "json_object"}, 
-            )
-            
-            elapsed = time.time() - start_time
-            result_content = chat_completion.choices[0].message.content
-            self._log(f"[Success] Generated in {elapsed:.2f}s. Response: {result_content}")
-            
-            import json
-            parsed_result = json.loads(result_content)
-            
-            # Normalize keys to match input exactly if possible, though Dict format is flexible
-            # Creating a cleaned map
-            final_map = {}
-            for tag in tags:
-                # Try to find the translation in the result (case-insensitive fallback)
-                if tag in parsed_result:
-                    final_map[tag] = parsed_result[tag]
-                else:
-                    # Search case-insensitive
-                    found = False
-                    for k, v in parsed_result.items():
-                        if k.lower() == tag.lower():
-                            final_map[tag] = v
-                            found = True
-                            break
-                    if not found:
-                        final_map[tag] = tag # Fallback to original
+        max_retries = 3
+        
+        for attempt in range(max_retries):
+            try:
+                chat_completion = self.client.chat.completions.create(
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": system_prompt,
+                        },
+                        {
+                            "role": "user",
+                            "content": user_prompt,
+                        }
+                    ],
+                    model="llama-3.3-70b-versatile", # Update to latest supported model
+                    temperature=0.3,
+                    max_tokens=1024,
+                    top_p=1,
+                    stream=False,
+                    response_format={"type": "json_object"}, 
+                )
+                
+                elapsed = time.time() - start_time
+                result_content = chat_completion.choices[0].message.content
+                self._log(f"[Success] Generated in {elapsed:.2f}s. Response: {result_content}")
+                
+                import json
+                parsed_result = json.loads(result_content)
+                
+                # Normalize keys to match input exactly if possible, though Dict format is flexible
+                # Creating a cleaned map
+                final_map = {}
+                for tag in tags:
+                    # Try to find the translation in the result (case-insensitive fallback)
+                    if tag in parsed_result:
+                        final_map[tag] = parsed_result[tag]
+                    else:
+                        # Search case-insensitive
+                        found = False
+                        for k, v in parsed_result.items():
+                            if k.lower() == tag.lower():
+                                final_map[tag] = v
+                                found = True
+                                break
+                        if not found:
+                            final_map[tag] = tag # Fallback to original
 
-            # --- SANITIZATION STEP ---
-            # Remove any characters that are NOT Thai, English, Numbers, or basic punctuation.
-            # This kills Chinese/Japanese charcters (e.g. 襲撃, セーブ) definitively.
-            import re
-            def sanitize_text(text):
-                # Allow Thai, English, Numbers, spaces, and basic punctuation
-                # Unicode ranges:
-                # Thai: \u0E00-\u0E7F
-                # English: a-zA-Z
-                # Numbers: 0-9
-                # Punctuation: \s\.\-\(\)\,
-                cleaned = re.sub(r'[^\u0E00-\u0E7F a-zA-Z0-9\.\-\(\)\,]', '', text)
-                return cleaned.strip()
+                # --- SANITIZATION STEP ---
+                # Remove any characters that are NOT Thai, English, Numbers, or basic punctuation.
+                # This kills Chinese/Japanese charcters (e.g. 襲撃, セーブ) definitively.
+                import re
+                def sanitize_text(text):
+                    # Allow Thai, English, Numbers, spaces, and basic punctuation
+                    # Unicode ranges:
+                    # Thai: \u0E00-\u0E7F
+                    # English: a-zA-Z
+                    # Numbers: 0-9
+                    # Punctuation: \s\.\-\(\)\,
+                    cleaned = re.sub(r'[^\u0E00-\u0E7F a-zA-Z0-9\.\-\(\)\,]', '', text)
+                    return cleaned.strip()
 
-            for k, v in final_map.items():
-                original_val = v
-                final_map[k] = sanitize_text(v)
-                if original_val != final_map[k]:
-                    self._log(f"[Sanitized] '{original_val}' -> '{final_map[k]}'")
-            
-            return final_map
+                for k, v in final_map.items():
+                    original_val = v
+                    final_map[k] = sanitize_text(v)
+                    if original_val != final_map[k]:
+                        self._log(f"[Sanitized] '{original_val}' -> '{final_map[k]}'")
+                
+                return final_map
 
-        except Exception as e:
-            self._log(f"[Error] Groq API failed: {str(e)}")
-            return {tag: tag for tag in tags} # Fallback to no translation
+            except Exception as e:
+                error_msg = str(e)
+                elapsed = time.time() - start_time
+                
+                # Check for rate limit
+                if "429" in error_msg or "Too Many Requests" in error_msg or "Rate limit" in error_msg:
+                    wait_time = (attempt + 1) * 10  # 10s, 20s, 30s
+                    self._log(f"[Warning] Rate limit hit (attempt {attempt+1}/{max_retries}). Retrying in {wait_time}s...")
+                    time.sleep(wait_time)
+                    continue
+                
+                self._log(f"[Error] Groq API failed: {str(e)}")
+                return {tag: tag for tag in tags} # Fallback to no translation
+        
+        self._log(f"[Error] Groq API failed after {max_retries} retries (Rate Limit).")
+        return {tag: tag for tag in tags}
 
     def summarize_reviews(self, positive_reviews: list, negative_reviews: list) -> dict:
         """
@@ -219,37 +235,51 @@ Format:
 Output JSON:"""
 
         start_time = time.time()
-        try:
-            chat_completion = self.client.chat.completions.create(
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                model="llama-3.3-70b-versatile",
-                temperature=0.3, 
-                max_tokens=1024,
-                top_p=1,
-                stream=False,
-                response_format={"type": "json_object"}, 
-            )
-            
-            elapsed = time.time() - start_time
-            result_content = chat_completion.choices[0].message.content
-            self._log(f"[Success] Summarized in {elapsed:.2f}s. Response: {result_content}")
-            
-            result_json = json.loads(result_content)
-            
-        except Exception as e:
-            elapsed = time.time() - start_time
-            error_msg = str(e)
-            
-            # Check if it's a rate limit error
-            if "429" in error_msg or "Too Many Requests" in error_msg:
-                self._log(f"[Error] Rate limit exceeded after {elapsed:.2f}s. Please wait a few minutes before trying again.")
-                return {"positive": [], "negative": []}
-            else:
-                self._log(f"[Error] Summarization failed after {elapsed:.2f}s: {error_msg}")
-                return {"positive": [], "negative": []}
+        max_retries = 3
+        
+        result_json = {"positive": [], "negative": []} # Default empty
+        success = False
+
+        for attempt in range(max_retries):
+            try:
+                chat_completion = self.client.chat.completions.create(
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    model="llama-3.3-70b-versatile",
+                    temperature=0.3, 
+                    max_tokens=1024,
+                    top_p=1,
+                    stream=False,
+                    response_format={"type": "json_object"}, 
+                )
+                
+                elapsed = time.time() - start_time
+                result_content = chat_completion.choices[0].message.content
+                self._log(f"[Success] Summarized in {elapsed:.2f}s. Response: {result_content}")
+                
+                result_json = json.loads(result_content)
+                success = True
+                break # Exit loop on success
+                
+            except Exception as e:
+                elapsed = time.time() - start_time
+                error_msg = str(e)
+                
+                # Check if it's a rate limit error
+                if "429" in error_msg or "Too Many Requests" in error_msg or "Rate limit" in error_msg:
+                    wait_time = (attempt + 1) * 10
+                    self._log(f"[Warning] Rate limit exceeded (attempt {attempt+1}/{max_retries}). Retrying in {wait_time}s...")
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    self._log(f"[Error] Summarization failed after {elapsed:.2f}s: {error_msg}")
+                    return {"positive": [], "negative": []}
+        
+        if not success:
+             self._log(f"[Error] Summarization failed after {max_retries} retries (Rate Limit).")
+             return None # Return None to trigger fallback mechanism
             
         try:
             

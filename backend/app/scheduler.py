@@ -105,8 +105,13 @@ def update_all_sentiments():
     finally:
         db.close()
 
-def update_review_tags():
-    """Update review tags for games that need refresh (older than 7 days or no tags)"""
+def update_review_tags(update_existing: bool = True):
+    """
+    Update review tags for games that need refresh.
+    
+    Args:
+        update_existing: If True, updates tags older than 7 days. If False, only updates games with NO tags.
+    """
     db = SessionLocal()
     stats = {
         'games_checked': 0,
@@ -125,7 +130,7 @@ def update_review_tags():
         ).all()
         
         stats['games_checked'] = len(games)
-        print(f"[Review Tags Scheduler] Checking {len(games)} games for tag updates...")
+        print(f"[Review Tags Scheduler] Checking {len(games)} games for tag updates (update_existing={update_existing})...")
         
         updated_count = 0
         skipped_count = 0
@@ -142,11 +147,11 @@ def update_review_tags():
                 if not existing_tags:
                     needs_update = True
                     print(f"[Review Tags] Game {game.id} ({game.title}) has no tags, generating...")
-                else:
+                elif update_existing:
                     age = datetime.now() - existing_tags.updated_at.replace(tzinfo=None)
                     if age > timedelta(days=7):
                         needs_update = True
-                        print(f"[Review Tags] Game {game.id} ({game.title}) tags are {age.days} days old, refreshing...")
+                        print(f"[Review Tags] Game {game.id} ({game.title}) tags are {age.days} old, refreshing...")
                 
                 if needs_update:
                     tags_service = ReviewTagsService(db)
@@ -160,7 +165,7 @@ def update_review_tags():
                         print(f"[Review Tags] ✗ Failed to update {game.title}: {result.get('error')}")
                     
                     # Delay to avoid overwhelming the API
-                    time.sleep(2)
+                    time.sleep(5)
                 else:
                     skipped_count += 1
                     

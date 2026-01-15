@@ -229,6 +229,17 @@ export class GameService {
     }
 
     /**
+     * Manually generate review tags for a specific game
+     */
+    generateTagsForGame(gameId: number): Observable<any> {
+        return this.http.post<any>(`http://localhost:8000/api/admin/review-tags/generate/${gameId}`, {});
+    }
+
+    getUntaggedGames(): Observable<any> {
+        return this.http.get<any>('http://localhost:8000/api/admin/review-tags/missing');
+    }
+
+    /**
      * Import a single game by Steam App ID
      */
     importGameById(appId: number): Observable<any> {

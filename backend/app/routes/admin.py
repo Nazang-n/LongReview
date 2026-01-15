@@ -11,14 +11,82 @@ from ..scheduler import update_all_sentiments, update_review_tags
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
+@router.post("/review-tags/generate/{game_id}")
+async def generate_review_tags_for_game(game_id: int, db: Session = Depends(get_db)) -> Dict:
+    """
+    Manually trigger review tag generation for a specific game
+    """
+    from ..services.review_tags_service import ReviewTagsService
+    
+    try:
+        service = ReviewTagsService(db)
+        # Force generation regardless of age
+        result = service.generate_tags_for_game(game_id, top_n=10, max_reviews=1500)
+        
+        if result.get('success'):
+            return {
+                "status": "success",
+                "message": f"Successfully generated tags for game {game_id}",
+                "data": result,
+                "positive_tags": result.get('positive_tags', []),
+                "negative_tags": result.get('negative_tags', [])
+            }
+        else:
+            # Handle specific failures (e.g. No reviews)
+            error_msg = result.get('error', 'Unknown error')
+            status_code = "warning" if "No English reviews" in error_msg else "error"
+            
+            return {
+                "status": status_code,
+                "message": error_msg,
+                "error": error_msg
+            }
+            
+    except Exception as e:
+        # Only catch genuine unexpected errors
+        print(f"Error generating tags: {e}")
+        return {
+            "status": "error",
+            "message": f"Internal Error: {str(e)}",
+            "error": str(e)
+        }
+
+@router.get("/review-tags/missing")
+async def get_missing_review_tags(db: Session = Depends(get_db)) -> Dict:
+    """Get list of games that have NO review tags"""
+    from ..models import Game, GameReviewTag
+    from sqlalchemy import exists, not_
+    
+    try:
+        # Query games that don't have any review tags
+        # We check for NOT EXISTS in game_review_tags
+        untagged_games = db.query(Game).filter(
+            ~exists().where(GameReviewTag.game_id == Game.id),
+            Game.steam_app_id.isnot(None) # Only Steam games
+        ).all()
+        
+        return {
+            "success": True,
+            "count": len(untagged_games),
+            "games": [
+                {
+                    "id": g.id,
+                    "title": g.title,
+                    "steam_app_id": g.steam_app_id
+                } for g in untagged_games
+            ]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch missing tags: {str(e)}")
+
+
 @router.post("/review-tags/update")
 async def trigger_review_tags_update(background_tasks: BackgroundTasks) -> Dict:
     """
     Manually trigger review tag update for all games (admin endpoint)
     
     This will update review tags for games that:
-    - Have no tags yet
-    - Have tags older than 7 days
+    - Have no tags yet (MISSING TAGS ONLY)
     
     Returns:
         Status message and statistics about the update
@@ -26,11 +94,12 @@ async def trigger_review_tags_update(background_tasks: BackgroundTasks) -> Dict:
     from ..scheduler import update_review_tags
     
     try:
-        stats = update_review_tags()
+        # Pass False to ONLY generate specific missing tags
+        stats = update_review_tags(update_existing=False)
         
         return {
             "status": "success",
-            "message": f"Checked {stats['games_checked']} games: {stats['updated']} updated, {stats['skipped']} skipped",
+            "message": f"Checked {stats['games_checked']} games: {stats['updated']} updated (new), {stats['skipped']} skipped (already has tags)",
             "stats": stats
         }
     except Exception as e:

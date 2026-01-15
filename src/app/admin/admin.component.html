@@ -122,10 +122,10 @@
                     </p-card>
 
                     <!-- 3. Sentiment Cache -->
-                    <p-card header="วิเคราะห์ความเห็น" subheader="รีเฟรชคะแนนความนิยม">
+                    <p-card header="วิเคราะห์เปอร์เซ็นความเห็น" subheader="รีเฟรชคะแนนความนิยม">
                         <div class="sync-section">
-                            <p>คำนวณคะแนน Sentiment ของเกมใหม่</p>
-                            <button pButton type="button" label="อัปเดต Sentiment" icon="pi pi-chart-pie"
+                            <p>คำนวณเปอร์เซ็นต์ของเกมใหม่</p>
+                            <button pButton type="button" label="อัปเดต %" icon="pi pi-chart-pie"
                                 [loading]="isUpdatingSentiment" [disabled]="isUpdatingSentiment"
                                 (click)="triggerSentimentUpdate()"
                                 style="background: linear-gradient(135deg, #9333ea 0%, #7e22ce 100%) !important; border: none !important; color: white !important;"
@@ -140,14 +140,32 @@
                     <p-card header="แท็กรีวิว" subheader="สร้างแท็กอธิบายเกม">
                         <div class="sync-section">
                             <p>สร้างแท็กจุดเด่น/จุดด้อยจากรีวิวผู้เล่น</p>
-                            <button pButton type="button" label="อัปเดตแท็ก" icon="pi pi-tags"
-                                [loading]="isUpdatingReviewTags" [disabled]="isUpdatingReviewTags"
-                                (click)="triggerReviewTagsUpdate()"
-                                style="background: linear-gradient(135deg, #9333ea 0%, #7e22ce 100%) !important; border: none !important; color: white !important;"
-                                class="purple-action-btn w-full mt-4 bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white shadow-md hover:shadow-lg transition-all duration-200 rounded-xl border-none py-3 font-medium">
+
+                            <!-- Batch Update Button -->
+                            <!-- Check Untagged Games (Manual) -->
+                            <button pButton label="ตรวจสอบเกมที่ไม่มีแท็ก" icon="pi pi-search"
+                                (click)="checkUntaggedGames()" [loading]="isCheckingUntagged"
+                                class="purple-action-btn mr-2 bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white shadow-md hover:shadow-lg transition-all duration-200 rounded-xl border-none font-medium">
                             </button>
 
 
+
+
+                            <div class="my-4 border-t border-gray-200"></div>
+
+                            <!-- Manual Game Selection -->
+                            <p class="text-sm font-medium text-gray-700 mb-2">หรือเลือกสร้างเฉพาะเกม</p>
+                            <p-dropdown [options]="games" [(ngModel)]="selectedGameForTagsId" optionLabel="title"
+                                optionValue="id" [filter]="true" filterBy="title"
+                                placeholder="เลือกเกมที่ต้องการสร้างแท็ก" [style]="{'width': '100%'}"
+                                styleClass="w-full mb-3">
+                            </p-dropdown>
+
+                            <button pButton type="button" label="สร้างแท็กสำหรับเกมนี้" icon="pi pi-bolt"
+                                [loading]="isGeneratingTags" [disabled]="!selectedGameForTagsId || isGeneratingTags"
+                                (click)="generateTagsForGame()"
+                                class="purple-action-btn w-full bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white shadow-md hover:shadow-lg transition-all duration-200 rounded-xl border-none py-3 font-medium">
+                            </button>
                         </div>
                     </p-card>
 
@@ -451,6 +469,58 @@
             <button pButton label="ยืนยันการลบ" class="p-button-danger" (click)="confirmDeleteGame()"></button>
         </div>
     </ng-template>
+</p-dialog>
+
+<!-- Dialog for Untagged Games (Moved Outside) -->
+<p-dialog [(visible)]="showUntaggedDialog" [modal]="true" [style]="{width: '600px'}" header="ตรวจสอบเกมที่ไม่มีแท็ก"
+    [draggable]="false" [resizable]="false" styleClass="custom-dialog">
+    <div class="flex flex-col">
+        <!-- Loading State -->
+        <div *ngIf="isCheckingUntagged" class="flex flex-col items-center justify-center p-8">
+            <p-progressSpinner [style]="{width: '50px', height: '50px'}" strokeWidth="4">
+            </p-progressSpinner>
+            <p class="text-gray-500 text-sm mt-4">กำลังค้นหาเกมที่ไม่มีแท็ก...</p>
+        </div>
+
+        <!-- Content when loaded -->
+        <div *ngIf="!isCheckingUntagged">
+            <!-- Status Header -->
+            <div class="text-center mb-6 pt-2" *ngIf="untaggedGames.length > 0">
+                <div class="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <i class="pi pi-exclamation-triangle text-3xl text-orange-500"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-900 mb-1">พบ
+                    {{untaggedGames.length}} เกมที่ขาดแท็ก</h3>
+                <p class="text-gray-500 text-sm">เกมเหล่านี้ยังไม่มี Review Tags</p>
+            </div>
+
+            <!-- Success Header (If empty) -->
+            <div class="text-center mb-6 pt-4" *ngIf="untaggedGames.length === 0">
+                <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="pi pi-check text-4xl text-green-600"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-900 mb-1">ยอดเยี่ยม!</h3>
+                <p class="text-gray-500">ทุกเกมมีแท็กครบถ้วนแล้ว</p>
+            </div>
+
+            <!-- Untagged Games List -->
+            <div class="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden" *ngIf="untaggedGames.length > 0">
+                <div class="max-h-[400px] overflow-y-auto">
+                    <div *ngFor="let game of untaggedGames"
+                        class="flex items-center justify-between p-4 border-b border-gray-200 last:border-0 hover:bg-white transition-colors">
+                        <div class="flex flex-col">
+                            <span class="font-bold text-gray-800 text-base">{{game.title}}</span>
+                            <span class="text-xs text-gray-500">ID: {{game.id}} | AppID:
+                                {{game.steam_app_id}}</span>
+                        </div>
+                        <button pButton icon="pi pi-bolt" label="Gen Tag" class="p-button-rounded p-button-warning"
+                            [loading]="isGeneratingSingleTag[game.id]" (click)="generateSingleTag(game.id)">
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </p-dialog>
 
 <app-footer></app-footer>

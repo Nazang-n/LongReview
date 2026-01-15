@@ -17,6 +17,8 @@ import { MessageService } from 'primeng/api';
 import { TabViewModule } from 'primeng/tabview';
 import { DropdownModule } from 'primeng/dropdown';
 import { InputNumberModule } from 'primeng/inputnumber';
+import { TableModule } from 'primeng/table';
+import { OverlayPanelModule } from 'primeng/overlaypanel';
 import { AnalyticsService } from '../services/analytics.service';
 
 @Component({
@@ -35,7 +37,10 @@ import { AnalyticsService } from '../services/analytics.service';
         ToastModule,
         TabViewModule,
         DropdownModule,
-        InputNumberModule
+        InputNumberModule,
+        InputNumberModule,
+        TableModule, // Added this module
+        OverlayPanelModule
     ],
     providers: [MessageService],
     templateUrl: './admin.component.html',
@@ -86,6 +91,14 @@ export class AdminComponent implements OnInit, OnDestroy {
     isUpdatingReviewTags = false;
     reviewTagsUpdateResult: any = null;
     reviewTagsUpdateError: string | null = null;
+    selectedGameForTagsId: number | null = null;
+    isGeneratingTags = false;
+
+    // Untagged Games Dialog
+    showUntaggedDialog = false;
+    untaggedGames: any[] = [];
+    isCheckingUntagged = false;
+    isGeneratingSingleTag: { [key: number]: boolean } = {};
 
     // Game import
     selectedImportMethod: string = 'by_id';
@@ -455,6 +468,61 @@ export class AdminComponent implements OnInit, OnDestroy {
         });
     }
 
+    generateTagsForGame() {
+        if (!this.selectedGameForTagsId) {
+            this.messageService.add({
+                severity: 'warn',
+                summary: 'กรุณาเลือกเกม',
+                detail: 'กรุณาเลือกเกมที่ต้องการสร้างแท็ก',
+                life: 3000
+            });
+            return;
+        }
+
+        if (this.checkIfProcessing()) return;
+
+        this.isAnyProcessing = true;
+        this.isGeneratingTags = true;
+
+        this.messageService.add({
+            severity: 'info',
+            summary: 'กำลังสร้างแท็ก',
+            detail: 'กำลังวิเคราะห์รีวิวและสร้างแท็ก...',
+            life: 3000
+        });
+
+        this.gameService.generateTagsForGame(this.selectedGameForTagsId).subscribe({
+            next: (result: any) => {
+                this.isGeneratingTags = false;
+                this.isAnyProcessing = false;
+
+                const data = result.data || {};
+                const posCount = data.positive_tags ? data.positive_tags.length : 0;
+                const negCount = data.negative_tags ? data.negative_tags.length : 0;
+
+                this.showResultDialog('สร้างแท็กสำเร็จ', {
+                    'เกม': data.game_id,
+                    'แท็กจุดเด่น': posCount,
+                    'แท็กจุดด้อย': negCount,
+                    'รีวิวที่วิเคราะห์': data.total_reviews_analyzed || 0
+                });
+
+                this.selectedGameForTagsId = null;
+            },
+            error: (err: any) => {
+                this.isGeneratingTags = false;
+                this.isAnyProcessing = false;
+
+                this.messageService.add({
+                    severity: 'error',
+                    summary: 'เกิดข้อผิดพลาด',
+                    detail: err.error?.detail || err.message || 'ไม่สามารถสร้างแท็กได้',
+                    life: 5000
+                });
+            }
+        });
+    }
+
     importGame() {
         if (this.checkIfProcessing()) return;
 
@@ -595,9 +663,109 @@ export class AdminComponent implements OnInit, OnDestroy {
                 console.error('Error loading games:', err);
                 this.messageService.add({
                     severity: 'error',
-                    summary: 'เกิดข้อผิดพลาด',
-                    detail: 'ไม่สามารถโหลดรายการเกมได้',
-                    life: 3000
+                    summary: 'Error',
+                    detail: 'Failed to generate tags'
+                });
+            }
+        });
+    }
+
+    checkUntaggedGames() {
+        this.showUntaggedDialog = true;
+        this.isCheckingUntagged = true;
+        this.untaggedGames = [];
+
+        this.gameService.getUntaggedGames().subscribe({
+            next: (result: any) => {
+                this.isCheckingUntagged = false;
+                if (result.success) {
+                    this.untaggedGames = result.games;
+
+                    if (this.untaggedGames.length === 0) {
+                        this.messageService.add({
+                            severity: 'success',
+                            summary: 'Great!',
+                            detail: 'All games have review tags.'
+                        });
+                    }
+                }
+            },
+            error: (err: any) => {
+                this.isCheckingUntagged = false;
+                this.messageService.add({
+                    severity: 'error',
+                    summary: 'Error',
+                    detail: 'Failed to check untagged games'
+                });
+            }
+        });
+    }
+
+    generateSingleTag(gameId: number) {
+        this.isGeneratingSingleTag[gameId] = true;
+
+        this.gameService.generateTagsForGame(gameId).subscribe({
+            next: (result: any) => {
+                this.isGeneratingSingleTag[gameId] = false;
+
+                if (result.status === 'success') {
+                    // Check if we actually got tags
+                    const posCount = result.positive_tags?.length || 0;
+                    const negCount = result.negative_tags?.length || 0;
+
+                    if (posCount === 0 && negCount === 0) {
+                        // Case: No reviews or analysis returned nothing
+                        this.messageService.add({
+                            severity: 'warn',
+                            summary: 'ไม่พบรีวิว',
+                            detail: 'เกมนี้ไม่มีรีวิวให้วิเคราะห์ หรือรีวิวไม่เพียงพอ'
+                        });
+                    } else {
+                        // Case: Success with tags -> Show Result Dialog
+                        this.showResultDialog('สร้างแท็กสำเร็จ', {
+                            'Game ID': gameId,
+                            'Positive Tags': posCount,
+                            'Negative Tags': negCount
+                        });
+
+                        // Remove from list
+                        this.untaggedGames = this.untaggedGames.filter(g => g.id !== gameId);
+                    }
+                } else if (result.status === 'warning') {
+                    // Case: Explicit Warning from Backend
+                    this.messageService.add({
+                        severity: 'warn',
+                        summary: 'ไม่พบรีวิว',
+                        detail: 'เกมนี้ไม่มีรีวิวให้วิเคราะห์ หรือรีวิวไม่เพียงพอ'
+                    });
+
+                } else {
+                    // Case: Error or Unhandled Warning
+                    const msg = result.message || result.error || 'Failed to generate tags';
+
+                    // Robust check: If backend didn't set status='warning' but message says "No English reviews"
+                    if (msg && msg.includes('No English reviews')) {
+                        this.messageService.add({
+                            severity: 'warn',
+                            summary: 'ไม่พบรีวิว',
+                            detail: 'เกมนี้ไม่มีรีวิวให้วิเคราะห์ หรือรีวิวไม่เพียงพอ'
+                        });
+                    } else {
+                        // Real Error
+                        this.messageService.add({
+                            severity: 'error',
+                            summary: 'Error',
+                            detail: msg
+                        });
+                    }
+                }
+            },
+            error: (err: any) => {
+                this.isGeneratingSingleTag[gameId] = false;
+                this.messageService.add({
+                    severity: 'error',
+                    summary: 'Error',
+                    detail: `Failed to generate tags for game ID ${gameId}`
                 });
             }
         });
