@@ -31,7 +31,8 @@ class Game(Base):
     # Existing columns in database
     platform = Column(String(255))  # Platform (windows, mac, linux)
     price = Column(String(255))  # Price from Steam
-    video = Column(String(255))  # Video URL
+    video = Column(Text)  # Video URL (can store JSON for multiple videos)
+    screenshots = Column(Text)  # Screenshots JSON array
     release_date = Column(Date)  # Release date
     
     # Additional columns for Steam API data (add these to DB if needed)

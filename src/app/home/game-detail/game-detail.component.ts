@@ -103,11 +103,14 @@ export class GameDetailComponent implements OnInit {
             negative: 0
         },
         reviewTags: [],
-        minRequirements: ''
-    };
+        minRequirements: '',
 
-    // Steam reviews
-    // Steam reviews
+    };
+    videos: any[] = [];
+    screenshots: any[] = [];
+    selectedMediaIndex: number = 0;
+    currentMediaType: 'video' | 'screenshot' = 'video';
+
     steamReviews: any[] = [];
     chunkedReviews: any[][] = [];
     loadingSteamReviews = false;
@@ -287,6 +290,47 @@ export class GameDetailComponent implements OnInit {
                     reviewTags: [],  // Will be loaded from API
                     minRequirements: gameData.price || 'N/A'
                 };
+
+                // Parse videos and screenshots JSON
+                try {
+                    if (gameData.video && gameData.video !== 'null') {
+                        this.videos = JSON.parse(gameData.video);
+                        console.log('Parsed videos:', this.videos);
+                    } else {
+                        this.videos = [];
+                        console.log('No video data available');
+                    }
+                } catch (e) {
+                    console.error('Error parsing videos:', e);
+                    console.error('Video data:', gameData.video);
+                    this.videos = [];
+                }
+
+                try {
+                    if (gameData.screenshots && gameData.screenshots !== 'null') {
+                        this.screenshots = JSON.parse(gameData.screenshots);
+                        console.log('Parsed screenshots:', this.screenshots);
+                    } else {
+                        this.screenshots = [];
+                        console.log('No screenshot data available');
+                    }
+                } catch (e) {
+                    console.error('Error parsing screenshots:', e);
+                    console.error('Screenshot data:', gameData.screenshots);
+                    this.screenshots = [];
+                }
+
+                console.log(`Loaded ${this.videos.length} videos and ${this.screenshots.length} screenshots`);
+
+                // Set initial media type
+                if (this.videos.length > 0) {
+                    this.currentMediaType = 'video';
+                    this.selectedMediaIndex = 0;
+                } else if (this.screenshots.length > 0) {
+                    this.currentMediaType = 'screenshot';
+                    this.selectedMediaIndex = 0;
+                }
+
                 this.isLoading = false;
 
                 // Always load Steam reviews for game 727 (or any game)
@@ -753,5 +797,20 @@ export class GameDetailComponent implements OnInit {
 
     closeSuccessDialog() {
         this.showSuccessDialog = false;
+    }
+
+    selectMedia(type: 'video' | 'screenshot', index: number) {
+        this.currentMediaType = type;
+        this.selectedMediaIndex = index;
+        console.log(`Selected ${type} at index ${index}`);
+        if (type === 'video' && this.videos[index]) {
+            console.log('Video URL:', this.getVideoUrl(this.videos[index]));
+        }
+    }
+
+    getVideoUrl(video: any): string | null {
+        if (!video) return null;
+        // Backend now stores video URL in 'url' field (HLS format)
+        return video.url || null;
     }
 }

@@ -42,6 +42,7 @@ class GameBase(BaseModel):
     platform: Optional[str] = None
     price: Optional[str] = None
     video: Optional[str] = None
+    screenshots: Optional[str] = None
     about_game_th: Optional[str] = None
     genre_th: Optional[str] = None
     player_modes: Optional[list[str]] = []

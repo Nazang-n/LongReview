@@ -40,6 +40,38 @@
                         <img [src]="game.image" [alt]="game.title" class="w-full h-auto object-cover"
                             onerror="this.src='/games/placeholder.jpg'">
                     </div>
+
+                    <!-- Media Gallery -->
+                    <div class="media-gallery mt-6" *ngIf="videos.length > 0 || screenshots.length > 0">
+                        <!-- Main Display -->
+                        <div class="main-media bg-black rounded-lg overflow-hidden">
+                            <video *ngIf="currentMediaType === 'video' && videos[selectedMediaIndex]"
+                                [src]="getVideoUrl(videos[selectedMediaIndex])" controls autoplay class="w-full h-full">
+                            </video>
+                            <img *ngIf="currentMediaType === 'screenshot' && screenshots[selectedMediaIndex]"
+                                [src]="screenshots[selectedMediaIndex].path_full"
+                                [alt]="'Screenshot ' + (selectedMediaIndex + 1)" class="w-full h-full object-contain">
+                        </div>
+
+                        <!-- Thumbnails -->
+                        <div class="thumbnails mt-4 flex gap-2 overflow-x-auto pb-2">
+                            <div *ngFor="let video of videos; let i = index" (click)="selectMedia('video', i)"
+                                [class.active]="currentMediaType === 'video' && selectedMediaIndex === i"
+                                class="thumbnail-item">
+                                <img [src]="video.thumbnail" [alt]="video.name" class="w-full h-full object-cover">
+                                <div class="play-icon">
+                                    <i class="pi pi-play"></i>
+                                </div>
+                            </div>
+                            <div *ngFor="let screenshot of screenshots; let i = index"
+                                (click)="selectMedia('screenshot', i)"
+                                [class.active]="currentMediaType === 'screenshot' && selectedMediaIndex === i"
+                                class="thumbnail-item">
+                                <img [src]="screenshot.path_thumbnail" [alt]="'Screenshot ' + (i + 1)"
+                                    class="w-full h-full object-cover">
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Right: Game Info -->
