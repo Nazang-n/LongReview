@@ -346,6 +346,7 @@ export class GameDetailComponent implements OnInit {
                 // 3. Add all screenshots
                 this.screenshots.forEach(screenshot => {
                     this.allMedia.push({
+                        name: `Screenshot ${screenshot.id}`,
                         type: 'screenshot',
                         url: screenshot.path_full,
                         thumbnail: screenshot.path_thumbnail
