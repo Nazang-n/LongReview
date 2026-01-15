@@ -74,8 +74,8 @@
                             <div class="thumbnails">
                                 <div *ngFor="let media of allMedia; let i = index" (click)="selectMediaByIndex(i)"
                                     [class.active]="currentMediaIndex === i" class="thumbnail-item">
-                                    <img [src]="media.thumbnail" [alt]="media.name || 'Media'"
-                                        class="w-full h-full object-cover">
+                                    <img [src]="media.thumbnail" [alt]="media.name" class="w-full h-full object-cover"
+                                        (error)="media.thumbnail = 'assets/images/placeholder-game.jpg'">
                                     <div *ngIf="media.type === 'video'" class="play-icon">
                                         <i class="pi pi-play"></i>
                                     </div>
