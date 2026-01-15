@@ -381,10 +381,10 @@ export class AdminComponent implements OnInit, OnDestroy {
                 this.isUpdatingSentiment = false;
                 this.isAnyProcessing = false;
 
-                // Build detailed message from stats
+                // Backend now runs synchronously, show completion results
                 const stats = result.stats || {};
 
-                // Show result dialog
+                // Show result dialog with statistics
                 this.showResultDialog('อัปเดต Sentiment สำเร็จ', {
                     'เกมที่ประมวลผล': stats.games_processed || 0,
                     'อัปเดต': stats.updated || 0,

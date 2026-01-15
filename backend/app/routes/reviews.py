@@ -454,11 +454,12 @@ def get_batch_sentiment(game_ids: List[int], db: Session = Depends(get_db)):
 def trigger_sentiment_update():
     """Manually trigger sentiment update for all games (Admin endpoint)"""
     from ..scheduler import update_all_sentiments
-    import threading
     
-    # Run in background thread
-    thread = threading.Thread(target=update_all_sentiments)
-    thread.daemon = True
-    thread.start()
+    # Run synchronously and return results
+    result = update_all_sentiments()
     
-    return {"success": True, "message": "Sentiment update started in background"}
+    return {
+        "success": True, 
+        "message": "Sentiment update completed",
+        "stats": result
+    }
