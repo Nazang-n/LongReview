@@ -122,10 +122,10 @@
                     </p-card>
 
                     <!-- 3. Sentiment Cache -->
-                    <p-card header="วิเคราะห์เปอร์เซ็นความเห็น" subheader="รีเฟรชคะแนนความนิยม">
+                    <p-card header="วิเคราะห์เปอร์เซ็นรีวิว" subheader="รีเฟรชคะแนนความนิยม">
                         <div class="sync-section">
                             <p>คำนวณเปอร์เซ็นต์ของเกมใหม่</p>
-                            <button pButton type="button" label="อัปเดต %" icon="pi pi-chart-pie"
+                            <button pButton type="button" label="อัปเดตเปอร์เซ็นรีวิว" icon="pi pi-chart-pie"
                                 [loading]="isUpdatingSentiment" [disabled]="isUpdatingSentiment"
                                 (click)="triggerSentimentUpdate()"
                                 style="background: linear-gradient(135deg, #9333ea 0%, #7e22ce 100%) !important; border: none !important; color: white !important;"
