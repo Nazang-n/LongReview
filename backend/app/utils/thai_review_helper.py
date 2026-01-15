@@ -101,7 +101,6 @@ def fetch_and_cache_thai_reviews(game_id: int, steam_app_id: int, db: Session, m
             # Create new review
             new_review = models.Review(
                 game_id=game_id,
-                admin_id=None,
                 owner=steam_review.get("author", {}).get("steamid", "Unknown"),
                 content=review_content,
                 steam_id=rec_id_str,

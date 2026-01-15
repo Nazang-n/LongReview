@@ -297,7 +297,7 @@ export class GameListComponent implements OnInit {
             }
         }
 
-        // 3. Platform Filter (OR Logic: Show games on ANY of the selected platforms)
+        // 3. Platform Filter (AND Logic: Game must have ALL selected platforms)
         if (this.selectedPlatformIds.length > 0) {
             const selectedPlatformNames = this.platforms
                 .filter(p => this.selectedPlatformIds.includes(p.id))
@@ -306,7 +306,7 @@ export class GameListComponent implements OnInit {
             if (selectedPlatformNames.length > 0) {
                 filtered = filtered.filter(game => {
                     const gamePlatform = (game.platform || '').toLowerCase();
-                    return selectedPlatformNames.some(p => gamePlatform.includes(p));
+                    return selectedPlatformNames.every(p => gamePlatform.includes(p));
                 });
             }
         }
@@ -385,7 +385,7 @@ export class GameListComponent implements OnInit {
 
             filtered = filtered.filter(game => {
                 const gamePlatform = (game.platform || '').toLowerCase();
-                return selectedPlatformNames.some(p => gamePlatform.includes(p));
+                return selectedPlatformNames.every(p => gamePlatform.includes(p));
             });
         }
 
@@ -424,7 +424,8 @@ export class GameListComponent implements OnInit {
             );
         }
 
-        // Apply platform filter (including this platform)
+        // Apply platform filter (AND logic: include currently selected platforms + this platform)
+        // Build list of platforms including current selections and the target platform
         const platformIds = [...this.selectedPlatformIds];
         if (!platformIds.includes(platformId)) {
             platformIds.push(platformId);
@@ -437,7 +438,7 @@ export class GameListComponent implements OnInit {
 
             filtered = filtered.filter(game => {
                 const gamePlatform = (game.platform || '').toLowerCase();
-                return selectedPlatformNames.some(p => gamePlatform.includes(p));
+                return selectedPlatformNames.every(p => gamePlatform.includes(p));
             });
         }
 
@@ -484,7 +485,7 @@ export class GameListComponent implements OnInit {
 
             filtered = filtered.filter(game => {
                 const gamePlatform = (game.platform || '').toLowerCase();
-                return selectedPlatformNames.some(p => gamePlatform.includes(p));
+                return selectedPlatformNames.every(p => gamePlatform.includes(p));
             });
         }
 

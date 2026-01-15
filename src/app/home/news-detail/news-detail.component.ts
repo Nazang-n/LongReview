@@ -46,10 +46,17 @@ export class NewsDetailComponent implements OnInit {
                 if (!this.newsItem) {
                     this.error = 'ไม่พบข่าวที่คุณต้องการ';
                 } else {
-                    // Load related news (exclude current news)
-                    this.relatedNews = response.news
-                        .filter(news => news.id !== this.newsId)
-                        .slice(0, 3);
+                    // Load random news (exclude current news)
+                    const otherNews = response.news.filter(news => news.id !== this.newsId);
+
+                    // Shuffle array using Fisher-Yates algorithm
+                    for (let i = otherNews.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [otherNews[i], otherNews[j]] = [otherNews[j], otherNews[i]];
+                    }
+
+                    // Take first 3 random items
+                    this.relatedNews = otherNews.slice(0, 3);
                 }
 
                 this.isLoading = false;

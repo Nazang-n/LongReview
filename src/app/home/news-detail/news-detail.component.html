@@ -108,7 +108,7 @@
 
         <!-- Related News Section -->
         <div class="mt-12" *ngIf="relatedNews.length > 0">
-            <h2 class="text-2xl font-bold text-gray-900 mb-6">ข่าวที่เกี่ยวข้อง</h2>
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">ข่าวอื่นๆ</h2>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div *ngFor="let news of relatedNews" [routerLink]="['/news', news.id]"
@@ -149,7 +149,7 @@
 
 <!-- Copy Link Success Dialog -->
 <p-dialog [(visible)]="showCopySuccessDialog" [modal]="true" [style]="{width: '450px'}" [draggable]="false"
-    [resizable]="false">
+    [resizable]="false" [closable]="false">
     <ng-template pTemplate="header">
         <div class="flex items-center gap-3">
             <i class="pi pi-check-circle text-green-600 text-2xl"></i>
