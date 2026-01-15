@@ -169,7 +169,7 @@
                         <div *ngFor="let tag of getPositiveTags()"
                             class="inline-flex items-center gap-2 px-4 py-2 rounded-full border-2 border-green-500 bg-green-50 text-green-700 transition-all hover:shadow-md cursor-pointer">
                             <span class="font-semibold">{{ tag.label }}</span>
-                            <span class="text-xs opacity-75">({{ tag.count }})</span>
+                            <!-- <span class="text-xs opacity-75">({{ tag.count }})</span> -->
                         </div>
                     </div>
                 </div>
@@ -184,7 +184,7 @@
                         <div *ngFor="let tag of getNegativeTags()"
                             class="inline-flex items-center gap-2 px-4 py-2 rounded-full border-2 border-red-500 bg-red-50 text-red-700 transition-all hover:shadow-md cursor-pointer">
                             <span class="font-semibold">{{ tag.label }}</span>
-                            <span class="text-xs opacity-75">({{ tag.count }})</span>
+                            <!-- <span class="text-xs opacity-75">({{ tag.count }})</span> -->
                         </div>
                     </div>
                 </div>

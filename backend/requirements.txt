@@ -21,3 +21,4 @@ aiosmtplib>=3.0.0
 transformers
 torch
 accelerate
+groq

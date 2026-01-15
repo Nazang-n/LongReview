@@ -424,22 +424,14 @@ export class GameListComponent implements OnInit {
             );
         }
 
-        // Apply platform filter (including this platform)
-        const platformIds = [...this.selectedPlatformIds];
-        if (!platformIds.includes(platformId)) {
-            platformIds.push(platformId);
-        }
-
-        if (platformIds.length > 0) {
-            const selectedPlatformNames = this.platforms
-                .filter(p => platformIds.includes(p.id))
-                .map(p => p.name.toLowerCase());
-
-            filtered = filtered.filter(game => {
-                const gamePlatform = (game.platform || '').toLowerCase();
-                return selectedPlatformNames.some(p => gamePlatform.includes(p));
-            });
-        }
+        // Apply platform filter (ONLY THIS PLATFORM)
+        // For OR logic, we show the count of games matching THIS platform specifically,
+        // independent of other currently selected platforms.
+        const targetPlatformName = platformName.toLowerCase();
+        filtered = filtered.filter(game => {
+            const gamePlatform = (game.platform || '').toLowerCase();
+            return gamePlatform.includes(targetPlatformName);
+        });
 
         // Apply player mode filter
         if (this.selectedPlayerModeIds.length > 0) {
