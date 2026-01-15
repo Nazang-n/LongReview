@@ -1,0 +1,313 @@
+:host {
+    --primary-color: #7c3aed !important;
+    --primary-color-text: #ffffff !important;
+    --primary-50: #f5f3ff !important;
+    --primary-100: #ede9fe !important;
+    --primary-200: #ddd6fe !important;
+    --primary-300: #c4b5fd !important;
+    --primary-400: #a78bfa !important;
+    --primary-500: #8b5cf6 !important;
+    --primary-600: #7c3aed !important;
+    --primary-700: #6d28d9 !important;
+    --primary-800: #5b21b6 !important;
+    --primary-900: #4c1d95 !important;
+}
+
+/* Admin Container */
+.admin-container {
+    min-height: 100vh;
+    padding: 2rem;
+    padding-top: 120px;
+    /* buffer for fixed header */
+    background-color: #f8fafc;
+    /* premium light gray */
+    /* font-family: 'Inter', sans-serif; -- REMOVED to inherit global 'Prompt' font */
+}
+
+.admin-content {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* Header */
+.admin-header {
+    margin-bottom: 2rem;
+}
+
+.admin-header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    /* Purple Gradient like Logo */
+    background: linear-gradient(135deg, #7c3aed 0%, #c026d3 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.admin-header p {
+    color: #64748b;
+    font-size: 1rem;
+}
+
+/* Card Styling - Glassmorphism Light */
+p-card {
+    display: block;
+    height: 100%;
+}
+
+:host ::ng-deep .p-card {
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
+    backdrop-filter: blur(10px);
+    transition: transform 0.2s, box-shadow 0.2s;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+:host ::ng-deep .p-card .p-card-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+:host ::ng-deep .p-card .p-card-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Ensure content inside stretches if needed */
+.sync-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+:host ::ng-deep .p-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+}
+
+:host ::ng-deep .p-card .p-card-header {
+    padding: 1.5rem 1.5rem 0 1.5rem;
+}
+
+:host ::ng-deep .p-card .p-card-body {
+    padding: 1.5rem;
+}
+
+:host ::ng-deep .p-card .p-card-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    /* Adjusted for Prompt */
+    color: #1e293b;
+    margin-bottom: 0.5rem;
+}
+
+:host ::ng-deep .p-card .p-card-subtitle {
+    color: #64748b;
+    font-weight: 400;
+    margin-bottom: 1rem;
+}
+
+/* Sync Buttons Styles Removed - Replaced with Tailwind */
+
+/* Sync Buttons Styles Removed - Replaced with Tailwind */
+
+/* TabView Customization */
+:host ::ng-deep .p-tabview .p-tabview-nav {
+    background: transparent;
+    border: none;
+    margin-bottom: 1.5rem;
+}
+
+:host ::ng-deep .p-tabview .p-tabview-nav li .p-tabview-nav-link {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    font-weight: 500;
+    color: #64748b;
+    padding: 1rem 1.5rem;
+    transition: all 0.2s;
+    font-family: inherit;
+    /* Ensure inherit */
+}
+
+:host ::ng-deep .p-tabview .p-tabview-nav li:not(.p-highlight):not(.p-disabled):hover .p-tabview-nav-link {
+    background: transparent;
+    color: #7c3aed;
+    /* Purple hover */
+    border-color: #e9d5ff;
+}
+
+:host ::ng-deep .p-tabview .p-tabview-nav li.p-highlight .p-tabview-nav-link {
+    background: transparent;
+    color: #7c3aed;
+    /* Purple Active */
+    border-color: #7c3aed;
+}
+
+/* Force Ink Bar to Purple (fixes green line) */
+:host ::ng-deep .p-tabview .p-tabview-ink-bar {
+    background-color: #7c3aed !important;
+}
+
+/* Force Text Buttons (like Refresh) to Purple */
+:host ::ng-deep .p-button.p-button-text {
+    color: #7c3aed !important;
+}
+
+:host ::ng-deep .p-button.p-button-text:hover {
+    background: #f3e8ff !important;
+    color: #6d28d9 !important;
+}
+
+/* FORCE PURPLE BUTTONS (Override Green Theme) */
+:host ::ng-deep .purple-action-btn {
+    background: linear-gradient(135deg, #9333ea 0%, #7e22ce 100%) !important;
+    border: none !important;
+    color: white !important;
+    box-shadow: 0 4px 6px -1px rgba(126, 34, 206, 0.4) !important;
+}
+
+:host ::ng-deep .purple-action-btn:hover {
+    background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%) !important;
+    transform: translateY(-1px);
+}
+
+/* Ensure Tab Text is Purple */
+:host ::ng-deep .p-tabview .p-tabview-nav li.p-highlight .p-tabview-nav-link,
+:host ::ng-deep .p-tabview .p-tabview-nav li.p-highlight .p-tabview-nav-link span {
+    color: #7c3aed !important;
+}
+
+/* Loading & Results */
+.loading-container {
+    padding: 2rem;
+    text-align: center;
+    background: #f8fafc;
+    border-radius: 12px;
+    margin-top: 1.5rem;
+    border: 1px dashed #cbd5e1;
+}
+
+.loading-container p {
+    color: #64748b;
+    margin-top: 1rem;
+    font-weight: 400;
+}
+
+.result-container {
+    margin-top: 1.5rem;
+    animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.result-details {
+    margin-top: 1rem;
+    background: #f1f5f9;
+    padding: 1rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+
+.result-details ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.result-details li {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+}
+
+.result-details li:last-child {
+    border-bottom: none;
+}
+
+/* Custom Grids layout class for Cards */
+.admin-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 1.5rem;
+}
+
+/* Response List */
+.reports-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.report-item {
+    background: #fff;
+    border: 1px solid #fee2e2;
+    border-radius: 12px;
+    padding: 1.5rem;
+    transition: all 0.2s;
+    box-shadow: 0 2px 4px rgba(239, 68, 68, 0.05);
+}
+
+.report-item:hover {
+    border-color: #fca5a5;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.1);
+}
+
+/* Dashboard Styles */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1rem;
+}
+
+.stat-summary {
+    display: flex;
+    gap: 2rem;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: linear-gradient(135deg, #f3e8ff 0%, #faf5ff 100%);
+    border-radius: 8px;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #7c3aed;
+}
+
+@media (max-width: 768px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+}

@@ -1,0 +1,144 @@
+<app-header></app-header>
+<div class="page-container bg-gray-50 min-h-screen">
+    <!-- Main Content without Sidebar -->
+    <div class="px-4 md:px-8 max-w-7xl mx-auto pb-12">
+
+        <!-- Page Title -->
+        <div class="mb-3">
+            <h1 class="text-3xl font-bold text-gray-900 flex items-center gap-3">
+                <i class="pi pi-heart-fill text-red-600"></i>
+                รายการโปรดของคุณ
+            </h1>
+            <p class="text-gray-600">{{ favoriteGames.length }} เกม</p>
+        </div>
+
+        <!-- Loading State -->
+        <div *ngIf="isLoading" class="flex items-center justify-center py-20">
+            <div class="text-center">
+                <i class="pi pi-spin pi-spinner text-4xl text-purple-500 mb-4"></i>
+                <p class="text-gray-600">กำลังโหลดรายการโปรด...</p>
+            </div>
+        </div>
+
+        <!-- Error State -->
+        <div *ngIf="error && !isLoading" class="bg-red-50 border border-red-200 rounded-lg p-6 mb-6">
+            <div class="flex items-start gap-3">
+                <i class="pi pi-exclamation-triangle text-red-500 text-xl"></i>
+                <div>
+                    <h3 class="font-bold text-red-800 mb-1">เกิดข้อผิดพลาด</h3>
+                    <p class="text-red-600 text-sm">{{ error }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search Bar -->
+        <div *ngIf="!isLoading" class="mb-6">
+            <div class="relative">
+                <i class="pi pi-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg"></i>
+                <input type="text" [(ngModel)]="searchQuery" (input)="filterGames()"
+                    placeholder="ค้นหาเกมในรายการโปรด..."
+                    class="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-700 placeholder-gray-400" />
+            </div>
+        </div>
+
+        <!-- No Results Message -->
+        <div *ngIf="!isLoading && favoriteGames.length === 0 && searchQuery" class="text-center py-20">
+            <i class="pi pi-search text-6xl text-gray-300 mb-4"></i>
+            <p class="text-gray-600 text-lg font-semibold">ไม่พบเกมที่ค้นหา "{{ searchQuery }}"</p>
+            <p class="text-gray-400 text-sm mt-2">ลองค้นหาด้วยคำอื่นหรือตรวจสอบการสะกดคำ</p>
+        </div>
+
+        <!-- Game Grid (3 columns, full width) -->
+        <div *ngIf="!isLoading && !error && favoriteGames.length > 0"
+            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div *ngFor="let game of favoriteGames" [routerLink]="['/game', game.id]"
+                class="game-card bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group border border-gray-100">
+
+                <!-- Game Image with Title Overlay -->
+                <div class="relative h-64 overflow-hidden">
+                    <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
+                        [style.backgroundImage]="'url(' + game.image + ')'">
+                    </div>
+
+                    <!-- Gradient Overlay -->
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
+                    </div>
+
+                    <!-- Review Badge (Top Right) -->
+                    <div class="absolute top-3 right-3">
+                        <!-- Positive Reviews -->
+                        <div *ngIf="game.reviewType === 'positive'"
+                            class="bg-green-500 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-lg">
+                            <i class="pi pi-thumbs-up text-base"></i>
+                        </div>
+
+                        <!-- Negative Reviews -->
+                        <div *ngIf="game.reviewType === 'negative'"
+                            class="bg-red-500 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-lg">
+                            <i class="pi pi-thumbs-down text-base"></i>
+                        </div>
+
+                        <!-- Mixed Reviews -->
+                        <div *ngIf="game.reviewType === 'mixed'"
+                            class="bg-yellow-500 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-lg">
+                            <i class="pi pi-sync text-base"></i>
+                        </div>
+                    </div>
+
+                    <!-- Remove from Favorites Button (Top Left) -->
+                    <button
+                        class="absolute top-3 left-3 w-8 h-8 bg-red-600 hover:bg-red-700 text-white rounded-full shadow-lg transition-colors z-10 flex items-center justify-center"
+                        (click)="removeFavorite($event, game.id, game.title)">
+                        <i class="pi pi-heart-fill text-sm"></i>
+                    </button>
+
+                    <!-- Game Title Overlay (Bottom) -->
+                    <div class="absolute bottom-0 left-0 right-0 p-4 space-y-2">
+                        <h3 class="text-xl font-bold text-white drop-shadow-lg">
+                            {{ game.title }}
+                        </h3>
+
+                        <!-- Release Date -->
+                        <div class="flex items-center gap-1.5 text-white/90 text-xs">
+                            <i class="pi pi-calendar"></i>
+                            <span>{{ game.releaseDate }}</span>
+                        </div>
+
+                        <!-- Genre and Review Tags -->
+                        <div class="flex flex-wrap gap-1.5">
+                            <!-- Genre Tags (Purple) -->
+                            <span *ngFor="let genre of game.genres"
+                                class="bg-purple-500/90 text-white text-xs px-2 py-1 rounded font-medium backdrop-blur-sm">
+                                {{ genre }}
+                            </span>
+                            <!-- Review Tags (Yellow) -->
+                            <span *ngFor="let tag of game.reviewTags"
+                                class="bg-yellow-500/90 text-white text-xs px-2 py-1 rounded font-medium backdrop-blur-sm">
+                                {{ tag }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Empty State - Only show when truly no favorites, not when search returns empty -->
+        <div *ngIf="!isLoading && !error && allFavorites.length === 0" class="text-center py-20">
+            <i class="pi pi-heart text-6xl text-gray-300 mb-4"></i>
+            <h2 class="text-2xl font-bold text-gray-600 mb-2">ยังไม่มีเกมในรายการโปรด</h2>
+            <p class="text-gray-500 mb-6">เพิ่มเกมที่คุณชอบเข้ามาในรายการโปรดของคุณ</p>
+            <a routerLink="/games"
+                class="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-medium">
+                <i class="pi pi-search"></i>
+                <span>ค้นหาเกม</span>
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Remove Favorite Dialog -->
+<app-remove-favorite-dialog [(visible)]="showRemoveDialog" [gameTitle]="pendingRemoveGameTitle"
+    (confirm)="confirmRemove()" (cancel)="cancelRemove()">
+</app-remove-favorite-dialog>
+
+<app-footer></app-footer>

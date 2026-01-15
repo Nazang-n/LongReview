@@ -1,0 +1,241 @@
+/* --- Global Reset for Home Component --- */
+:host {
+    display: block;
+    background-color: #f9f9f9;
+    color: #333;
+    min-height: 100vh;
+}
+
+/* --- Main Content Layout --- */
+.main-content {
+    margin-top: var(--header-height);
+    padding-top: 0;
+    padding-bottom: 50px;
+    width: 90%;
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+    min-height: calc(100vh - var(--header-height));
+}
+
+.section {
+    margin-bottom: 60px;
+}
+
+.section-title {
+    font-size: 1.8rem;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #ddd;
+    padding-bottom: 10px;
+    font-weight: 800;
+    text-transform: none;
+    letter-spacing: normal;
+    color: #333;
+    display: block;
+}
+
+.section-title::before {
+    display: none;
+}
+
+/* --- 2. Hero Slider Styles --- */
+.hero-slider {
+    position: relative;
+    width: 100%;
+    height: 450px;
+    background: #000;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+    border: none;
+}
+
+.slide-content {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    cursor: pointer;
+}
+
+.hero-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.9;
+    transition: none;
+}
+
+.hero-slider:hover .hero-img {
+    transform: none;
+}
+
+.hero-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: auto;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
+    padding: 40px 20px 20px;
+    color: white;
+    justify-content: flex-start;
+}
+
+.hero-overlay h3 {
+    font-size: 2rem;
+    font-weight: bold;
+    margin: 0;
+    text-shadow: 2px 2px 4px black;
+    letter-spacing: normal;
+    line-height: normal;
+}
+
+/* Slider Buttons - Restore simple style */
+.slider-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 50px;
+    height: 50px;
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    z-index: 20;
+}
+
+.slider-btn:hover {
+    background: rgba(255, 255, 255, 0.4);
+    scale: 1.1;
+    box-shadow: none;
+}
+
+.slider-btn.prev {
+    left: 20px;
+}
+
+.slider-btn.next {
+    right: 20px;
+}
+
+/* --- 3. Card List Styles (Light Mode) --- */
+/* --- 3. Card List Styles (Clone of Game List) --- */
+.scroll-container-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.card-list {
+    display: flex;
+    gap: 24px;
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    padding: 20px 5px;
+    scrollbar-width: none;
+}
+
+/* Game Card Design - Exact Match to Game List */
+/* Game Card Design - Smaller Size */
+.game-card {
+    min-width: 260px;
+    max-width: 260px;
+    background: white;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    border: 1px solid #f3f4f6;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    position: relative;
+}
+
+/* Specific Hover Effect from Game List CSS */
+.game-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px rgba(168, 85, 247, 0.15);
+}
+
+/* Image Wrapper Structure */
+.card-img-wrapper {
+    position: relative;
+    height: 13rem;
+    /* Reduced height */
+    overflow: hidden;
+}
+
+.card-img-wrapper img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.5s;
+}
+
+.game-card:hover .card-img-wrapper img {
+    transform: scale(1.1);
+}
+
+/* Scroll Buttons */
+.scroll-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 45px;
+    height: 45px;
+    background: white;
+    color: #374151;
+    border: 1px solid #e5e7eb;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 20;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s;
+}
+
+.scroll-btn:hover {
+    background: #f9fafb;
+    transform: translateY(-50%) scale(1.1);
+    color: #9333ea;
+}
+
+.scroll-btn.left {
+    left: -20px;
+}
+
+.scroll-btn.right {
+    right: -20px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .main-content {
+        width: 95%;
+    }
+
+    .hero-slider {
+        height: 250px;
+    }
+
+    .game-card {
+        min-width: 260px;
+        max-width: 260px;
+    }
+
+    .card-img-wrapper {
+        height: 14rem;
+    }
+
+    .scroll-btn {
+        width: 35px;
+        height: 35px;
+    }
+}

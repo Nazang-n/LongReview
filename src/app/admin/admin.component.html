@@ -1,0 +1,526 @@
+<app-header></app-header>
+
+<!-- Toast Notifications -->
+<p-toast position="top-right"></p-toast>
+
+<div class="admin-container" style="--primary-color: #7c3aed !important; --primary-color-text: #ffffff !important;">
+    <div class="admin-content">
+        <!-- Header Section -->
+        <div class="admin-header">
+            <h1>แดชบอร์ดผู้ดูแลระบบ</h1>
+            <p>จัดการการซิงค์ข้อมูลระบบและดูแลความเรียบร้อยของชุมชน</p>
+        </div>
+
+        <p-tabView styleClass="custom-tabs">
+            <!-- TAB 0: Dashboard -->
+            <p-tabPanel header="สรุปข้อมูล">
+                <div class="animate-fade-in">
+                    <!-- Loading State -->
+                    <div *ngIf="isLoadingAnalytics" class="flex justify-center py-12">
+                        <p-progressSpinner></p-progressSpinner>
+                    </div>
+
+                    <!-- Error State -->
+                    <p-message *ngIf="analyticsError && !isLoadingAnalytics" severity="error" [text]="analyticsError">
+                    </p-message>
+
+                    <!-- Dashboard Grid -->
+                    <div *ngIf="!isLoadingAnalytics && !analyticsError" class="dashboard-grid">
+                        <!-- 1. Comments Analytics -->
+                        <p-card header="ความคิดเห็นผู้ใช้" subheader="จำนวนความคิดเห็น">
+                            <div class="stat-summary">
+                                <div class="stat-item">
+                                    <span class="stat-label">วันนี้</span>
+                                    <span class="stat-value">{{ todayComments }}</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">เดือนนี้</span>
+                                    <span class="stat-value">{{ monthlyComments }}</span>
+                                </div>
+                            </div>
+                        </p-card>
+
+                        <!-- 2. News Analytics -->
+                        <p-card header="ข่าวสาร" subheader="จำนวนข่าวที่เพิ่ม">
+                            <div class="stat-summary">
+                                <div class="stat-item">
+                                    <span class="stat-label">วันนี้</span>
+                                    <span class="stat-value">{{ todayNews }}</span>
+                                </div>
+                            </div>
+                        </p-card>
+
+                        <!-- 3. Reports Analytics -->
+                        <p-card header="รายงานความคิดเห็น" subheader="รายงานที่รอดำเนินการ">
+                            <div class="stat-summary">
+                                <div class="stat-item">
+                                    <span class="stat-label">วันนี้</span>
+                                    <span class="stat-value">{{ todayReports }}</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">เดือนนี้</span>
+                                    <span class="stat-value">{{ monthlyReports }}</span>
+                                </div>
+                            </div>
+                        </p-card>
+                    </div>
+                </div>
+            </p-tabPanel>
+
+            <!-- TAB 1: System Synchronization -->
+            <p-tabPanel header="ซิงค์ข้อมูลระบบ">
+                <div class="admin-grid animate-fade-in">
+                    <!-- 1. News Sync -->
+                    <p-card header="ซิงค์ข่าวสาร" subheader="ดึงบทความล่าสุด">
+                        <div class="sync-section">
+                            <p>อัปเดตฐานข้อมูลด้วยข่าวสารล่าสุดจาก API</p>
+                            <button pButton type="button" label="ซิงค์ข่าว" icon="pi pi-refresh" [loading]="isLoading"
+                                [disabled]="isLoading" (click)="syncNews()"
+                                style="background: linear-gradient(135deg, #9333ea 0%, #7e22ce 100%) !important; border: none !important; color: white !important;"
+                                class="purple-action-btn w-full mt-4 bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white shadow-md hover:shadow-lg transition-all duration-200 rounded-xl border-none py-3 font-medium">
+                            </button>
+
+
+
+
+                        </div>
+                    </p-card>
+
+                    <!-- 2. Review Update -->
+                    <p-card header="รีวิวภาษาไทย" subheader="ดึงข้อมูลจาก Steam">
+                        <div class="sync-section">
+                            <p>อัปเดตรีวิวภาษาไทยสำหรับเกมทั้งหมด</p>
+                            <button pButton type="button" label="อัปเดตรีวิว" icon="pi pi-comments"
+                                [loading]="isUpdatingReviews" [disabled]="isUpdatingReviews"
+                                (click)="triggerReviewUpdate()"
+                                style="background: linear-gradient(135deg, #9333ea 0%, #7e22ce 100%) !important; border: none !important; color: white !important;"
+                                class="purple-action-btn w-full mt-4 bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white shadow-md hover:shadow-lg transition-all duration-200 rounded-xl border-none py-3 font-medium">
+                            </button>
+
+
+
+                            <div *ngIf="reviewUpdateError && !isUpdatingReviews" class="result-container error">
+                                <p-message severity="error" [text]="reviewUpdateError"></p-message>
+                            </div>
+                        </div>
+                    </p-card>
+
+                    <!-- 5. Game Translation (Moved) -->
+                    <p-card header="แปลภาษาเกม" subheader="แปลด้วย AI">
+                        <div class="sync-section">
+                            <p>แปลคำอธิบายเกมจากภาษาอังกฤษเป็นภาษาไทยทั้งหมด</p>
+                            <button pButton type="button" label="แปลเกมทั้งหมด" icon="pi pi-language"
+                                [loading]="isTranslating" [disabled]="isTranslating" (click)="translateGames()"
+                                style="background: linear-gradient(135deg, #9333ea 0%, #7e22ce 100%) !important; border: none !important; color: white !important;"
+                                class="purple-action-btn w-full mt-4 bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white shadow-md hover:shadow-lg transition-all duration-200 rounded-xl border-none py-3 font-medium">
+                            </button>
+
+
+
+
+                        </div>
+                    </p-card>
+
+                    <!-- 3. Sentiment Cache -->
+                    <p-card header="วิเคราะห์เปอร์เซ็นรีวิว" subheader="รีเฟรชคะแนนความนิยม">
+                        <div class="sync-section">
+                            <p>คำนวณเปอร์เซ็นต์ของเกมใหม่</p>
+                            <button pButton type="button" label="อัปเดตเปอร์เซ็นรีวิว" icon="pi pi-chart-pie"
+                                [loading]="isUpdatingSentiment" [disabled]="isUpdatingSentiment"
+                                (click)="triggerSentimentUpdate()"
+                                style="background: linear-gradient(135deg, #9333ea 0%, #7e22ce 100%) !important; border: none !important; color: white !important;"
+                                class="purple-action-btn w-full mt-4 bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white shadow-md hover:shadow-lg transition-all duration-200 rounded-xl border-none py-3 font-medium">
+                            </button>
+
+
+                        </div>
+                    </p-card>
+
+                    <!-- 4. Review Tags -->
+                    <p-card header="แท็กรีวิว" subheader="สร้างแท็กอธิบายเกม">
+                        <div class="sync-section">
+                            <p>สร้างแท็กจุดเด่น/จุดด้อยจากรีวิวผู้เล่น</p>
+
+                            <!-- Batch Update Button -->
+                            <!-- Check Untagged Games (Manual) -->
+                            <button pButton label="ตรวจสอบเกมที่ไม่มีแท็ก" icon="pi pi-search"
+                                (click)="checkUntaggedGames()" [loading]="isCheckingUntagged"
+                                class="purple-action-btn mr-2 bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white shadow-md hover:shadow-lg transition-all duration-200 rounded-xl border-none font-medium">
+                            </button>
+
+
+
+
+                            <div class="my-4 border-t border-gray-200"></div>
+
+                            <!-- Manual Game Selection -->
+                            <p class="text-sm font-medium text-gray-700 mb-2">หรือเลือกสร้างเฉพาะเกม</p>
+                            <p-dropdown [options]="games" [(ngModel)]="selectedGameForTagsId" optionLabel="title"
+                                optionValue="id" [filter]="true" filterBy="title"
+                                placeholder="เลือกเกมที่ต้องการสร้างแท็ก" [style]="{'width': '100%'}"
+                                styleClass="w-full mb-3">
+                            </p-dropdown>
+
+                            <button pButton type="button" label="สร้างแท็กสำหรับเกมนี้" icon="pi pi-bolt"
+                                [loading]="isGeneratingTags" [disabled]="!selectedGameForTagsId || isGeneratingTags"
+                                (click)="generateTagsForGame()"
+                                class="purple-action-btn w-full bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white shadow-md hover:shadow-lg transition-all duration-200 rounded-xl border-none py-3 font-medium">
+                            </button>
+                        </div>
+                    </p-card>
+
+                    <!-- 6. Add Game -->
+                    <p-card header="เพิ่มเกม" subheader="นำเข้าเกมใหม่จาก Steam">
+                        <div class="sync-section">
+                            <p>เลือกวิธีการนำเข้าเกมจาก Steam API</p>
+
+                            <!-- Import Method Dropdown -->
+                            <div class="mt-4">
+                                <label for="importMethod"
+                                    class="block text-sm font-medium text-gray-700 mb-2">วิธีการนำเข้า</label>
+                                <p-dropdown id="importMethod" [(ngModel)]="selectedImportMethod"
+                                    [options]="importMethods" optionLabel="label" optionValue="value"
+                                    placeholder="เลือกวิธีการนำเข้า" [style]="{'width': '100%'}" styleClass="w-full">
+                                </p-dropdown>
+                            </div>
+
+                            <!-- Conditional Input: Game ID -->
+                            <div *ngIf="selectedImportMethod === 'by_id'" class="mt-4">
+                                <label for="gameAppId" class="block text-sm font-medium text-gray-700 mb-2">Steam App
+                                    ID</label>
+                                <p-inputNumber id="gameAppId" [(ngModel)]="gameAppId" [useGrouping]="false"
+                                    placeholder="กรอก Steam App ID (เช่น 730)" [style]="{'width': '100%'}"
+                                    styleClass="w-full">
+                                </p-inputNumber>
+                            </div>
+
+                            <!-- Conditional Input: Batch Size for Newest -->
+                            <div *ngIf="selectedImportMethod === 'newest'" class="mt-4">
+                                <label for="newestBatchSize"
+                                    class="block text-sm font-medium text-gray-700 mb-2">จำนวนเกมใหม่ล่าสุด</label>
+                                <p-inputNumber id="newestBatchSize" [(ngModel)]="batchSize" [useGrouping]="false"
+                                    [min]="1" [max]="1000" placeholder="กรอกจำนวนเกม (เช่น 50)"
+                                    [style]="{'width': '100%'}" styleClass="w-full">
+                                </p-inputNumber>
+                            </div>
+
+                            <!-- Conditional Input: Batch Size for General Batch -->
+                            <div *ngIf="selectedImportMethod === 'batch'" class="mt-4">
+                                <label for="batchSize"
+                                    class="block text-sm font-medium text-gray-700 mb-2">จำนวนเกม</label>
+                                <p-inputNumber id="batchSize" [(ngModel)]="batchSize" [useGrouping]="false" [min]="1"
+                                    [max]="1000" placeholder="กรอกจำนวนเกม (เช่น 100)" [style]="{'width': '100%'}"
+                                    styleClass="w-full">
+                                </p-inputNumber>
+                            </div>
+
+                            <!-- Import Button -->
+                            <button pButton type="button" label="เพิ่มเกม" icon="pi pi-plus" [loading]="isImportingGame"
+                                [disabled]="isImportingGame" (click)="importGame()"
+                                style="background: linear-gradient(135deg, #9333ea 0%, #7e22ce 100%) !important; border: none !important; color: white !important;"
+                                class="purple-action-btn w-full mt-4 bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white shadow-md hover:shadow-lg transition-all duration-200 rounded-xl border-none py-3 font-medium">
+                            </button>
+                        </div>
+                    </p-card>
+
+                    <!-- 7. Delete Game -->
+                    <p-card header="ลบเกม" subheader="ลบเกมออกจากระบบ">
+                        <div class="sync-section">
+                            <p>เลือกเกมที่ต้องการลบออกจากฐานข้อมูล</p>
+
+                            <!-- Game Dropdown -->
+                            <div class="mt-4">
+                                <label for="gameSelect"
+                                    class="block text-sm font-medium text-gray-700 mb-2">เลือกเกม</label>
+                                <p-dropdown id="gameSelect" [(ngModel)]="selectedGameId" [options]="games"
+                                    optionLabel="title" optionValue="id" placeholder="เลือกเกมที่ต้องการลบ"
+                                    [style]="{'width': '100%'}" styleClass="w-full" [filter]="true" filterBy="title">
+                                </p-dropdown>
+                            </div>
+
+                            <!-- Delete Button -->
+                            <button pButton type="button" label="ลบเกม" icon="pi pi-trash" [loading]="isDeletingGame"
+                                [disabled]="isDeletingGame || !selectedGameId" (click)="deleteGame()"
+                                style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important; border: none !important; color: white !important;"
+                                class="w-full mt-4 shadow-md hover:shadow-lg transition-all duration-200 rounded-xl border-none py-3 font-medium">
+                            </button>
+                        </div>
+                    </p-card>
+                </div>
+            </p-tabPanel>
+
+            <!-- TAB 2: Moderation -->
+            <p-tabPanel header="การตรวจสอบ">
+                <div class="animate-fade-in">
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h2 class="text-2xl font-bold text-gray-800">ความคิดเห็นที่ถูกรายงาน</h2>
+                            <button pButton icon="pi pi-refresh" label="รีเฟรช" (click)="loadReportedComments()"
+                                [loading]="isLoadingReports" class="p-button-text"></button>
+                        </div>
+
+                        <!-- Loading -->
+                        <div *ngIf="isLoadingReports" class="flex justify-center py-12">
+                            <p-progressSpinner></p-progressSpinner>
+                        </div>
+
+                        <!-- Error -->
+                        <p-message *ngIf="reportsError && !isLoadingReports" severity="error"
+                            [text]="reportsError"></p-message>
+
+                        <!-- Content -->
+                        <div *ngIf="!isLoadingReports && !reportsError">
+                            <!-- Empty State -->
+                            <div *ngIf="reportedComments.length === 0"
+                                class="text-center py-20 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                                <div
+                                    class="w-16 h-16 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <i class="pi pi-check text-2xl"></i>
+                                </div>
+                                <h3 class="text-lg font-semibold text-gray-900">จัดการครบแล้ว!</h3>
+                                <p class="text-gray-500">ไม่มีความคิดเห็นที่ต้องตรวจสอบในขณะนี้</p>
+                            </div>
+
+                            <!-- Reports List -->
+                            <div class="reports-list">
+                                <div *ngFor="let report of reportedComments" class="report-item">
+                                    <div class="flex flex-col md:flex-row gap-6">
+                                        <!-- Meta Info -->
+                                        <div class="w-full md:w-64 flex-shrink-0 space-y-4">
+                                            <!-- Header -->
+                                            <div class="flex items-center gap-2 mb-2">
+                                                <span
+                                                    class="bg-red-50 text-red-600 px-2.5 py-1 rounded-md text-xs font-bold ring-1 ring-red-100">รายงาน</span>
+                                                <span class="text-xs text-gray-400 font-medium">{{ report.created_at |
+                                                    date:'d MMM, HH:mm' }}</span>
+                                            </div>
+
+                                            <!-- Reporter -->
+                                            <div class="group">
+                                                <div
+                                                    class="flex items-center gap-1.5 text-xs text-gray-500 font-medium mb-1.5">
+                                                    <i class="pi pi-user text-gray-400"></i>
+                                                    <span>ผู้รายงาน</span>
+                                                </div>
+                                                <div
+                                                    class="text-sm font-bold text-gray-900 bg-white border border-gray-200 rounded-lg px-3 py-2">
+                                                    {{ report.reporter_username }}</div>
+                                            </div>
+
+                                            <!-- Reason -->
+                                            <div class="group">
+                                                <div
+                                                    class="flex items-center gap-1.5 text-xs text-gray-500 font-medium mb-1.5">
+                                                    <i class="pi pi-flag text-gray-400"></i>
+                                                    <span>เหตุผล</span>
+                                                </div>
+                                                <div
+                                                    class="text-sm font-bold text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                                                    {{ report.reason }}</div>
+                                            </div>
+
+                                            <!-- Game -->
+                                            <div class="group">
+                                                <div
+                                                    class="flex items-center gap-1.5 text-xs text-gray-500 font-medium mb-1.5">
+                                                    <i class="pi pi-desktop text-gray-400"></i>
+                                                    <span>เกม</span>
+                                                </div>
+                                                <div
+                                                    class="text-sm font-bold text-gray-800 break-words bg-white border border-gray-200 rounded-lg px-3 py-2 leading-tight">
+                                                    {{ report.game_title }}</div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Comment Content & Actions -->
+                                        <div
+                                            class="flex-1 border-l border-gray-100 pl-6 md:pl-6 pt-4 md:pt-0 border-t md:border-t-0">
+                                            <div class="bg-gray-50 rounded-xl p-4 mb-4 relative">
+                                                <i
+                                                    class="pi pi-comment text-gray-300 text-4xl absolute -top-2 -left-2 opacity-50"></i>
+                                                <p class="text-gray-800 relative z-10 leading-relaxed">"{{
+                                                    report.comment_content }}"</p>
+                                            </div>
+
+                                            <div class="flex justify-end gap-3 mt-4">
+                                                <button pButton label="ยกเลิกรายงาน" icon="pi pi-times"
+                                                    class="p-button-outlined p-button-secondary p-button-sm"
+                                                    (click)="dismissReport(report.id)">
+                                                </button>
+                                                <button pButton label="ลบความคิดเห็น" icon="pi pi-trash"
+                                                    class="p-button-danger p-button-sm"
+                                                    (click)="deleteReportedComment(report.comment_id)">
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </p-tabPanel>
+        </p-tabView>
+    </div>
+</div>
+
+<!-- Dismiss Dialog -->
+<p-dialog [(visible)]="showDismissDialog" [modal]="true" [style]="{width: '400px'}" [draggable]="false"
+    [resizable]="false" [closable]="false" styleClass="custom-dialog">
+    <ng-template pTemplate="header">
+        <div class="flex items-center gap-2">
+            <i class="pi pi-times-circle text-blue-600"></i>
+            <span>ยกเลิกการรายงาน</span>
+        </div>
+    </ng-template>
+    <div class="p-4">
+        <p class="text-gray-700">คุณแน่ใจหรือไม่ที่จะยกเลิกรายงานนี้?</p>
+        <p class="text-gray-700 mt-2">ความคิดเห็นจะยังคงแสดงอยู่</p>
+    </div>
+    <ng-template pTemplate="footer">
+        <div class="flex gap-2 justify-end w-full">
+            <button pButton label="ยกเลิก" class="p-button-text p-button-secondary"
+                (click)="cancelDismissReport()"></button>
+            <button pButton label="ยืนยัน" class="p-button-primary" (click)="confirmDismissReport()"></button>
+        </div>
+    </ng-template>
+</p-dialog>
+
+<!-- Delete Dialog -->
+<p-dialog [(visible)]="showDeleteCommentDialog" [modal]="true" [style]="{width: '400px'}" [draggable]="false"
+    [resizable]="false" [closable]="false" styleClass="custom-dialog">
+    <ng-template pTemplate="header">
+        <div class="flex items-center gap-2">
+            <i class="pi pi-trash text-red-600"></i>
+            <span>ลบความคิดเห็น</span>
+        </div>
+    </ng-template>
+    <div class="p-4">
+        <p class="text-gray-700">การดำเนินการนี้ไม่สามารถกู้คืนได้</p>
+        <p class="text-gray-700 mt-2">ความคิดเห็นจะถูกลบออกจากระบบอย่างถาวร</p>
+    </div>
+    <ng-template pTemplate="footer">
+        <div class="flex gap-2 justify-end w-full">
+            <button pButton label="ยกเลิก" class="p-button-text p-button-secondary"
+                (click)="cancelDeleteComment()"></button>
+            <button pButton label="ลบ" class="p-button-danger" (click)="confirmDeleteComment()"></button>
+        </div>
+    </ng-template>
+</p-dialog>
+
+<!-- Result Dialog -->
+<p-dialog [(visible)]="displayResultDialog" [header]="resultDialogTitle" [modal]="true" [style]="{width: '450px'}"
+    [draggable]="false" [resizable]="false" [closable]="false" styleClass="custom-dialog">
+    <div *ngIf="resultDialogData" class="flex flex-col">
+        <!-- Success Icon & Message -->
+        <div class="text-center mb-6 pt-4">
+            <div class="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4"
+                style="background-color: #f3e8ff;">
+                <i class="pi pi-check text-4xl text-purple-600" style="color: #7c3aed;"></i>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 mb-1">ดำเนินการเสร็จสิ้น!</h3>
+            <p class="text-gray-500 text-sm">ระบบได้ทำการประมวลผลข้อมูลเรียบร้อยแล้ว</p>
+        </div>
+
+        <!-- Stats Container -->
+        <div class="bg-gray-50 rounded-xl p-5 border border-purple-100 shadow-sm"
+            style="background-color: #f9fafb; border-color: #e9d5ff;">
+            <div class="flex items-center justify-between py-3 border-b border-gray-200 last:border-0"
+                *ngFor="let item of resultDialogData | keyvalue" style="border-bottom: 1px solid #e5e7eb;">
+                <span class="text-gray-600 font-medium">{{ item.key }}</span>
+                <span class="font-bold text-purple-700 text-lg" style="color: #7e22ce;">{{ item.value }}</span>
+            </div>
+        </div>
+    </div>
+    <ng-template pTemplate="footer">
+        <div class="flex justify-center w-full pt-4">
+            <button pButton label="รับทราบ" icon="pi pi-check" (click)="displayResultDialog = false"
+                class="p-button-rounded p-button-primary px-8 py-3 font-bold"
+                style="background: linear-gradient(135deg, #9333ea 0%, #7e22ce 100%) !important; border: none !important; color: white !important;">
+            </button>
+        </div>
+    </ng-template>
+</p-dialog>
+
+<!-- Delete Game Dialog -->
+<p-dialog [(visible)]="showDeleteGameDialog" [modal]="true" [style]="{width: '450px'}" [draggable]="false"
+    [resizable]="false" [closable]="false" styleClass="custom-dialog">
+    <ng-template pTemplate="header">
+        <div class="flex items-center gap-2">
+            <i class="pi pi-trash text-red-600"></i>
+            <span>ยืนยันการลบเกม</span>
+        </div>
+    </ng-template>
+    <div class="p-4">
+        <p class="text-gray-700 font-semibold">คุณแน่ใจหรือไม่ที่จะลบเกมนี้?</p>
+        <p class="text-gray-600 mt-2 text-sm">การดำเนินการนี้จะลบข้อมูลต่อไปนี้:</p>
+        <ul class="list-disc list-inside text-gray-600 text-sm mt-2 ml-2">
+            <li>ข้อมูลเกม</li>
+            <li>ความคิดเห็นทั้งหมด</li>
+            <li>รายการโปรดของผู้ใช้</li>
+            <li>รีวิวและแท็ก</li>
+        </ul>
+        <p class="text-red-600 font-semibold mt-3 text-sm">⚠️ การลบจะไม่สามารถกู้คืนได้</p>
+    </div>
+    <ng-template pTemplate="footer">
+        <div class="flex gap-2 justify-end w-full">
+            <button pButton label="ยกเลิก" class="p-button-text p-button-secondary"
+                (click)="cancelDeleteGame()"></button>
+            <button pButton label="ยืนยันการลบ" class="p-button-danger" (click)="confirmDeleteGame()"></button>
+        </div>
+    </ng-template>
+</p-dialog>
+
+<!-- Dialog for Untagged Games (Moved Outside) -->
+<p-dialog [(visible)]="showUntaggedDialog" [modal]="true" [style]="{width: '600px'}" header="ตรวจสอบเกมที่ไม่มีแท็ก"
+    [draggable]="false" [resizable]="false" styleClass="custom-dialog">
+    <div class="flex flex-col">
+        <!-- Loading State -->
+        <div *ngIf="isCheckingUntagged" class="flex flex-col items-center justify-center p-8">
+            <p-progressSpinner [style]="{width: '50px', height: '50px'}" strokeWidth="4">
+            </p-progressSpinner>
+            <p class="text-gray-500 text-sm mt-4">กำลังค้นหาเกมที่ไม่มีแท็ก...</p>
+        </div>
+
+        <!-- Content when loaded -->
+        <div *ngIf="!isCheckingUntagged">
+            <!-- Status Header -->
+            <div class="text-center mb-6 pt-2" *ngIf="untaggedGames.length > 0">
+                <div class="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <i class="pi pi-exclamation-triangle text-3xl text-orange-500"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-900 mb-1">พบ
+                    {{untaggedGames.length}} เกมที่ขาดแท็ก</h3>
+                <p class="text-gray-500 text-sm">เกมเหล่านี้ยังไม่มี Review Tags</p>
+            </div>
+
+            <!-- Success Header (If empty) -->
+            <div class="text-center mb-6 pt-4" *ngIf="untaggedGames.length === 0">
+                <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="pi pi-check text-4xl text-green-600"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-900 mb-1">ยอดเยี่ยม!</h3>
+                <p class="text-gray-500">ทุกเกมมีแท็กครบถ้วนแล้ว</p>
+            </div>
+
+            <!-- Untagged Games List -->
+            <div class="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden" *ngIf="untaggedGames.length > 0">
+                <div class="max-h-[400px] overflow-y-auto">
+                    <div *ngFor="let game of untaggedGames"
+                        class="flex items-center justify-between p-4 border-b border-gray-200 last:border-0 hover:bg-white transition-colors">
+                        <div class="flex flex-col">
+                            <span class="font-bold text-gray-800 text-base">{{game.title}}</span>
+                            <span class="text-xs text-gray-500">ID: {{game.id}} | AppID:
+                                {{game.steam_app_id}}</span>
+                        </div>
+                        <button pButton icon="pi pi-bolt" label="Gen Tag" class="p-button-rounded p-button-warning"
+                            [loading]="isGeneratingSingleTag[game.id]" (click)="generateSingleTag(game.id)">
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</p-dialog>
+
+<app-footer></app-footer>

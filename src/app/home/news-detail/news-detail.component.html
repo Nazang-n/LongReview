@@ -1,0 +1,176 @@
+<app-header></app-header>
+
+<!-- Loading State -->
+<div *ngIf="isLoading" class="min-h-screen flex items-center justify-center bg-gray-50">
+    <div class="text-center">
+        <i class="pi pi-spin pi-spinner text-5xl text-purple-600 mb-4"></i>
+        <p class="text-gray-600 text-lg">กำลังโหลดข่าว...</p>
+    </div>
+</div>
+
+<!-- Error State -->
+<div *ngIf="error && !isLoading" class="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div class="bg-red-50 border border-red-200 rounded-xl p-8 text-center max-w-md">
+        <i class="pi pi-exclamation-triangle text-4xl text-red-600 mb-4"></i>
+        <h3 class="text-xl font-bold text-red-900 mb-2">เกิดข้อผิดพลาด</h3>
+        <p class="text-red-700 mb-4">{{ error }}</p>
+        <button (click)="goBack()"
+            class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg font-semibold transition-colors">
+            กลับไปหน้าข่าว
+        </button>
+    </div>
+</div>
+
+<div class="news-detail-page bg-gray-50 min-h-screen" *ngIf="newsItem && !isLoading && !error">
+    <!-- Hero Section with Banner Image -->
+    <div class="hero-banner relative h-96 overflow-hidden">
+        <div class="absolute inset-0 bg-cover bg-center" [style.backgroundImage]="'url(' + newsItem.image + ')'">
+        </div>
+        <!-- Dark Overlay -->
+        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
+
+
+
+        <!-- Category Badge -->
+
+    </div>
+
+    <!-- Main Content (Same width as other pages) -->
+    <div class="max-w-7xl mx-auto px-4 md:px-8 -mt-20 relative z-10 pb-12">
+        <!-- Article Card -->
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+            <!-- Article Header -->
+            <div class="p-8 md:p-12">
+                <h1 class="text-3xl md:text-4xl font-bold text-gray-900 mb-6 leading-tight">
+                    {{ newsItem.title }}
+                </h1>
+
+                <!-- Metadata -->
+                <div class="flex flex-wrap items-center gap-4 text-gray-600 text-sm mb-8 pb-8 border-b border-gray-200">
+                    <div *ngIf="newsItem.author" class="flex items-center gap-2">
+                        <i class="pi pi-user text-purple-600"></i>
+                        <span>{{ newsItem.author }}</span>
+                    </div>
+                    <div *ngIf="newsItem.date" class="flex items-center gap-2">
+                        <i class="pi pi-calendar text-purple-600"></i>
+                        <span>{{ newsItem.date }}</span>
+                    </div>
+
+                </div>
+
+                <!-- Article Description -->
+                <div class="prose prose-lg max-w-none mb-8">
+                    <p class="text-gray-700 text-lg leading-relaxed">
+                        {{ newsItem.description }}
+                        <a [href]="newsItem.link" target="_blank" rel="noopener noreferrer"
+                            class="inline-flex items-center gap-2 text-purple-600 hover:text-purple-700 font-semibold mt-4 transition-colors">
+                            <!-- <i class="pi pi-external-link"></i> -->
+                            ไปที่บทความต้นฉบับ
+                        </a>
+                    </p>
+                </div>
+
+                <!-- Read Original Article Button -->
+                <!-- <div class="bg-purple-50 border-2 border-purple-200 rounded-xl p-6 mb-8">
+                    <div class="flex items-start gap-4">
+                        <i class="pi pi-external-link text-purple-600 text-2xl mt-1"></i>
+                        <div class="flex-1">
+                            <h3 class="text-lg font-bold text-gray-900 mb-2">อ่านบทความฉบับเต็ม</h3>
+                            <p class="text-gray-600 text-sm mb-4">คลิกปุ่มด้านล่างเพื่ออ่านบทความฉบับเต็มจากแหล่งที่มา
+                            </p>
+                            <button (click)="openOriginalArticle()"
+                                class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors flex items-center gap-2">
+                                <i class="pi pi-arrow-right"></i>
+                                ไปที่บทความต้นฉบับ
+                            </button>
+                        </div>
+                    </div>
+                </div> -->
+
+                <!-- Social Share -->
+                <div class="flex items-center gap-4 mt-8 pt-8 border-t border-gray-200">
+                    <span class="text-gray-600 font-medium">แชร์:</span>
+                    <button (click)="shareOnFacebook()"
+                        class="w-10 h-10 bg-blue-600 hover:bg-blue-700 text-white rounded-full flex items-center justify-center transition-colors">
+                        <i class="pi pi-facebook"></i>
+                    </button>
+                    <button (click)="shareOnTwitter()"
+                        class="w-10 h-10 bg-sky-500 hover:bg-sky-600 text-white rounded-full flex items-center justify-center transition-colors">
+                        <i class="pi pi-twitter"></i>
+                    </button>
+                    <button (click)="copyLink()"
+                        class="w-10 h-10 bg-gray-600 hover:bg-gray-700 text-white rounded-full flex items-center justify-center transition-colors">
+                        <i class="pi pi-link"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Related News Section -->
+        <div class="mt-12" *ngIf="relatedNews.length > 0">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">ข่าวอื่นๆ</h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div *ngFor="let news of relatedNews" [routerLink]="['/news', news.id]"
+                    class="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group border border-gray-100">
+
+                    <!-- News Image -->
+                    <div class="relative h-48 overflow-hidden">
+                        <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
+                            [style.backgroundImage]="'url(' + news.image + ')'">
+                        </div>
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent">
+                        </div>
+
+
+
+                    </div>
+
+                    <!-- News Content -->
+                    <div class="p-4">
+                        <h3
+                            class="text-base font-bold text-gray-900 mb-2 group-hover:text-purple-600 transition-colors line-clamp-2">
+                            {{ news.title }}
+                        </h3>
+                        <p class="text-xs text-gray-500 line-clamp-2 mb-3">
+                            {{ news.description }}
+                        </p>
+                        <div class="flex items-center gap-2 text-gray-400 text-xs">
+                            <i class="pi pi-calendar"></i>
+                            <span>{{ news.date }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Copy Link Success Dialog -->
+<p-dialog [(visible)]="showCopySuccessDialog" [modal]="true" [style]="{width: '450px'}" [draggable]="false"
+    [resizable]="false" [closable]="false">
+    <ng-template pTemplate="header">
+        <div class="flex items-center gap-3">
+            <i class="pi pi-check-circle text-green-600 text-2xl"></i>
+            <span class="font-bold text-xl">สำเร็จ</span>
+        </div>
+    </ng-template>
+    <div class="py-4">
+        <p class="text-gray-700 text-lg">ลิงก์ถูกคัดลอกแล้ว!</p>
+    </div>
+    <ng-template pTemplate="footer">
+        <button (click)="showCopySuccessDialog = false"
+            class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium">
+            ตกลง
+        </button>
+    </ng-template>
+</p-dialog>
+<!-- Floating Back Button (Matches Game Detail) -->
+<button (click)="goBack()"
+    class="fixed top-24 left-8 z-50 inline-flex items-center gap-2 bg-purple-500 hover:bg-purple-600 text-white px-4 py-3 rounded-full shadow-lg transition-all cursor-pointer font-medium hover:scale-105 hover:shadow-xl border-none">
+    <i class="pi pi-arrow-left"></i>
+    <span>กลับ</span>
+</button>
+
+<app-footer></app-footer>

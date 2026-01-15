@@ -1,0 +1,4 @@
+/* Styles are now handled by Tailwind CSS in the HTML template */
+.page-container {
+    padding-top: calc(var(--header-height) + 20px);
+}

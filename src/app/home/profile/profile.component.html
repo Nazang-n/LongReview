@@ -1,0 +1,355 @@
+<app-header></app-header>
+<div class="profile-page">
+    <!-- Profile Header Section -->
+    <div class="profile-header">
+        <div class="profile-banner"></div>
+        <div class="profile-info-container">
+            <div class="profile-avatar-section">
+                <div class="avatar-wrapper">
+                    <img *ngIf="hasAvatar()" [src]="getAvatarUrl()" [alt]="userProfile.username" class="profile-avatar">
+                    <div *ngIf="!hasAvatar()" class="profile-avatar-default">
+                        <i class="pi pi-user"></i>
+                    </div>
+                    <input type="file" #fileInput (change)="onFileSelected($event)" accept="image/*"
+                        style="display: none;">
+                    <button class="edit-avatar-btn" title="เปลี่ยนรูปโปรไฟล์" (click)="showAvatarDialog = true">
+                        <i class="pi pi-camera"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="text-purple-500 mb-5">
+                <span class=" flex items-center space-x-5 gap-2">
+                    <span class="font-bold text-2xl">{{ userProfile.username }}</span>
+                    <!-- <i class="pi pi-calendar"></i> -->
+                    <!-- เข้าร่วมเมื่อ {{ userProfile.joinDate | date: 'dd MMM yyyy' }} -->
+                </span>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Stats Section -->
+    <div class="stats-section">
+        <div class="stat-card">
+            <div class="stat-icon comments">
+                <i class="pi pi-comment"></i>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-number">{{ userStats.total_comments }}</h3>
+                <p class="stat-label">คอมเมนต์ทั้งหมด</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon favorites">
+                <i class="pi pi-heart-fill"></i>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-number">{{ userStats.favorites }}</h3>
+                <p class="stat-label">เกมที่ชอบ</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs Section -->
+    <div class="profile-content">
+        <div class="tabs-header">
+            <button *ngFor="let tab of tabs" class="tab-btn" [class.active]="activeTab === tab.id"
+                (click)="setActiveTab(tab.id)">
+                <i [class]="tab.icon"></i>
+                {{ tab.label }}
+            </button>
+        </div>
+
+        <div class="tab-content">
+            <!-- Comments Tab -->
+            <div *ngIf="activeTab === 'comments'" class="comments-grid">
+                <!-- Loading State -->
+                <div *ngIf="isLoadingComments" class="text-center py-12">
+                    <i class="pi pi-spin pi-spinner text-4xl text-purple-600"></i>
+                    <p class="text-gray-500 mt-3">กำลังโหลดความคิดเห็น...</p>
+                </div>
+
+                <!-- Empty State -->
+                <div *ngIf="!isLoadingComments && userComments.length === 0" class="text-center py-12">
+                    <i class="pi pi-comment text-5xl text-gray-300 mb-3"></i>
+                    <p class="text-gray-500">คุณยังไม่มีความคิดเห็น</p>
+                </div>
+
+                <!-- Comment Cards -->
+                <div *ngFor="let comment of userComments" class="comment-card">
+                    <div class="comment-game-cover">
+                        <img [src]="comment.game_image || 'https://via.placeholder.com/200x300/6366f1/ffffff?text=Game'"
+                            [alt]="comment.game_title">
+                    </div>
+                    <div class="comment-content">
+                        <h3 class="comment-game-title">
+                            <a [routerLink]="['/game', comment.game_id]"
+                                class="hover:text-purple-600 transition-colors">
+                                {{ comment.game_title }}
+                            </a>
+                        </h3>
+                        <p class="comment-date">{{ formatDate(comment.created_at) }}
+                            <span *ngIf="comment.is_edited" class="text-xs text-gray-500 ml-2">(แก้ไขแล้ว)</span>
+                        </p>
+                        <p class="comment-text">{{ comment.content }}</p>
+                        <div class="comment-footer">
+                            <div class="comment-likes">
+                                <i class="pi pi-thumbs-up"></i>
+                                <span>{{ comment.upvotes }} ถูกใจ</span>
+                            </div>
+                            <div class="comment-actions">
+                                <button class="action-btn" (click)="startEditComment(comment)">
+                                    <i class="pi pi-pencil"></i> แก้ไข
+                                </button>
+                                <button class="action-btn delete" (click)="startDeleteComment(comment.id)">
+                                    <i class="pi pi-trash"></i> ลบ
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Tab -->
+            <div *ngIf="activeTab === 'settings'" class="settings-section">
+                <div class="grid grid-cols-1 lg:grid-cols-1 gap-5 mb-5">
+                    <!-- Account Info Box -->
+                    <div class="settings-group">
+                        <h2 class="settings-title">ข้อมูลบัญชี</h2>
+                        <div class="form-group">
+                            <label>ชื่อผู้ใช้</label>
+                            <input type="text" [(ngModel)]="userProfile.username" class="form-input"
+                                placeholder="กรอกชื่อผู้ใช้">
+                        </div>
+                        <div class="form-group">
+                            <label>อีเมล</label>
+                            <input type="email" [(ngModel)]="userProfile.email" class="form-input" readonly disabled
+                                style="background-color: #f3f4f6; cursor: not-allowed;">
+                            <p class="text-sm text-gray-500 mt-1">อีเมลไม่สามารถเปลี่ยนแปลงได้</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-group">
+                    <h2 class="settings-title">เปลี่ยนรหัสผ่าน</h2>
+                    <div class="form-group">
+                        <label>รหัสผ่านปัจจุบัน</label>
+                        <input type="password" [(ngModel)]="passwordData.currentPassword" class="form-input"
+                            placeholder="กรอกรหัสผ่านปัจจุบัน">
+                    </div>
+                    <div class="form-group">
+                        <label>รหัสผ่านใหม่</label>
+                        <input type="password" [(ngModel)]="passwordData.newPassword" class="form-input"
+                            placeholder="กรอกรหัสผ่านใหม่">
+                    </div>
+                    <div class="form-group">
+                        <label>ยืนยันรหัสผ่านใหม่</label>
+                        <input type="password" [(ngModel)]="passwordData.confirmPassword" class="form-input"
+                            placeholder="กรอกรหัสผ่านใหม่อีกครั้ง">
+                    </div>
+                </div>
+
+                <div class="settings-actions">
+                    <button class="btn-primary" (click)="saveAllSettings()"
+                        [disabled]="isSavingProfile || isChangingPassword">
+                        <i class="pi"
+                            [ngClass]="(isSavingProfile || isChangingPassword) ? 'pi-spin pi-spinner' : 'pi-check'"></i>
+                        {{ (isSavingProfile || isChangingPassword) ? 'กำลังบันทึก...' : 'บันทึกการเปลี่ยนแปลง' }}
+                    </button>
+                    <button class="btn-secondary" (click)="logout()">
+                        <i class="pi pi-sign-out"></i> ออกจากระบบ
+                    </button>
+                </div>
+
+                <!-- Logout Section -->
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Comment Dialog -->
+<p-dialog [(visible)]="showEditDialog" [modal]="true" [style]="{width: '600px'}" [draggable]="false" [resizable]="false"
+    [closable]="false">
+    <ng-template pTemplate="header">
+        <div class="flex items-center gap-3">
+            <i class="pi pi-pencil text-purple-600 text-2xl"></i>
+            <span class="font-bold text-xl">แก้ไขความคิดเห็น</span>
+        </div>
+    </ng-template>
+    <div class="py-4">
+        <textarea [(ngModel)]="editingContent" rows="6"
+            class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+            placeholder="แก้ไขความคิดเห็นของคุณ..."></textarea>
+    </div>
+    <ng-template pTemplate="footer">
+        <button (click)="cancelEdit()"
+            class="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg transition-colors font-medium">
+            ยกเลิก
+        </button>
+        <button (click)="saveEditComment()" [disabled]="!editingContent.trim()"
+            class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+            บันทึก
+        </button>
+    </ng-template>
+</p-dialog>
+
+<!-- Edit Success Dialog -->
+<p-dialog [(visible)]="showEditSuccessDialog" [modal]="true" [style]="{width: '450px'}" [draggable]="false"
+    [resizable]="false" [closable]="false">
+    <ng-template pTemplate="header">
+        <div class="flex items-center gap-3">
+            <i class="pi pi-check-circle text-green-600 text-2xl"></i>
+            <span class="font-bold text-xl">แก้ไขสำเร็จ</span>
+        </div>
+    </ng-template>
+    <div class="py-4">
+        <p class="text-gray-700 text-lg">แก้ไขความคิดเห็นเรียบร้อยแล้ว</p>
+    </div>
+    <ng-template pTemplate="footer">
+        <button (click)="showEditSuccessDialog = false"
+            class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium">
+            ตกลง
+        </button>
+    </ng-template>
+</p-dialog>
+
+<!-- Delete Comment Dialog -->
+<p-dialog [(visible)]="showDeleteDialog" [modal]="true" [style]="{width: '450px'}" [draggable]="false"
+    [resizable]="false" [closable]="false">
+    <ng-template pTemplate="header">
+        <div class="flex items-center gap-3">
+            <i class="pi pi-exclamation-triangle text-red-600 text-2xl"></i>
+            <span class="font-bold text-xl">ยืนยันการลบ</span>
+        </div>
+    </ng-template>
+    <div class="py-4">
+        <p class="text-gray-700 text-lg">คุณต้องการลบความคิดเห็นนี้หรือไม่?</p>
+        <p class="text-gray-500 text-sm mt-2">การลบจะไม่สามารถกู้คืนได้</p>
+    </div>
+    <ng-template pTemplate="footer">
+        <button (click)="cancelDelete()"
+            class="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg transition-colors font-medium">
+            ยกเลิก
+        </button>
+        <button (click)="confirmDelete()"
+            class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium">
+            ลบความคิดเห็น
+        </button>
+    </ng-template>
+</p-dialog>
+
+<!-- Success/Error Message Dialog -->
+<p-dialog [(visible)]="showMessageDialog" [modal]="true" [style]="{width: '450px'}" [draggable]="false"
+    [resizable]="false" [closable]="false">
+    <ng-template pTemplate="header">
+        <div class="flex items-center gap-3">
+            <i class="pi text-2xl"
+                [ngClass]="messageDialogType === 'success' ? 'pi-check-circle text-green-600' : 'pi-times-circle text-red-600'"></i>
+            <span class="font-bold text-xl">{{ messageDialogTitle }}</span>
+        </div>
+    </ng-template>
+    <div class="py-4">
+        <p class="text-gray-700 text-lg">{{ messageDialogContent }}</p>
+    </div>
+    <ng-template pTemplate="footer">
+        <button (click)="showMessageDialog = false" class="px-4 py-2 rounded-lg transition-colors font-medium"
+            [ngClass]="messageDialogType === 'success' ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-red-600 hover:bg-red-700 text-white'">
+            ตกลง
+        </button>
+    </ng-template>
+</p-dialog>
+
+<!-- Avatar Options Dialog -->
+<p-dialog [(visible)]="showAvatarDialog" [modal]="true" [style]="{width: '450px'}" [draggable]="false"
+    [resizable]="false">
+    <ng-template pTemplate="header">
+        <div class="flex items-center gap-3">
+            <i class="pi pi-camera text-purple-600 text-2xl"></i>
+            <span class="font-bold text-xl">รูปโปรไฟล์</span>
+        </div>
+    </ng-template>
+    <div class="py-4 flex flex-col gap-3">
+        <button (click)="triggerFileUpload()"
+            class="w-full px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-medium flex items-center justify-center gap-2">
+            <i class="pi pi-upload"></i>
+            อัพโหลดรูปภาพ
+        </button>
+        <button (click)="showDeleteAvatarDialog()" [disabled]="!hasAvatar()"
+            class="w-full px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-400">
+            <i class="pi pi-trash"></i>
+            ลบรูปโปรไฟล์
+        </button>
+    </div>
+</p-dialog>
+
+<!-- Delete Avatar Confirmation Dialog -->
+<p-dialog [(visible)]="showDeleteAvatarConfirm" [modal]="true" [style]="{width: '450px'}" [draggable]="false"
+    [resizable]="false" [closable]="false">
+    <ng-template pTemplate="header">
+        <div class="flex items-center gap-3">
+            <i class="pi pi-exclamation-triangle text-red-600 text-2xl"></i>
+            <span class="font-bold text-xl">ยืนยันการลบ</span>
+        </div>
+    </ng-template>
+    <div class="py-4">
+        <p class="text-gray-700 text-lg">ต้องการลบรูปโปรไฟล์หรือไม่</p>
+    </div>
+    <ng-template pTemplate="footer">
+        <button (click)="cancelDeleteAvatar()"
+            class="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg transition-colors font-medium">
+            ไม่
+        </button>
+        <button (click)="confirmDeleteAvatar()"
+            class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium">
+            ใช่
+        </button>
+    </ng-template>
+</p-dialog>
+
+<!-- Logout Confirmation Dialog -->
+<p-dialog [(visible)]="showLogoutDialog" [modal]="true" [style]="{width: '450px'}" [draggable]="false"
+    [resizable]="false" [closable]="false">
+    <ng-template pTemplate="header">
+        <div class="flex items-center gap-3">
+            <i class="pi pi-sign-out text-red-600 text-2xl"></i>
+            <span class="font-bold text-xl">ยืนยันการออกจากระบบ</span>
+        </div>
+    </ng-template>
+    <div class="py-4">
+        <p class="text-gray-700 text-lg">คุณต้องการออกจากระบบหรือไม่?</p>
+    </div>
+    <ng-template pTemplate="footer">
+        <button (click)="showLogoutDialog = false"
+            class="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg transition-colors font-medium">
+            ยกเลิก
+        </button>
+        <button (click)="confirmLogout()"
+            class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium">
+            ออกจากระบบ
+        </button>
+    </ng-template>
+</p-dialog>
+
+<!-- Logout Success Dialog -->
+<p-dialog [(visible)]="showLogoutSuccessDialog" [modal]="true" [style]="{width: '450px'}" [draggable]="false"
+    [resizable]="false" [closable]="false">
+    <ng-template pTemplate="header">
+        <div class="flex items-center gap-3">
+            <i class="pi pi-check-circle text-green-600 text-2xl"></i>
+            <span class="font-bold text-xl">ออกจากระบบสำเร็จ</span>
+        </div>
+    </ng-template>
+    <div class="py-4">
+        <p class="text-gray-700 text-lg">คุณได้ออกจากระบบเรียบร้อยแล้ว</p>
+    </div>
+    <ng-template pTemplate="footer">
+        <button (click)="handleLogoutSuccess()"
+            class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium">
+            ตกลง
+        </button>
+    </ng-template>
+</p-dialog>
+
+<app-footer></app-footer>

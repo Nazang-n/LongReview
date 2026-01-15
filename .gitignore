@@ -40,3 +40,12 @@ testem.log
 # System files
 .DS_Store
 Thumbs.db
+
+# Backend Python
+backend/venv/
+backend/__pycache__/
+backend/.env
+backend/**/*.pyc
+backend/**/__pycache__/
+backend/.pytest_cache/
+backend/**/*.egg-info/
