@@ -419,16 +419,24 @@ export class GameDetailComponent implements OnInit {
         });
     }
 
-    isLoadingTags = false;
+    loadingTags = true;
+    isLoadingTags = false; // For refresh button spinner
 
     loadReviewTags(gameId: number, refresh: boolean = false) {
         if (refresh) {
             this.isLoadingTags = true;
         }
+        // Ensure loadingTags is true for initial load (implied) or if we want to show spinner for refresh too
+        // For consistent UI, let's keep loadingTags true until data arrives, unless specific refresh UX desired.
+        // Actually, let's make loadingTags control the section spinner.
+
+        if (!refresh) this.loadingTags = true;
 
         this.gameService.getReviewTags(gameId, refresh).subscribe({
             next: (response: any) => {
+                this.loadingTags = false;
                 if (refresh) this.isLoadingTags = false;
+
                 if (response.success) {
                     // Map API response to reviewTags format
                     const positiveTags = response.positive_tags.map((tag: any) => ({
@@ -449,6 +457,8 @@ export class GameDetailComponent implements OnInit {
             },
             error: (err) => {
                 console.error('Error loading review tags:', err);
+                this.loadingTags = false;
+                if (refresh) this.isLoadingTags = false;
                 // Keep empty array if error
             }
         });

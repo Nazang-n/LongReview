@@ -161,32 +161,47 @@
                 <!-- Divider -->
                 <div class="border-t-2 border-gray-200 my-6"></div>
 
-                <!-- Positive Tags -->
-                <div class="mb-6">
-                    <h4 class="text-md font-semibold text-green-700 mb-3 flex items-center gap-2">
-                        <i class="pi pi-thumbs-up text-sm"></i>
-                        แง่บวก
-                    </h4>
-                    <div class="flex flex-wrap gap-2">
-                        <div *ngFor="let tag of getPositiveTags()"
-                            class="inline-flex items-center gap-2 px-4 py-2 rounded-full border-2 border-green-500 bg-green-50 text-green-700 transition-all hover:shadow-md cursor-pointer">
-                            <span class="font-semibold">{{ tag.label }}</span>
-                            <!-- <span class="text-xs opacity-75">({{ tag.count }})</span> -->
-                        </div>
-                    </div>
+                <!-- Tags Loading State -->
+                <div *ngIf="loadingTags" class="text-center py-8">
+                    <i class="pi pi-spin pi-spinner text-3xl text-purple-500 mb-3"></i>
+                    <p class="text-gray-600">กำลังโหลดแท็กจากรีวิว...</p>
                 </div>
 
-                <!-- Negative Tags -->
-                <div>
-                    <h4 class="text-md font-semibold text-red-700 mb-3 flex items-center gap-2">
-                        <i class="pi pi-thumbs-down text-sm"></i>
-                        แง่ลบ
-                    </h4>
-                    <div class="flex flex-wrap gap-2">
-                        <div *ngFor="let tag of getNegativeTags()"
-                            class="inline-flex items-center gap-2 px-4 py-2 rounded-full border-2 border-red-500 bg-red-50 text-red-700 transition-all hover:shadow-md cursor-pointer">
-                            <span class="font-semibold">{{ tag.label }}</span>
-                            <!-- <span class="text-xs opacity-75">({{ tag.count }})</span> -->
+                <!-- Tags Content -->
+                <div *ngIf="!loadingTags">
+                    <!-- Positive Tags -->
+                    <div class="mb-6">
+                        <h4 class="text-md font-semibold text-green-700 mb-3 flex items-center gap-2">
+                            <i class="pi pi-thumbs-up text-sm"></i>
+                            แง่บวก
+                        </h4>
+                        <div class="flex flex-wrap gap-2">
+                            <div *ngFor="let tag of getPositiveTags()"
+                                class="inline-flex items-center gap-2 px-4 py-2 rounded-full border-2 border-green-500 bg-green-50 text-green-700 transition-all hover:shadow-md cursor-pointer">
+                                <span class="font-semibold">{{ tag.label }}</span>
+                                <!-- <span class="text-xs opacity-75">({{ tag.count }})</span> -->
+                            </div>
+                            <div *ngIf="getPositiveTags().length === 0" class="text-gray-400 text-sm italic">
+                                ไม่มีแท็กแง่บวก
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Negative Tags -->
+                    <div>
+                        <h4 class="text-md font-semibold text-red-700 mb-3 flex items-center gap-2">
+                            <i class="pi pi-thumbs-down text-sm"></i>
+                            แง่ลบ
+                        </h4>
+                        <div class="flex flex-wrap gap-2">
+                            <div *ngFor="let tag of getNegativeTags()"
+                                class="inline-flex items-center gap-2 px-4 py-2 rounded-full border-2 border-red-500 bg-red-50 text-red-700 transition-all hover:shadow-md cursor-pointer">
+                                <span class="font-semibold">{{ tag.label }}</span>
+                                <!-- <span class="text-xs opacity-75">({{ tag.count }})</span> -->
+                            </div>
+                            <div *ngIf="getNegativeTags().length === 0" class="text-gray-400 text-sm italic">
+                                ไม่มีแท็กแง่ลบ
+                            </div>
                         </div>
                     </div>
                 </div>
