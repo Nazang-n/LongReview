@@ -117,7 +117,7 @@ export class AdminComponent implements OnInit, OnDestroy {
     monthlyReports = 0;
 
     // Global processing flag to prevent concurrent operations
-    private isAnyProcessing = false;
+    isAnyProcessing = false;
 
     // Auto-refresh interval for dashboard
     private dashboardRefreshInterval: any;
@@ -339,9 +339,9 @@ export class AdminComponent implements OnInit, OnDestroy {
                 // Show result dialog
                 this.showResultDialog('อัปเดตรีวิวภาษาไทยสำเร็จ', {
                     'เกมที่ประมวลผล': stats.games_processed || 0,
-                    'สำเร็จ': stats.successful || 0,
-                    'ล้มเหลว': stats.failed || 0,
-                    'รีวิวใหม่': stats.total_new_reviews || 0
+                    'สำเร็จ': stats.games_successful || 0,
+                    'ล้มเหลว': stats.games_failed || 0,
+                    'รีวิวใหม่': stats.new_reviews_fetched || 0
                 });
             },
             error: (err) => {
@@ -604,6 +604,8 @@ export class AdminComponent implements OnInit, OnDestroy {
     }
 
     deleteGame() {
+        if (this.checkIfProcessing()) return;
+
         if (!this.selectedGameId) {
             this.messageService.add({
                 severity: 'warn',

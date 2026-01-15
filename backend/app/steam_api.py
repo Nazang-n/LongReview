@@ -108,7 +108,7 @@ class SteamAPIClient:
             
             reviews = data.get("reviews", [])
             if not reviews:
-                print(f"⚠️ No reviews in response")
+                print(f"[DEBUG] No reviews in response")
                 break
             
             all_reviews.extend(reviews)
@@ -116,7 +116,7 @@ class SteamAPIClient:
             # Check if we actually got new reviews
             if len(all_reviews) == previous_count:
                 # No new reviews added, break to prevent infinite loop
-                print(f"⚠️ No new reviews fetched, stopping pagination")
+                print(f"[DEBUG] No new reviews fetched, stopping pagination")
                 break
             
             # Check if we've reached max_reviews
@@ -128,7 +128,7 @@ class SteamAPIClient:
             new_cursor = data.get("cursor")
             if not new_cursor or new_cursor == cursor:
                 # No more pages or cursor didn't change (prevent infinite loop)
-                print(f"🛑 Pagination complete or cursor unchanged")
+                print(f"[DEBUG] Pagination complete or cursor unchanged")
                 break
             
             cursor = new_cursor

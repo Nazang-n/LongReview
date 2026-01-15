@@ -357,7 +357,7 @@ export class GameDetailComponent implements OnInit {
         this.loadingSteamReviews = true;
         this.steamReviewsError = null;
 
-        this.gameService.syncSteamReviews(gameId, 20).subscribe({
+        this.gameService.syncSteamReviews(gameId, 100).subscribe({
             next: (response: any) => {
                 if (response.success) {
                     this.steamReviews = response.reviews || [];

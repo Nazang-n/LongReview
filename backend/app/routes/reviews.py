@@ -156,7 +156,7 @@ def get_steam_reviews(
 @router.post("/sync-steam/{game_id}")
 def sync_steam_reviews(
     game_id: int,
-    max_reviews: int = 20,
+    max_reviews: int = 100,  # Increased from 20 to get more quality reviews
     db: Session = Depends(get_db)
 ):
     """
@@ -196,11 +196,14 @@ def sync_steam_reviews(
         print(f"[DEBUG] Found {len(existing_reviews)} existing reviews in DB for game {game_id}")
         
         if existing_reviews:
-            # Filter to only Thai reviews (no sorting by helpfulness)
+            # Filter to only Thai reviews and sort by helpfulness
             thai_reviews = []
             for r in existing_reviews:
                 if is_valid_thai_content(r.content):
                     thai_reviews.append(r)
+            
+            # Sort by helpfulness (votes_up)
+            thai_reviews.sort(key=lambda r: r.helpful_count or 0, reverse=True)
             
             print(f"[DEBUG] After filtering: {len(thai_reviews)} Thai reviews found")
             
@@ -273,10 +276,8 @@ def sync_steam_reviews(
                 print(f"[DEBUG] Skipping review {rec_id}: already processed in this batch")
                 continue
             
-            # Filter out non-Thai reviews
-            if not is_valid_thai_content(review_content):
-                print(f"[DEBUG] Skipping review {rec_id}: failed Thai filter (content: {review_content[:50]}...)")
-                continue
+            # Note: We're using Steam's language="thai" filter, so we trust that these are Thai reviews
+            # No need for additional Thai content validation
                 
             processed_steam_ids.add(rec_id)
 
@@ -288,7 +289,6 @@ def sync_steam_reviews(
             
             new_review = models.Review(
                 game_id=game_id,
-                admin_id=None,
                 owner=steam_review.get("author", {}).get("steamid", "Unknown"),
                 content=review_content,
                 steam_id=rec_id,
@@ -324,8 +324,8 @@ def sync_steam_reviews(
              # Nothing new saved
              pass
         
-        # Return reviews in chronological order (no sorting by helpfulness)
-        sorted_reviews = saved_reviews
+        # Sort saved reviews by helpfulness (votes_up) before returning
+        sorted_reviews = sorted(saved_reviews, key=lambda r: r.get('helpful_count', 0), reverse=True)
         
         return {
             "success": True,
@@ -462,4 +462,98 @@ def trigger_sentiment_update():
         "success": True, 
         "message": "Sentiment update completed",
         "stats": result
+    }
+
+
+
+@router.post("/update-all-thai")
+def update_all_thai_reviews(db: Session = Depends(get_db)):
+    """
+    Admin endpoint: Fetch new Thai reviews for all games (skip duplicates)
+    """
+    from sqlalchemy import text
+    from ..steam_api import SteamAPIClient
+    
+    # Get all games with steam_app_id
+    result = db.execute(text("SELECT id, steam_app_id, name FROM game WHERE steam_app_id IS NOT NULL"))
+    games = result.fetchall()
+    
+    stats = {
+        "games_processed": 0,
+        "games_successful": 0,
+        "games_failed": 0,
+        "new_reviews_fetched": 0,
+        "skipped_duplicates": 0,
+        "errors": []
+    }
+    
+    for game in games:
+        game_id, steam_app_id, title = game
+        stats["games_processed"] += 1
+        
+        try:
+            # Fetch Thai reviews from Steam API
+            steam_reviews = SteamAPIClient.get_all_reviews(
+                app_id=int(steam_app_id),
+                language="thai",
+                max_reviews=100
+            )
+            
+            if not steam_reviews:
+                stats["games_failed"] += 1
+                stats["errors"].append(f"{title}: No reviews returned from Steam")
+                continue
+            
+            # Filter for Thai content and check for duplicates
+            new_count = 0
+            duplicate_count = 0
+            
+            for review in steam_reviews:
+                steam_id = review.get("recommendationid")
+                content = review.get("review", "")
+                
+                # Check if Thai content
+                if not is_valid_thai_content(content):
+                    continue
+                
+                # Check if already exists
+                existing = db.query(models.Review).filter(
+                    models.Review.steam_id == steam_id
+                ).first()
+                
+                if existing:
+                    duplicate_count += 1
+                    continue
+                
+                # Save new review
+                new_review = models.Review(
+                    game_id=game_id,
+                    steam_id=steam_id,
+                    steam_author=review.get("author", {}).get("steamid"),
+                    content=content,
+                    voted_up=review.get("voted_up", True),
+                    helpful_count=review.get("votes_up", 0),
+                    playtime_hours=review.get("author", {}).get("playtime_forever", 0) / 60,
+                    is_steam_review=True,
+                    created_at=datetime.now()
+                )
+                db.add(new_review)
+                new_count += 1
+            
+            db.commit()
+            stats["games_successful"] += 1
+            stats["new_reviews_fetched"] += new_count
+            stats["skipped_duplicates"] += duplicate_count
+            
+            print(f"[DEBUG] Game {game_id}: {new_count} new, {duplicate_count} duplicates")
+                
+        except Exception as e:
+            stats["games_failed"] += 1
+            stats["errors"].append(f"{title}: {str(e)}")
+            db.rollback()
+    
+    return {
+        "success": True,
+        "message": "Thai review update completed",
+        "stats": stats
     }
