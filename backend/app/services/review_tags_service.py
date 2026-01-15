@@ -40,23 +40,23 @@ class ReviewTagsService:
         positive_tags = self.db.query(GameReviewTag).filter(
             GameReviewTag.game_id == game_id,
             GameReviewTag.tag_type == 'positive'
-        ).order_by(GameReviewTag.tag_count.desc()).all()
+        ).all()
         
         negative_tags = self.db.query(GameReviewTag).filter(
             GameReviewTag.game_id == game_id,
             GameReviewTag.tag_type == 'negative'
-        ).order_by(GameReviewTag.tag_count.desc()).all()
+        ).all()
         
-        # Format response
+        # Format response (without counts)
         result = {
             'success': True,
             'game_id': game_id,
             'positive_tags': [
-                {'tag': tag.tag_word, 'count': tag.tag_count}
+                {'tag': tag.tag_word, 'count': 0}
                 for tag in positive_tags
             ],
             'negative_tags': [
-                {'tag': tag.tag_word, 'count': tag.tag_count}
+                {'tag': tag.tag_word, 'count': 0}
                 for tag in negative_tags
             ],
             'total_tags': len(positive_tags) + len(negative_tags),
@@ -286,8 +286,7 @@ class ReviewTagsService:
                 tag = GameReviewTag(
                     game_id=game_id,
                     tag_type='positive',
-                    tag_word=tag_data['word'],
-                    tag_count=tag_data['count']
+                    tag_word=tag_data['word']
                 )
                 self.db.add(tag)
             
@@ -296,8 +295,7 @@ class ReviewTagsService:
                 tag = GameReviewTag(
                     game_id=game_id,
                     tag_type='negative',
-                    tag_word=tag_data['word'],
-                    tag_count=tag_data['count']
+                    tag_word=tag_data['word']
                 )
                 self.db.add(tag)
             
