@@ -182,6 +182,207 @@ def update_review_tags():
     finally:
         db.close()
 
+def import_newest_games():
+    """Import newest games from Steam (daily task)"""
+    db = SessionLocal()
+    stats = {
+        'imported': 0,
+        'skipped': 0,
+        'failed': 0,
+        'errors': 0
+    }
+    
+    try:
+        print("[Newest Games Scheduler] Starting import of newest games...")
+        
+        # Import 20 newest games daily
+        newest_games = SteamAPIClient.get_newest_games_from_steam_store(limit=20)
+        
+        if not newest_games:
+            print("[Newest Games Scheduler] No games fetched from Steam")
+            return stats
+        
+        imported_count = 0
+        skipped_count = 0
+        failed_count = 0
+        
+        for game in newest_games:
+            app_id = game.get('app_id')
+            
+            if not app_id:
+                continue
+            
+            try:
+                # Check if game already exists
+                existing_game = db.query(models.Game).filter(
+                    models.Game.steam_app_id == int(app_id)
+                ).first()
+                
+                if existing_game:
+                    skipped_count += 1
+                    continue
+                
+                # Fetch detailed info from Steam API
+                steam_details_en = SteamAPIClient.get_app_details(int(app_id), language="english", country_code="us")
+                
+                if not steam_details_en:
+                    failed_count += 1
+                    continue
+                
+                # Fetch Thai version
+                steam_details_th = SteamAPIClient.get_app_details(int(app_id), language="thai", country_code="th")
+                
+                # Import utilities
+                from .utils.translator import translator
+                from .utils.text_cleaner import clean_html_text
+                
+                # Get descriptions
+                english_desc = None
+                thai_desc = None
+                
+                if steam_details_en.get('about_the_game'):
+                    english_desc = clean_html_text(steam_details_en.get('about_the_game'))
+                elif steam_details_en.get('short_description'):
+                    english_desc = clean_html_text(steam_details_en.get('short_description'))
+                
+                if steam_details_th and steam_details_th.get('about_the_game'):
+                    cleaned_thai = clean_html_text(steam_details_th.get('about_the_game'))
+                    if translator.detect_language(cleaned_thai) == 'th':
+                        thai_desc = cleaned_thai
+                
+                if not thai_desc and english_desc:
+                    try:
+                        thai_desc = translator.translate_to_thai(english_desc)
+                    except:
+                        pass
+                
+                # Extract platform info
+                platforms = steam_details_en.get('platforms', {})
+                platform_list = []
+                if platforms.get('windows'): platform_list.append('Windows')
+                if platforms.get('mac'): platform_list.append('Mac')
+                if platforms.get('linux'): platform_list.append('Linux')
+                platform_str = ', '.join(platform_list) if platform_list else None
+                
+                # Extract price
+                price_overview = steam_details_en.get('price_overview', {})
+                price_str = price_overview.get('final_formatted') if price_overview else None
+                
+                # Extract video
+                movies = steam_details_en.get('movies', [])
+                video_url = None
+                if movies:
+                    video_url = movies[0].get('webm', {}).get('480') or movies[0].get('mp4', {}).get('480')
+                
+                # Parse release date
+                release_date_info = steam_details_en.get('release_date', {})
+                release_date_str = release_date_info.get('date')
+                coming_soon = release_date_info.get('coming_soon', False)
+                release_date_obj = None
+                
+                if release_date_str and not coming_soon:
+                    date_formats = [
+                        '%d %b, %Y', '%b %d, %Y', '%d %B, %Y', '%B %d, %Y',
+                        '%Y-%m-%d', '%d %b %Y', '%b %d %Y', '%Y'
+                    ]
+                    for fmt in date_formats:
+                        try:
+                            release_date_obj = datetime.strptime(release_date_str, fmt).date()
+                            break
+                        except ValueError:
+                            continue
+                
+                # Create new game
+                new_game = models.Game(
+                    title=steam_details_en.get("name"),
+                    description=english_desc,
+                    about_game_th=thai_desc,
+                    genre=", ".join([g["description"] for g in steam_details_en.get("genres", [])[:3]]),
+                    image_url=steam_details_en.get("header_image"),
+                    release_date=release_date_obj,
+                    developer=", ".join(steam_details_en.get("developers", [])),
+                    publisher=", ".join(steam_details_en.get("publishers", [])),
+                    platform=platform_str,
+                    price=price_str,
+                    video=video_url,
+                    steam_app_id=int(app_id)
+                )
+                
+                db.add(new_game)
+                db.flush()
+                
+                # Auto-tag player modes and genres
+                try:
+                    categories = steam_details_en.get('categories', [])
+                    for category in categories:
+                        cat_id = category.get('id')
+                        mode_name = None
+                        if cat_id == 2: mode_name = 'Single-player'
+                        elif cat_id == 1: mode_name = 'Multi-player'
+                        elif cat_id in [9, 24, 36, 37, 38]: mode_name = 'Co-op'
+                        
+                        if mode_name:
+                            tag = db.query(models.Tag).filter(models.Tag.name == mode_name, models.Tag.type == 'player_mode').first()
+                            if not tag:
+                                tag = models.Tag(name=mode_name, type='player_mode')
+                                db.add(tag)
+                                db.flush()
+                            game_tag = models.GameTag(game_id=new_game.id, tag_id=tag.id)
+                            db.add(game_tag)
+                    
+                    genres = steam_details_en.get('genres', [])
+                    for genre_data in genres:
+                        genre_name = genre_data.get('description')
+                        if genre_name:
+                            genre_tag = db.query(models.Tag).filter(models.Tag.name == genre_name, models.Tag.type == 'genre').first()
+                            if not genre_tag:
+                                genre_tag = models.Tag(name=genre_name, type='genre')
+                                db.add(genre_tag)
+                                db.flush()
+                            game_tag = models.GameTag(game_id=new_game.id, tag_id=genre_tag.id)
+                            db.add(game_tag)
+                except Exception as e:
+                    print(f"[Newest Games] Error tagging game: {e}")
+                
+                # Fetch sentiment and Thai reviews
+                try:
+                    from .utils.sentiment_helper import fetch_and_cache_sentiment
+                    fetch_and_cache_sentiment(new_game.id, int(app_id), db)
+                except:
+                    pass
+                
+                try:
+                    from .utils.thai_review_helper import fetch_and_cache_thai_reviews
+                    fetch_and_cache_thai_reviews(new_game.id, int(app_id), db, max_reviews=50)
+                except:
+                    pass
+                
+                db.commit()
+                imported_count += 1
+                print(f"[Newest Games] ✓ Imported: {new_game.title}")
+                
+                time.sleep(1.5)
+                
+            except Exception as e:
+                print(f"[Newest Games] Error importing game {app_id}: {e}")
+                failed_count += 1
+                db.rollback()
+                continue
+        
+        stats['imported'] = imported_count
+        stats['skipped'] = skipped_count
+        stats['failed'] = failed_count
+        
+        print(f"[Newest Games Scheduler] Complete! Imported: {imported_count}, Skipped: {skipped_count}, Failed: {failed_count}")
+        return stats
+        
+    except Exception as e:
+        print(f"[Newest Games Scheduler] Fatal error: {e}")
+        stats['errors'] = 1
+        return stats
+    finally:
+        db.close()
+
 def cleanup_password_reset_tokens():
     """Delete expired, used, and old password reset tokens (daily cleanup)"""
     db = SessionLocal()
@@ -239,28 +440,37 @@ def cleanup_password_reset_tokens():
 # Initialize scheduler
 scheduler = BackgroundScheduler()
 
-# Sentiment update job (every hour)
+# Import newest games job (daily at 12:00 AM)
+scheduler.add_job(
+    func=import_newest_games,
+    trigger=CronTrigger(hour=0, minute=0),
+    id='import_newest_games',
+    name='Import newest games from Steam',
+    replace_existing=True
+)
+
+# Sentiment update job (daily at 12:30 AM)
 scheduler.add_job(
     func=update_all_sentiments,
-    trigger=IntervalTrigger(hours=1),
+    trigger=CronTrigger(hour=0, minute=30),
     id='update_sentiments',
     name='Update game sentiments from Steam API',
     replace_existing=True
 )
 
-# Review tags update job (every hour, offset by 30 minutes)
+# Review tags update job (daily at 1:00 AM)
 scheduler.add_job(
     func=update_review_tags,
-    trigger=IntervalTrigger(hours=1),
+    trigger=CronTrigger(hour=1, minute=0),
     id='update_review_tags',
     name='Update game review tags from Steam reviews',
     replace_existing=True
 )
 
-# Password reset token cleanup job (daily at midnight)
+# Password reset token cleanup job (daily at 2:00 AM)
 scheduler.add_job(
     func=cleanup_password_reset_tokens,
-    trigger=CronTrigger(hour=0, minute=0),
+    trigger=CronTrigger(hour=2, minute=0),
     id='cleanup_password_tokens',
     name='Clean up expired and old password reset tokens',
     replace_existing=True
@@ -270,7 +480,7 @@ def start_scheduler():
     """Start the background scheduler"""
     if not scheduler.running:
         scheduler.start()
-        print("[Scheduler] Started - Sentiment updates every hour, Review tags every hour, Token cleanup daily at midnight")
+        print("[Scheduler] Started - All jobs run daily: Newest games (12:00 AM), Sentiment (12:30 AM), Review tags (1:00 AM), Token cleanup (2:00 AM)")
 
 def stop_scheduler():
     """Stop the background scheduler"""
