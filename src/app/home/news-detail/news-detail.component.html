@@ -29,12 +29,7 @@
         <!-- Dark Overlay -->
         <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
 
-        <!-- Back Button -->
-        <button (click)="goBack()"
-            class="absolute top-6 left-6 bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-all">
-            <i class="pi pi-arrow-left"></i>
-            <span>กลับ</span>
-        </button>
+
 
         <!-- Category Badge -->
 
@@ -171,5 +166,11 @@
         </button>
     </ng-template>
 </p-dialog>
+<!-- Floating Back Button (Matches Game Detail) -->
+<button (click)="goBack()"
+    class="fixed top-24 left-8 z-50 inline-flex items-center gap-2 bg-purple-500 hover:bg-purple-600 text-white px-4 py-3 rounded-full shadow-lg transition-all cursor-pointer font-medium hover:scale-105 hover:shadow-xl border-none">
+    <i class="pi pi-arrow-left"></i>
+    <span>กลับ</span>
+</button>
 
 <app-footer></app-footer>

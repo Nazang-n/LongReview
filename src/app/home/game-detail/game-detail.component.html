@@ -1,7 +1,9 @@
 ﻿<app-header></app-header>
 
 <div class="min-h-screen bg-gray-50">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12" style="padding-top: calc(var(--header-height) + 20px);">
+        <!-- Back Button -->
+
         <!-- Loading State -->
         <div *ngIf="isLoading" class="flex items-center justify-center py-20">
             <div class="text-center">
@@ -33,7 +35,7 @@
 
                 <!-- Left: Game Image -->
                 <div class="lg:col-span-2 mt-2">
-                    <div class="text-4xl font-bold mt-5 mr-5 mb-5">{{ game.title }}</div>
+
                     <div class="bg-white rounded-lg shadow-md overflow-hidden">
                         <img [src]="game.image" [alt]="game.title" class="w-full h-auto object-cover"
                             onerror="this.src='/games/placeholder.jpg'">
@@ -41,7 +43,7 @@
                 </div>
 
                 <!-- Right: Game Info -->
-                <div class="lg:col-span-1 mt-22">
+                <div class="lg:col-span-1 mt-2">
                     <div class="bg-white rounded-lg shadow-md p-6 space-y-4">
                         <!-- Add to Favorites Button -->
                         <p-button [label]="isFavorited ? 'ลบออกจากรายการโปรด' : 'เพิ่มในรายการโปรด'"
@@ -635,4 +637,11 @@
         </button>
     </ng-template>
 </p-dialog>
+<!-- Floating Back Button -->
+<a routerLink="/games"
+    class="fixed top-24 left-8 z-50 inline-flex items-center gap-2 bg-purple-500 hover:bg-purple-600 text-white px-4 py-3 rounded-full shadow-lg transition-all cursor-pointer font-medium hover:scale-105 hover:shadow-xl">
+    <i class="pi pi-arrow-left"></i>
+    <span>กลับ</span>
+</a>
+
 <app-footer></app-footer>
