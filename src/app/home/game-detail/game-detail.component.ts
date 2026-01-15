@@ -1,5 +1,5 @@
 import { Component, OnInit, ViewChild, ElementRef, ViewEncapsulation } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { ActivatedRoute, RouterModule, Router } from '@angular/router';
 import { HeaderComponent } from '../../shared/header.component';
 import { FooterComponent } from '../../shared/footer.component';
@@ -207,7 +207,8 @@ export class GameDetailComponent implements OnInit {
         private gameService: GameService,
         private favoriteService: FavoriteService,
         private authService: AuthService,
-        private commentService: CommentService
+        private commentService: CommentService,
+        private location: Location
     ) { }
 
     ngOnInit() {
@@ -560,44 +561,42 @@ export class GameDetailComponent implements OnInit {
     toggleFavorite() {
         const user = this.authService.getCurrentUserValue();
         if (!user) {
-            this.showLogin('กรุณาเข้าสู่ระบบเพื่อเพิ่มเกมในรายการโปรด', true);
+            this.router.navigate(['/login'], { queryParams: { returnUrl: this.router.url } });
             return;
         }
 
         if (!this.gameId) return;
 
+        const gameId = parseInt(this.gameId);
         this.isTogglingFavorite = true;
-        const gameIdNum = parseInt(this.gameId);
 
         if (this.isFavorited) {
-            // Remove from favorites
-            this.favoriteService.removeFavorite(user.id, gameIdNum).subscribe({
-                next: (response) => {
+            this.favoriteService.removeFavorite(user.id, gameId).subscribe({
+                next: () => {
                     this.isFavorited = false;
                     this.isTogglingFavorite = false;
-                    console.log('Removed from favorites');
                 },
                 error: (err) => {
                     console.error('Error removing favorite:', err);
                     this.isTogglingFavorite = false;
-                    this.showError('เกิดข้อผิดพลาดในการลบออกจากรายการโปรด');
                 }
             });
         } else {
-            // Add to favorites
-            this.favoriteService.addFavorite(user.id, gameIdNum).subscribe({
-                next: (response) => {
+            this.favoriteService.addFavorite(user.id, gameId).subscribe({
+                next: () => {
                     this.isFavorited = true;
                     this.isTogglingFavorite = false;
-                    console.log('Added to favorites');
                 },
                 error: (err) => {
                     console.error('Error adding favorite:', err);
                     this.isTogglingFavorite = false;
-                    this.showError('เกิดข้อผิดพลาดในการเพิ่มในรายการโปรด');
                 }
             });
         }
+    }
+
+    goBack() {
+        this.location.back();
     }
 
     // Comment methods
