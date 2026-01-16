@@ -428,7 +428,8 @@
             <div class="flex items-center justify-between py-3 border-b border-gray-200 last:border-0"
                 *ngFor="let item of resultDialogData | keyvalue" style="border-bottom: 1px solid #e5e7eb;">
                 <span class="text-gray-600 font-medium">{{ item.key }}</span>
-                <span class="font-bold text-purple-700 text-lg" style="color: #7e22ce;">{{ item.value }}</span>
+                <span class="font-bold text-purple-700 text-lg text-right flex-1 ml-4" style="color: #7e22ce;">{{
+                    item.value }}</span>
             </div>
         </div>
     </div>

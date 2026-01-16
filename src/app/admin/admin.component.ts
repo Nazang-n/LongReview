@@ -500,8 +500,17 @@ export class AdminComponent implements OnInit, OnDestroy {
                 const posCount = data.positive_tags ? data.positive_tags.length : 0;
                 const negCount = data.negative_tags ? data.negative_tags.length : 0;
 
+                // Find game name from local list if not in response
+                let gameName = data.game_name;
+                if (!gameName && this.selectedGameForTagsId) {
+                    const selectedGame = this.games.find(g => g.id === this.selectedGameForTagsId);
+                    if (selectedGame) {
+                        gameName = selectedGame.title;
+                    }
+                }
+
                 this.showResultDialog('สร้างแท็กสำเร็จ', {
-                    'เกม': data.game_id,
+                    'เกม': gameName || 'ไม่ระบุ',
                     'แท็กจุดเด่น': posCount,
                     'แท็กจุดด้อย': negCount,
                     'รีวิวที่วิเคราะห์': data.total_reviews_analyzed || 0
@@ -663,8 +672,8 @@ export class AdminComponent implements OnInit, OnDestroy {
                 console.error('Error loading games:', err);
                 this.messageService.add({
                     severity: 'error',
-                    summary: 'Error',
-                    detail: 'Failed to generate tags'
+                    summary: 'เกิดข้อผิดพลาด',
+                    detail: 'ไม่สามารถโหลดรายชื่อเกมได้'
                 });
             }
         });
@@ -681,13 +690,13 @@ export class AdminComponent implements OnInit, OnDestroy {
                 if (result.success) {
                     this.untaggedGames = result.games;
 
-                    if (this.untaggedGames.length === 0) {
-                        this.messageService.add({
-                            severity: 'success',
-                            summary: 'Great!',
-                            detail: 'All games have review tags.'
-                        });
-                    }
+                    // if (this.untaggedGames.length === 0) {
+                    //     this.messageService.add({
+                    //         severity: 'success',
+                    //         summary: 'Great!',
+                    //         detail: 'ทุกเกมมีแท็กครบแล้ว !'
+                    //     });
+                    // }
                 }
             },
             error: (err: any) => {
@@ -724,6 +733,7 @@ export class AdminComponent implements OnInit, OnDestroy {
                         // Case: Success with tags -> Show Result Dialog
                         this.showResultDialog('สร้างแท็กสำเร็จ', {
                             'Game ID': gameId,
+                            'Game Name': result.game_name,
                             'Positive Tags': posCount,
                             'Negative Tags': negCount
                         });
