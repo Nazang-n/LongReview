@@ -1,23 +1,82 @@
-from pydantic import BaseModel, EmailStr, Field
-from typing import Optional
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
+from typing import Optional, Any
 from datetime import datetime
+import re
 
 
 # User Schemas
 class UserBase(BaseModel):
-    username: str = Field(..., min_length=3, max_length=100)
-    email: EmailStr
+    username: str = Field(..., max_length=100)
+    email: str  # Changed from EmailStr to allow custom validation
 
 
-class UserCreate(UserBase):
-    password: str = Field(..., min_length=6)
+class UserCreate(BaseModel):
+    # Define fields in the order we want them validated
+    username: str = Field(..., max_length=100)
+    email: str
+    password: str = Field(...)
+    
+    @model_validator(mode='before')
+    @classmethod
+    def validate_fields_in_order(cls, data: Any) -> Any:
+        """Validate fields in specific order: username -> email -> password"""
+        if not isinstance(data, dict):
+            return data
+        
+        # 1. Validate username first
+        username = data.get('username', '')
+        if not username or len(username) < 3:
+            raise ValueError('ชื่อผู้ใช้งานต้องมีอย่างน้อย 3 ตัวอักษร')
+        
+        # 2. Validate email second
+        email = data.get('email', '')
+        if not email or '@' not in email:
+            raise ValueError('รูปแบบอีเมลไม่ถูกต้อง')
+        
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_pattern, email):
+            raise ValueError('รูปแบบอีเมลไม่ถูกต้อง')
+        
+        # Normalize email
+        data['email'] = email.lower()
+        
+        # 3. Validate password last
+        password = data.get('password', '')
+        if not password or len(password) < 6:
+            raise ValueError('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร')
+        
+        return data
 
 
 class UserUpdate(BaseModel):
-    username: Optional[str] = Field(None, min_length=3, max_length=100)
-    email: Optional[EmailStr] = None
+    username: Optional[str] = Field(None, max_length=100)
+    email: Optional[str] = None  # Changed from EmailStr
     password: Optional[str] = Field(None, min_length=6)
     is_active: Optional[bool] = None
+    
+    @field_validator('username')
+    @classmethod
+    def validate_username(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and len(v) < 3:
+            raise ValueError('ชื่อผู้ใช้งานต้องมีอย่างน้อย 3 ตัวอักษร')
+        return v
+    
+    @field_validator('email')
+    @classmethod
+    def validate_email(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        
+        # Basic email validation
+        if '@' not in v:
+            raise ValueError('รูปแบบอีเมลไม่ถูกต้อง')
+        
+        # More comprehensive email validation
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_pattern, v):
+            raise ValueError('รูปแบบอีเมลไม่ถูกต้อง')
+        
+        return v.lower()
 
 
 class User(UserBase):

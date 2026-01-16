@@ -62,17 +62,12 @@ export class RegisterComponent {
   isLoading: boolean = false;
   errorMessage: string = '';
 
-  constructor(private authService: AuthService, private router: Router) {}
+  constructor(private authService: AuthService, private router: Router) { }
 
   onRegister() {
     // Validate inputs
     if (!this.username || !this.email || !this.password) {
       this.errorMessage = 'กรุณากรอกข้อมูลให้ครบถ้วน';
-      return;
-    }
-
-    if (this.password.length < 6) {
-      this.errorMessage = 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร';
       return;
     }
 
@@ -91,8 +86,30 @@ export class RegisterComponent {
       error: (error) => {
         this.isLoading = false;
         console.error('Registration error:', error);
+
+        // Handle validation errors from FastAPI/Pydantic
         if (error.error?.detail) {
-          this.errorMessage = error.error.detail;
+          // Check if detail is an array (validation errors)
+          if (Array.isArray(error.error.detail)) {
+            // Extract the first error message
+            const firstError = error.error.detail[0];
+            if (firstError.msg) {
+              // Extract the actual message from "Value error, <message>" format
+              const msg = firstError.msg;
+              if (msg.includes('Value error, ')) {
+                this.errorMessage = msg.replace('Value error, ', '');
+              } else {
+                this.errorMessage = msg;
+              }
+            } else {
+              this.errorMessage = 'เกิดข้อผิดพลาดในการตรวจสอบข้อมูล';
+            }
+          } else if (typeof error.error.detail === 'string') {
+            // Handle string error messages (like "อีเมลนี้ถูกใช้งานแล้ว")
+            this.errorMessage = error.error.detail;
+          } else {
+            this.errorMessage = 'เกิดข้อผิดพลาด';
+          }
         } else if (error.message) {
           this.errorMessage = error.message;
         } else {

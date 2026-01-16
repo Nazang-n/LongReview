@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, model_validator
 from sqlalchemy.orm import Session
 import bcrypt
 from .. import models, schemas
 from ..database import get_db
-from typing import Optional
+from typing import Optional, Any
 import traceback
 from datetime import datetime, timezone
 
@@ -29,8 +29,29 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 class UserLogin(BaseModel):
     """Schema for login request"""
-    email: EmailStr
+    email: str
     password: str
+    
+    @model_validator(mode='before')
+    @classmethod
+    def validate_email(cls, data: Any) -> Any:
+        """Validate email format"""
+        if not isinstance(data, dict):
+            return data
+        
+        email = data.get('email', '')
+        if not email or '@' not in email:
+            raise ValueError('รูปแบบอีเมลไม่ถูกต้อง')
+        
+        import re
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_pattern, email):
+            raise ValueError('รูปแบบอีเมลไม่ถูกต้อง')
+        
+        # Normalize email
+        data['email'] = email.lower()
+        
+        return data
 
 
 class UserResponse(schemas.User):
@@ -120,14 +141,14 @@ def login(user_login: UserLogin, db: Session = Depends(get_db)):
     if not db_user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
+            detail="ไม่พบอีเมลของผู้ใช้งาน"
         )
     
     # Verify password
     if not verify_password(user_login.password, db_user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
+            detail="รหัสผ่านไม่ถูกต้อง"
         )
     
     return db_user
