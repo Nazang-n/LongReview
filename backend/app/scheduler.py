@@ -47,6 +47,28 @@ def log_daily_update(db: Session, update_type: str, stats: dict, game_id: int = 
         print(f"[Daily Update Log] Error logging update: {e}")
         db.rollback()
 
+def cleanup_old_daily_logs():
+    """
+    Clean up old daily update logs, keeping only today's logs.
+    This runs daily to reset the status dashboard.
+    """
+    db = SessionLocal()
+    try:
+        today = date.today()
+        
+        # Delete all logs that are not from today
+        deleted = db.query(models.DailyUpdateLog).filter(
+            models.DailyUpdateLog.update_date < today
+        ).delete()
+        
+        db.commit()
+        print(f"[Daily Log Cleanup] Deleted {deleted} old log entries")
+    except Exception as e:
+        print(f"[Daily Log Cleanup] Error: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
 def update_all_sentiments():
     """Update sentiment for all games with steam_app_id"""
     db = SessionLocal()
@@ -487,6 +509,15 @@ def cleanup_password_reset_tokens():
 
 # Initialize scheduler
 scheduler = BackgroundScheduler()
+
+# Daily log cleanup job (runs at 11:59 PM to clean old logs before new day)
+scheduler.add_job(
+    func=cleanup_old_daily_logs,
+    trigger=CronTrigger(hour=23, minute=59),
+    id='cleanup_daily_logs',
+    name='Clean up old daily update logs',
+    replace_existing=True
+)
 
 # Import newest games job (daily at 12:00 AM)
 scheduler.add_job(
