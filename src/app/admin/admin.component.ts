@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
 import { HeaderComponent } from '../shared/header.component';
 import { FooterComponent } from '../shared/footer.component';
 import { ButtonModule } from 'primeng/button';
@@ -150,7 +151,7 @@ export class AdminComponent implements OnInit, OnDestroy {
         reviews: DailyUpdateStatus;
     } | null = null;
     incompleteGames: IncompleteGame[] = [];
-    totalIncompleteGames = 0;
+    totalNotUpdatedGames = 0;
     isFixingAll = false;
 
     constructor(
@@ -159,7 +160,8 @@ export class AdminComponent implements OnInit, OnDestroy {
         private commentService: CommentService,
         private authService: AuthService,
         private messageService: MessageService,
-        private analyticsService: AnalyticsService
+        private analyticsService: AnalyticsService,
+        private http: HttpClient
     ) { }
 
     ngOnInit() {
@@ -702,18 +704,18 @@ export class AdminComponent implements OnInit, OnDestroy {
         Promise.all([
             this.analyticsService.getNewGamesToday().toPromise(),
             this.analyticsService.getDailyUpdates().toPromise(),
-            this.analyticsService.getIncompleteGames().toPromise()
-        ]).then(([newGames, dailyUpdates, incompleteGames]) => {
+            this.analyticsService.getIncompleteGames().toPromise(),
+        ]).then(([newGames, dailyUpdates, incompleteGamesData]) => {
             // Update new games count
             this.newGamesToday = newGames?.new_games_count || 0;
 
             // Update daily updates status
             this.dailyUpdates = dailyUpdates?.updates || null;
 
-            // Update incomplete games
-            this.incompleteGames = incompleteGames?.games || [];
-            this.totalIncompleteGames = incompleteGames?.total_incomplete || 0;
-
+            if (incompleteGamesData) {
+                this.incompleteGames = incompleteGamesData.games;
+                this.totalNotUpdatedGames = incompleteGamesData.total_not_updated;
+            }
             this.isLoadingDailyUpdates = false;
         }).catch(error => {
             console.error('Error loading daily update status:', error);
@@ -731,18 +733,7 @@ export class AdminComponent implements OnInit, OnDestroy {
         return status.fetched ? 'text-green-600' : 'text-gray-400';
     }
 
-    getMissingDataLabel(dataType: string): string {
-        const labels: { [key: string]: string } = {
-            'info': 'ข้อมูลเกม',
-            'genre': 'ประเภทเกม',
-            'sentiment': 'เปอร์เซ็นต์รีวิว',
-            'tags': 'แท็กรีวิว',
-            'reviews': 'รีวิวภาษาไทย'
-        };
-        return labels[dataType] || dataType;
-    }
-
-    getUpdateStatusLabel(dataType: string): string {
+    getNotUpdatedLabel(dataType: string): string {
         const labels: { [key: string]: string } = {
             'sentiment': 'เปอร์เซ็นต์รีวิว',
             'tags': 'แท็กรีวิว',
@@ -752,20 +743,73 @@ export class AdminComponent implements OnInit, OnDestroy {
     }
 
     fixIncompleteGame(game: IncompleteGame) {
-        // Determine what needs to be fixed and call appropriate service
-        if (game.missing_data.includes('sentiment') || game.needs_update.includes('sentiment')) {
-            // Trigger sentiment update for this game
-            this.triggerSentimentUpdate();
+        if (this.checkIfProcessing()) return;
+
+        this.isAnyProcessing = true;
+
+        this.messageService.add({
+            severity: 'info',
+            summary: 'กำลังอัปเดตข้อมูล',
+            detail: `กำลังอัปเดตข้อมูลสำหรับ ${game.title}...`,
+            life: 3000
+        });
+
+        const updates: any[] = [];
+
+        // Update sentiment for this specific game
+        if (game.not_updated.includes('sentiment')) {
+            updates.push(
+                this.http.post(`/api/admin/sentiment/update/${game.id}`, {})
+            );
         }
-        if (game.missing_data.includes('tags') || game.needs_update.includes('tags')) {
-            // Generate tags for this game
-            this.selectedGameForTagsId = game.id;
-            this.generateTagsForGame();
+
+        // Generate tags for this specific game
+        if (game.not_updated.includes('tags')) {
+            updates.push(
+                this.http.post(`/api/admin/review-tags/generate/${game.id}`, {})
+            );
         }
-        if (game.missing_data.includes('reviews') || game.needs_update.includes('reviews')) {
-            // Trigger review update
-            this.triggerReviewUpdate();
+
+        // Update Thai reviews for this specific game
+        if (game.not_updated.includes('reviews')) {
+            updates.push(
+                this.http.post(`/api/admin/reviews/update/${game.id}`, {})
+            );
         }
+
+        if (updates.length === 0) {
+            this.isAnyProcessing = false;
+            return;
+        }
+
+        // Use forkJoin to run all updates in parallel
+        import('rxjs').then(({ forkJoin }) => {
+            forkJoin(updates).subscribe({
+                next: () => {
+                    this.isAnyProcessing = false;
+
+                    this.messageService.add({
+                        severity: 'success',
+                        summary: 'อัปเดตเสร็จสิ้น',
+                        detail: `อัปเดตข้อมูลสำหรับ ${game.title} เรียบร้อยแล้ว`,
+                        life: 3000
+                    });
+
+                    // Reload the incomplete games list
+                    this.loadDailyUpdateStatus();
+                },
+                error: (error) => {
+                    this.isAnyProcessing = false;
+
+                    this.messageService.add({
+                        severity: 'error',
+                        summary: 'เกิดข้อผิดพลาด',
+                        detail: 'ไม่สามารถอัปเดตข้อมูลได้',
+                        life: 5000
+                    });
+                }
+            });
+        });
     }
 
     fixAllIncompleteGames() {

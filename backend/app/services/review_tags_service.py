@@ -319,12 +319,16 @@ class ReviewTagsService:
                 GameReviewTag.game_id == game_id
             ).delete()
             
+            # Get current timestamp for all new tags
+            now = datetime.now()
+            
             # Save positive tags
             for tag_data in positive_tags:
                 tag = GameReviewTag(
                     game_id=game_id,
                     tag_type='positive',
-                    tag_word=tag_data['word']
+                    tag_word=tag_data['word'],
+                    updated_at=now  # Explicitly set timestamp
                 )
                 self.db.add(tag)
             
@@ -333,7 +337,8 @@ class ReviewTagsService:
                 tag = GameReviewTag(
                     game_id=game_id,
                     tag_type='negative',
-                    tag_word=tag_data['word']
+                    tag_word=tag_data['word'],
+                    updated_at=now  # Explicitly set timestamp
                 )
                 self.db.add(tag)
             

@@ -145,6 +145,104 @@ async def trigger_newest_games_import(background_tasks: BackgroundTasks) -> Dict
         }
 
 
+@router.post("/sentiment/update/{game_id}")
+async def update_single_game_sentiment(game_id: int, db: Session = Depends(get_db)) -> Dict:
+    """
+    Update sentiment for a single game (does NOT log to daily_update_log)
+    Used for individual game fixes from admin panel
+    """
+    from ..steam_api import SteamAPIClient
+    from ..models import Game, GameSentiment
+    from datetime import datetime
+    
+    try:
+        game = db.query(Game).filter(Game.id == game_id).first()
+        if not game or not game.steam_app_id:
+            return {
+                "status": "error",
+                "message": "Game not found or missing Steam App ID"
+            }
+        
+        # Fetch sentiment from Steam
+        sentiment_data = SteamAPIClient.get_review_summary(int(game.steam_app_id))
+        
+        if not sentiment_data:
+            return {
+                "status": "error",
+                "message": "Failed to fetch sentiment data"
+            }
+        
+        # Update or create sentiment
+        sentiment = db.query(GameSentiment).filter(GameSentiment.game_id == game_id).first()
+        
+        if sentiment:
+            sentiment.positive_percent = sentiment_data.get('positive_percent', 0)
+            sentiment.negative_percent = sentiment_data.get('negative_percent', 0)
+            sentiment.total_reviews = sentiment_data.get('total_reviews', 0)
+            sentiment.review_score_desc = sentiment_data.get('review_score_desc', '')
+            sentiment.last_updated = datetime.now()
+        else:
+            sentiment = GameSentiment(
+                game_id=game_id,
+                positive_percent=sentiment_data.get('positive_percent', 0),
+                negative_percent=sentiment_data.get('negative_percent', 0),
+                total_reviews=sentiment_data.get('total_reviews', 0),
+                review_score_desc=sentiment_data.get('review_score_desc', ''),
+                last_updated=datetime.now()
+            )
+            db.add(sentiment)
+        
+        db.commit()
+        
+        return {
+            "status": "success",
+            "message": f"Updated sentiment for {game.title}"
+        }
+    except Exception as e:
+        db.rollback()
+        return {
+            "status": "error",
+            "message": f"Failed to update sentiment: {str(e)}"
+        }
+
+
+@router.post("/reviews/update/{game_id}")
+async def update_single_game_reviews(game_id: int, db: Session = Depends(get_db)) -> Dict:
+    """
+    Update Thai reviews for a single game (does NOT log to daily_update_log)
+    Used for individual game fixes from admin panel
+    """
+    from ..models import Game
+    from ..utils.thai_review_helper import fetch_and_cache_thai_reviews
+    
+    try:
+        game = db.query(Game).filter(Game.id == game_id).first()
+        if not game or not game.steam_app_id:
+            return {
+                "status": "error",
+                "message": "Game not found or missing Steam App ID"
+            }
+        
+        # Fetch Thai reviews
+        success = fetch_and_cache_thai_reviews(game_id, game.steam_app_id, db, max_reviews=50)
+        
+        if success:
+            return {
+                "status": "success",
+                "message": f"Updated Thai reviews for {game.title}"
+            }
+        else:
+            return {
+                "status": "error",
+                "message": "Failed to fetch Thai reviews"
+            }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Failed to update reviews: {str(e)}"
+        }
+
+
 @router.post("/sentiment/update")
 async def trigger_sentiment_update(background_tasks: BackgroundTasks) -> Dict:
     """
@@ -519,24 +617,22 @@ async def get_daily_update_status(db: Session = Depends(get_db)) -> Dict:
 
 
 
+
 @router.get("/analytics/incomplete-games")
 async def get_incomplete_games(db: Session = Depends(get_db)) -> Dict:
     """
-    Get list of games with incomplete or outdated data
+    Get list of games that haven't been updated today
     
-    A game is flagged if:
-    - Missing basic info (description, genre, etc.)
-    - Missing sentiment data (percentage/progress)
-    - Missing review tags
-    - Missing Thai reviews
-    - Has not been updated today (sentiment, tags, or reviews)
+    A game is flagged if any of these were NOT updated today:
+    - Sentiment data
+    - Review tags  
+    - Thai reviews
     """
-    from ..models import Game, GameSentiment, GameReviewTag, Review
-    from sqlalchemy import exists, and_, func
-    from datetime import datetime, date
+    from ..models import Game, GameSentiment, GameReviewTag
+    from datetime import date
     
     try:
-        incomplete_games = []
+        not_updated_games = []
         today = date.today()
         
         # Get all games with steam_app_id
@@ -545,81 +641,67 @@ async def get_incomplete_games(db: Session = Depends(get_db)) -> Dict:
         ).all()
         
         for game in games:
-            missing_data = []
-            needs_update = []
+            not_updated = []
             
-            # 1. Check for basic game info
-            if not game.description or not game.about_game_th:
-                missing_data.append('info')
-            
-            if not game.genre:
-                missing_data.append('genre')
-            
-            # 2. Check for sentiment data
+            # 1. Check if sentiment was updated today
             sentiment = db.query(GameSentiment).filter(
                 GameSentiment.game_id == game.id
             ).first()
             
-            if not sentiment:
-                missing_data.append('sentiment')
-            else:
-                # Check if sentiment was updated today
+            if sentiment:
                 if sentiment.last_updated:
                     last_update_date = sentiment.last_updated.date()
                     if last_update_date < today:
-                        needs_update.append('sentiment')
+                        not_updated.append('sentiment')
+                else:
+                    not_updated.append('sentiment')
+            else:
+                # No sentiment data at all, needs update
+                not_updated.append('sentiment')
             
-            # 3. Check for review tags
+            # 2. Check if tags were updated today
             tags = db.query(GameReviewTag).filter(
                 GameReviewTag.game_id == game.id
             ).first()
             
-            if not tags:
-                missing_data.append('tags')
-            else:
-                # Check if tags were updated today
+            if tags:
                 if tags.updated_at:
                     last_update_date = tags.updated_at.date()
                     if last_update_date < today:
-                        needs_update.append('tags')
-            
-            # 4. Check for Thai reviews
-            has_thai_reviews = db.query(exists().where(
-                and_(
-                    Review.game_id == game.id,
-                    Review.is_steam_review == True
-                )
-            )).scalar()
-            
-            if not has_thai_reviews:
-                missing_data.append('reviews')
+                        not_updated.append('tags')
+                else:
+                    not_updated.append('tags')
             else:
-                # Check if reviews were fetched today
-                if game.last_review_fetch:
-                    last_fetch_date = game.last_review_fetch.date()
-                    if last_fetch_date < today:
-                        needs_update.append('reviews')
+                # No tags data at all, needs update
+                not_updated.append('tags')
             
-            # If any data is missing or needs update, add to incomplete list
-            if missing_data or needs_update:
-                incomplete_games.append({
+            # 3. Check if Thai reviews were fetched today
+            if game.last_review_fetch:
+                last_fetch_date = game.last_review_fetch.date()
+                if last_fetch_date < today:
+                    not_updated.append('reviews')
+            else:
+                # Never fetched reviews, needs update
+                not_updated.append('reviews')
+            
+            # If any data was not updated today, add to list
+            if not_updated:
+                not_updated_games.append({
                     'id': game.id,
                     'title': game.title,
                     'steam_app_id': game.steam_app_id,
-                    'missing_data': missing_data,  # Data that doesn't exist at all
-                    'needs_update': needs_update,  # Data that exists but is outdated
-                    'last_review_fetch': game.last_review_fetch.isoformat() if game.last_review_fetch else None,
-                    'has_description': bool(game.description),
-                    'has_thai_description': bool(game.about_game_th),
-                    'has_genre': bool(game.genre)
+                    'not_updated': not_updated,  # What needs updating today
+                    'last_sentiment_update': sentiment.last_updated.isoformat() if sentiment and sentiment.last_updated else None,
+                    'last_tags_update': tags.updated_at.isoformat() if tags and tags.updated_at else None,
+                    'last_review_fetch': game.last_review_fetch.isoformat() if game.last_review_fetch else None
                 })
         
         return {
-            "total_incomplete": len(incomplete_games),
-            "games": incomplete_games
+            "total_not_updated": len(not_updated_games),
+            "games": not_updated_games
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch incomplete games: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch not updated games: {str(e)}")
 
 
 

@@ -115,10 +115,17 @@ def fetch_and_cache_thai_reviews(game_id: int, steam_app_id: int, db: Session, m
             db.add(new_review)
             saved_count += 1
         
+        # Update game's last_review_fetch timestamp
+        game = db.query(models.Game).filter(models.Game.id == game_id).first()
+        if game:
+            game.last_review_fetch = datetime.now()
+        
         if saved_count > 0:
             db.commit()
             print(f"  [Thai Reviews] ✓ Saved {saved_count} Thai reviews for game {game_id}")
         else:
+            # Even if no reviews were saved, update the timestamp to show we tried
+            db.commit()
             print(f"  [Thai Reviews] ℹ No Thai reviews passed the filter")
         
         return True

@@ -146,12 +146,12 @@
                             </div>
                         </p-card>
 
-                        <!-- 6. Incomplete Games -->
+                        <!-- 6. Games Not Updated Today -->
                         <p-card subheader="ต้องการอัปเดตด้วยตนเอง">
                             <ng-template pTemplate="header">
                                 <div class="flex items-center justify-between p-4 pb-0">
                                     <div>
-                                        <h3 class="text-lg font-bold text-gray-900">เกมที่ข้อมูลไม่ครบ</h3>
+                                        <h3 class="text-lg font-bold text-gray-900">เกมที่ยังไม่ได้อัพเดตข้อมูล</h3>
                                     </div>
                                     <div class="flex gap-2">
                                         <button pButton icon="pi pi-refresh"
@@ -162,8 +162,8 @@
                                         <button pButton label="แก้ไขทั้งหมด" icon="pi pi-wrench"
                                             class="p-button-sm p-button-warning" (click)="fixAllIncompleteGames()"
                                             [loading]="isFixingAll"
-                                            [disabled]="totalIncompleteGames === 0 || isFixingAll"
-                                            pTooltip="อัปเดตข้อมูลทั้งหมดที่ขาดหายหรือล้าสมัย">
+                                            [disabled]="totalNotUpdatedGames === 0 || isFixingAll"
+                                            pTooltip="อัปเดตข้อมูลทั้งหมดที่ยังไม่ได้อัปเดตวันนี้">
                                         </button>
                                     </div>
                                 </div>
@@ -176,22 +176,22 @@
 
                             <div *ngIf="!isLoadingDailyUpdates">
                                 <!-- Empty State -->
-                                <div *ngIf="totalIncompleteGames === 0" class="text-center py-8">
+                                <div *ngIf="totalNotUpdatedGames === 0" class="text-center py-8">
                                     <div
                                         class="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-3">
                                         <i class="pi pi-check text-xl"></i>
                                     </div>
-                                    <p class="text-sm font-semibold text-gray-900">ข้อมูลครบถ้วน!</p>
-                                    <p class="text-xs text-gray-500">ทุกเกมมีข้อมูลครบแล้ว</p>
+                                    <p class="text-sm font-semibold text-gray-900">ข้อมูลทุกเกมอัปเดตแล้ว!</p>
+                                    <p class="text-xs text-gray-500">ทุกเกมได้รับการอัปเดตข้อมูลวันนี้แล้ว</p>
                                 </div>
 
-                                <!-- Incomplete Games List -->
-                                <div *ngIf="totalIncompleteGames > 0">
+                                <!-- Not Updated Games List -->
+                                <div *ngIf="totalNotUpdatedGames > 0">
                                     <div class="mb-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
                                         <div class="flex items-center gap-2">
                                             <i class="pi pi-exclamation-triangle text-orange-600"></i>
                                             <span class="text-sm font-bold text-orange-900">
-                                                พบ {{ totalIncompleteGames }} เกมที่ข้อมูลไม่ครบ
+                                                พบ {{ totalNotUpdatedGames }} เกมที่ยังไม่ได้อัปเดตวันนี้
                                             </span>
                                         </div>
                                     </div>
@@ -204,17 +204,11 @@
                                                     <p class="text-sm font-bold text-gray-900 truncate">{{ game.title }}
                                                     </p>
                                                     <div class="flex flex-wrap gap-1 mt-1">
-                                                        <!-- Missing Data (Red) -->
-                                                        <span *ngFor="let missing of game.missing_data"
-                                                            class="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded-full font-medium">
-                                                            <i class="pi pi-times-circle text-xs mr-1"></i>ไม่มี{{
-                                                            getMissingDataLabel(missing) }}
-                                                        </span>
-                                                        <!-- Needs Update (Orange) -->
-                                                        <span *ngFor="let needsUpdate of game.needs_update"
+                                                        <!-- Not Updated Items -->
+                                                        <span *ngFor="let notUpdated of game.not_updated"
                                                             class="text-xs px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full font-medium">
                                                             <i class="pi pi-clock text-xs mr-1"></i>{{
-                                                            getUpdateStatusLabel(needsUpdate) }}ล้าสมัย
+                                                            getNotUpdatedLabel(notUpdated) }}ยังไม่อัปเดต
                                                         </span>
                                                     </div>
                                                 </div>
@@ -226,8 +220,8 @@
                                         </div>
                                     </div>
 
-                                    <div *ngIf="totalIncompleteGames > 10" class="mt-2 text-center">
-                                        <p class="text-xs text-gray-500">และอีก {{ totalIncompleteGames - 10 }} เกม...
+                                    <div *ngIf="totalNotUpdatedGames > 10" class="mt-2 text-center">
+                                        <p class="text-xs text-gray-500">และอีก {{ totalNotUpdatedGames - 10 }} เกม...
                                         </p>
                                     </div>
                                 </div>

@@ -45,16 +45,14 @@ export interface IncompleteGame {
     id: number;
     title: string;
     steam_app_id: number;
-    missing_data: string[];
-    needs_update: string[];
+    not_updated: string[];
+    last_sentiment_update: string | null;
+    last_tags_update: string | null;
     last_review_fetch: string | null;
-    has_description: boolean;
-    has_thai_description: boolean;
-    has_genre: boolean;
 }
 
 export interface IncompleteGamesResponse {
-    total_incomplete: number;
+    total_not_updated: number;
     games: IncompleteGame[];
 }
 
