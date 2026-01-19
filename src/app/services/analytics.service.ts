@@ -13,6 +13,51 @@ export interface AnalyticsResponse {
     today_count: number;
 }
 
+export interface NewGamesTodayResponse {
+    date: string;
+    new_games_count: number;
+    logs: {
+        time: string | null;
+        count: number;
+        status: string;
+    }[];
+}
+
+export interface DailyUpdateStatus {
+    fetched: boolean;
+    status: string;
+    count: number;
+    time: string | null;
+}
+
+export interface DailyUpdatesResponse {
+    date: string;
+    updates: {
+        news: DailyUpdateStatus;
+        games: DailyUpdateStatus;
+        sentiment: DailyUpdateStatus;
+        tags: DailyUpdateStatus;
+        reviews: DailyUpdateStatus;
+    };
+}
+
+export interface IncompleteGame {
+    id: number;
+    title: string;
+    steam_app_id: number;
+    missing_data: string[];
+    needs_update: string[];
+    last_review_fetch: string | null;
+    has_description: boolean;
+    has_thai_description: boolean;
+    has_genre: boolean;
+}
+
+export interface IncompleteGamesResponse {
+    total_incomplete: number;
+    games: IncompleteGame[];
+}
+
 @Injectable({
     providedIn: 'root'
 })
@@ -31,5 +76,17 @@ export class AnalyticsService {
 
     getReportAnalytics(): Observable<AnalyticsResponse> {
         return this.http.get<AnalyticsResponse>(`${this.apiUrl}/reports`);
+    }
+
+    getNewGamesToday(): Observable<NewGamesTodayResponse> {
+        return this.http.get<NewGamesTodayResponse>(`${this.apiUrl}/new-games-today`);
+    }
+
+    getDailyUpdates(): Observable<DailyUpdatesResponse> {
+        return this.http.get<DailyUpdatesResponse>(`${this.apiUrl}/daily-updates`);
+    }
+
+    getIncompleteGames(): Observable<IncompleteGamesResponse> {
+        return this.http.get<IncompleteGamesResponse>(`${this.apiUrl}/incomplete-games`);
     }
 }

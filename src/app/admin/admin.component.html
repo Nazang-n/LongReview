@@ -63,6 +63,176 @@
                                 </div>
                             </div>
                         </p-card>
+
+                        <!-- 4. New Games Today -->
+                        <p-card header="เกมใหม่วันนี้" subheader="จำนวนเกมที่เพิ่มเข้าระบบ">
+                            <div class="stat-summary">
+                                <div class="stat-item">
+                                    <span class="stat-label">วันนี้</span>
+                                    <span class="stat-value">{{ newGamesToday }}</span>
+                                </div>
+                            </div>
+                        </p-card>
+
+                        <!-- 5. Daily Data Update Status -->
+                        <p-card header="สถานะการอัปเดตข้อมูลวันนี้" subheader="ตรวจสอบการอัปเดตจาก Scheduler">
+                            <div *ngIf="isLoadingDailyUpdates" class="flex justify-center py-4">
+                                <p-progressSpinner [style]="{width: '40px', height: '40px'}"
+                                    strokeWidth="4"></p-progressSpinner>
+                            </div>
+
+                            <div *ngIf="!isLoadingDailyUpdates && dailyUpdates" class="space-y-2">
+                                <!-- News Status -->
+                                <div class="flex items-center justify-between py-2 border-b border-gray-100">
+                                    <span class="text-sm font-medium text-gray-700">ข่าวสาร</span>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs font-medium" [class]="getStatusColor(dailyUpdates.news)">
+                                            {{ dailyUpdates.news.fetched ? 'อัปเดตแล้ว' : 'ยังไม่อัปเดต' }}
+                                        </span>
+                                        <i
+                                            class="pi {{ getStatusIcon(dailyUpdates.news) }} {{ getStatusColor(dailyUpdates.news) }}"></i>
+                                    </div>
+                                </div>
+
+                                <!-- Games Status -->
+                                <div class="flex items-center justify-between py-2 border-b border-gray-100">
+                                    <span class="text-sm font-medium text-gray-700">เกมใหม่</span>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs font-medium" [class]="getStatusColor(dailyUpdates.games)">
+                                            {{ dailyUpdates.games.fetched ? 'อัปเดตแล้ว' : 'ยังไม่อัปเดต' }}
+                                        </span>
+                                        <i
+                                            class="pi {{ getStatusIcon(dailyUpdates.games) }} {{ getStatusColor(dailyUpdates.games) }}"></i>
+                                    </div>
+                                </div>
+
+                                <!-- Sentiment Status -->
+                                <div class="flex items-center justify-between py-2 border-b border-gray-100">
+                                    <span class="text-sm font-medium text-gray-700">เปอร์เซ็นต์รีวิว</span>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs font-medium"
+                                            [class]="getStatusColor(dailyUpdates.sentiment)">
+                                            {{ dailyUpdates.sentiment.fetched ? 'อัปเดตแล้ว' : 'ยังไม่อัปเดต' }}
+                                        </span>
+                                        <i
+                                            class="pi {{ getStatusIcon(dailyUpdates.sentiment) }} {{ getStatusColor(dailyUpdates.sentiment) }}"></i>
+                                    </div>
+                                </div>
+
+                                <!-- Tags Status -->
+                                <div class="flex items-center justify-between py-2 border-b border-gray-100">
+                                    <span class="text-sm font-medium text-gray-700">แท็กรีวิว</span>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs font-medium" [class]="getStatusColor(dailyUpdates.tags)">
+                                            {{ dailyUpdates.tags.fetched ? 'อัปเดตแล้ว' : 'ยังไม่อัปเดต' }}
+                                        </span>
+                                        <i
+                                            class="pi {{ getStatusIcon(dailyUpdates.tags) }} {{ getStatusColor(dailyUpdates.tags) }}"></i>
+                                    </div>
+                                </div>
+
+                                <!-- Reviews Status -->
+                                <div class="flex items-center justify-between py-2">
+                                    <span class="text-sm font-medium text-gray-700">รีวิวภาษาไทย</span>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs font-medium"
+                                            [class]="getStatusColor(dailyUpdates.reviews)">
+                                            {{ dailyUpdates.reviews.fetched ? 'อัปเดตแล้ว' : 'ยังไม่อัปเดต' }}
+                                        </span>
+                                        <i
+                                            class="pi {{ getStatusIcon(dailyUpdates.reviews) }} {{ getStatusColor(dailyUpdates.reviews) }}"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </p-card>
+
+                        <!-- 6. Incomplete Games -->
+                        <p-card subheader="ต้องการอัปเดตด้วยตนเอง">
+                            <ng-template pTemplate="header">
+                                <div class="flex items-center justify-between p-4 pb-0">
+                                    <div>
+                                        <h3 class="text-lg font-bold text-gray-900">เกมที่ข้อมูลไม่ครบ</h3>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <button pButton icon="pi pi-refresh"
+                                            class="p-button-sm p-button-text p-button-rounded"
+                                            (click)="loadDailyUpdateStatus()" [loading]="isLoadingDailyUpdates"
+                                            pTooltip="รีเฟรชข้อมูล">
+                                        </button>
+                                        <button pButton label="แก้ไขทั้งหมด" icon="pi pi-wrench"
+                                            class="p-button-sm p-button-warning" (click)="fixAllIncompleteGames()"
+                                            [loading]="isFixingAll"
+                                            [disabled]="totalIncompleteGames === 0 || isFixingAll"
+                                            pTooltip="อัปเดตข้อมูลทั้งหมดที่ขาดหายหรือล้าสมัย">
+                                        </button>
+                                    </div>
+                                </div>
+                            </ng-template>
+
+                            <div *ngIf="isLoadingDailyUpdates" class="flex justify-center py-4">
+                                <p-progressSpinner [style]="{width: '40px', height: '40px'}"
+                                    strokeWidth="4"></p-progressSpinner>
+                            </div>
+
+                            <div *ngIf="!isLoadingDailyUpdates">
+                                <!-- Empty State -->
+                                <div *ngIf="totalIncompleteGames === 0" class="text-center py-8">
+                                    <div
+                                        class="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                                        <i class="pi pi-check text-xl"></i>
+                                    </div>
+                                    <p class="text-sm font-semibold text-gray-900">ข้อมูลครบถ้วน!</p>
+                                    <p class="text-xs text-gray-500">ทุกเกมมีข้อมูลครบแล้ว</p>
+                                </div>
+
+                                <!-- Incomplete Games List -->
+                                <div *ngIf="totalIncompleteGames > 0">
+                                    <div class="mb-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                                        <div class="flex items-center gap-2">
+                                            <i class="pi pi-exclamation-triangle text-orange-600"></i>
+                                            <span class="text-sm font-bold text-orange-900">
+                                                พบ {{ totalIncompleteGames }} เกมที่ข้อมูลไม่ครบ
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div class="max-h-64 overflow-y-auto space-y-2">
+                                        <div *ngFor="let game of incompleteGames.slice(0, 10)"
+                                            class="p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">
+                                            <div class="flex items-start justify-between gap-2">
+                                                <div class="flex-1 min-w-0">
+                                                    <p class="text-sm font-bold text-gray-900 truncate">{{ game.title }}
+                                                    </p>
+                                                    <div class="flex flex-wrap gap-1 mt-1">
+                                                        <!-- Missing Data (Red) -->
+                                                        <span *ngFor="let missing of game.missing_data"
+                                                            class="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded-full font-medium">
+                                                            <i class="pi pi-times-circle text-xs mr-1"></i>ไม่มี{{
+                                                            getMissingDataLabel(missing) }}
+                                                        </span>
+                                                        <!-- Needs Update (Orange) -->
+                                                        <span *ngFor="let needsUpdate of game.needs_update"
+                                                            class="text-xs px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full font-medium">
+                                                            <i class="pi pi-clock text-xs mr-1"></i>{{
+                                                            getUpdateStatusLabel(needsUpdate) }}ล้าสมัย
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <button pButton icon="pi pi-wrench"
+                                                    class="p-button-sm p-button-outlined p-button-warning"
+                                                    (click)="fixIncompleteGame(game)" pTooltip="แก้ไขข้อมูล">
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div *ngIf="totalIncompleteGames > 10" class="mt-2 text-center">
+                                        <p class="text-xs text-gray-500">และอีก {{ totalIncompleteGames - 10 }} เกม...
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </p-card>
                     </div>
                 </div>
             </p-tabPanel>

@@ -19,7 +19,8 @@ import { DropdownModule } from 'primeng/dropdown';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { TableModule } from 'primeng/table';
 import { OverlayPanelModule } from 'primeng/overlaypanel';
-import { AnalyticsService } from '../services/analytics.service';
+import { TooltipModule } from 'primeng/tooltip';
+import { AnalyticsService, DailyUpdateStatus, IncompleteGame } from '../services/analytics.service';
 
 @Component({
     selector: 'app-admin',
@@ -38,9 +39,9 @@ import { AnalyticsService } from '../services/analytics.service';
         TabViewModule,
         DropdownModule,
         InputNumberModule,
-        InputNumberModule,
-        TableModule, // Added this module
-        OverlayPanelModule
+        TableModule,
+        OverlayPanelModule,
+        TooltipModule
     ],
     providers: [MessageService],
     templateUrl: './admin.component.html',
@@ -138,6 +139,20 @@ export class AdminComponent implements OnInit, OnDestroy {
     // Polling intervals
     private pollingIntervals: Map<string, any> = new Map();
 
+    // Daily system updates
+    isLoadingDailyUpdates = false;
+    newGamesToday = 0;
+    dailyUpdates: {
+        news: DailyUpdateStatus;
+        games: DailyUpdateStatus;
+        sentiment: DailyUpdateStatus;
+        tags: DailyUpdateStatus;
+        reviews: DailyUpdateStatus;
+    } | null = null;
+    incompleteGames: IncompleteGame[] = [];
+    totalIncompleteGames = 0;
+    isFixingAll = false;
+
     constructor(
         private newsService: NewsService,
         private gameService: GameService,
@@ -150,11 +165,13 @@ export class AdminComponent implements OnInit, OnDestroy {
     ngOnInit() {
         this.loadReportedComments();
         this.loadDashboardAnalytics();
+        this.loadDailyUpdateStatus();
         this.loadGames();
 
-        // Auto-refresh dashboard analytics every 30 seconds
+        // Auto-refresh dashboard analytics every 30 seconds (but NOT incomplete games)
         this.dashboardRefreshInterval = setInterval(() => {
             this.loadDashboardAnalytics();
+            // Removed loadDailyUpdateStatus() from auto-refresh
         }, 30000);
     }
 
@@ -676,6 +693,137 @@ export class AdminComponent implements OnInit, OnDestroy {
                     detail: 'ไม่สามารถโหลดรายชื่อเกมได้'
                 });
             }
+        });
+    }
+
+    loadDailyUpdateStatus() {
+        this.isLoadingDailyUpdates = true;
+
+        Promise.all([
+            this.analyticsService.getNewGamesToday().toPromise(),
+            this.analyticsService.getDailyUpdates().toPromise(),
+            this.analyticsService.getIncompleteGames().toPromise()
+        ]).then(([newGames, dailyUpdates, incompleteGames]) => {
+            // Update new games count
+            this.newGamesToday = newGames?.new_games_count || 0;
+
+            // Update daily updates status
+            this.dailyUpdates = dailyUpdates?.updates || null;
+
+            // Update incomplete games
+            this.incompleteGames = incompleteGames?.games || [];
+            this.totalIncompleteGames = incompleteGames?.total_incomplete || 0;
+
+            this.isLoadingDailyUpdates = false;
+        }).catch(error => {
+            console.error('Error loading daily update status:', error);
+            this.isLoadingDailyUpdates = false;
+        });
+    }
+
+    getStatusIcon(status: DailyUpdateStatus): string {
+        // Only 2 states: updated or not updated
+        return status.fetched ? 'pi-check-circle' : 'pi-minus-circle';
+    }
+
+    getStatusColor(status: DailyUpdateStatus): string {
+        // Only 2 colors: green (updated) or gray (not updated)
+        return status.fetched ? 'text-green-600' : 'text-gray-400';
+    }
+
+    getMissingDataLabel(dataType: string): string {
+        const labels: { [key: string]: string } = {
+            'info': 'ข้อมูลเกม',
+            'genre': 'ประเภทเกม',
+            'sentiment': 'เปอร์เซ็นต์รีวิว',
+            'tags': 'แท็กรีวิว',
+            'reviews': 'รีวิวภาษาไทย'
+        };
+        return labels[dataType] || dataType;
+    }
+
+    getUpdateStatusLabel(dataType: string): string {
+        const labels: { [key: string]: string } = {
+            'sentiment': 'เปอร์เซ็นต์รีวิว',
+            'tags': 'แท็กรีวิว',
+            'reviews': 'รีวิวภาษาไทย'
+        };
+        return labels[dataType] || dataType;
+    }
+
+    fixIncompleteGame(game: IncompleteGame) {
+        // Determine what needs to be fixed and call appropriate service
+        if (game.missing_data.includes('sentiment') || game.needs_update.includes('sentiment')) {
+            // Trigger sentiment update for this game
+            this.triggerSentimentUpdate();
+        }
+        if (game.missing_data.includes('tags') || game.needs_update.includes('tags')) {
+            // Generate tags for this game
+            this.selectedGameForTagsId = game.id;
+            this.generateTagsForGame();
+        }
+        if (game.missing_data.includes('reviews') || game.needs_update.includes('reviews')) {
+            // Trigger review update
+            this.triggerReviewUpdate();
+        }
+    }
+
+    fixAllIncompleteGames() {
+        if (this.checkIfProcessing()) return;
+
+        if (this.incompleteGames.length === 0) {
+            this.messageService.add({
+                severity: 'info',
+                summary: 'ไม่มีเกมที่ต้องแก้ไข',
+                detail: 'ทุกเกมมีข้อมูลครบถ้วนแล้ว',
+                life: 3000
+            });
+            return;
+        }
+
+        this.isAnyProcessing = true;
+        this.isFixingAll = true;
+
+        this.messageService.add({
+            severity: 'info',
+            summary: 'เริ่มแก้ไขข้อมูลทั้งหมด',
+            detail: `กำลังอัปเดตข้อมูลสำหรับ ${this.incompleteGames.length} เกม...`,
+            life: 3000
+        });
+
+        // Use forkJoin to run all updates in parallel
+        import('rxjs').then(({ forkJoin }) => {
+            forkJoin([
+                this.gameService.triggerSentimentUpdate(),
+                this.gameService.triggerReviewTagsUpdate(),
+                this.gameService.triggerReviewUpdate()
+            ]).subscribe({
+                next: (results) => {
+                    this.isFixingAll = false;
+                    this.isAnyProcessing = false;
+
+                    // Reload incomplete games to see updated status
+                    this.loadDailyUpdateStatus();
+
+                    this.messageService.add({
+                        severity: 'success',
+                        summary: 'อัปเดตเสร็จสิ้น',
+                        detail: 'ระบบได้อัปเดตข้อมูลทั้งหมดแล้ว',
+                        life: 5000
+                    });
+                },
+                error: (error) => {
+                    this.isFixingAll = false;
+                    this.isAnyProcessing = false;
+
+                    this.messageService.add({
+                        severity: 'error',
+                        summary: 'เกิดข้อผิดพลาด',
+                        detail: 'ไม่สามารถอัปเดตข้อมูลได้ทั้งหมด',
+                        life: 5000
+                    });
+                }
+            });
         });
     }
 

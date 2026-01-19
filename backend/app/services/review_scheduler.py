@@ -301,6 +301,32 @@ def trigger_manual_update():
         logger.info("=" * 60)
         logger.info("Manual Thai review update completed successfully")
         
+        # Log the update to daily_update_log
+        try:
+            from datetime import date
+            from ..models import DailyUpdateLog
+            
+            today = date.today()
+            status = 'success'
+            if stats['failed'] > 0 and stats['successful'] == 0:
+                status = 'failed'
+            elif stats['failed'] > 0:
+                status = 'partial'
+            
+            log_entry = DailyUpdateLog(
+                update_type='reviews',
+                update_date=today,
+                status=status,
+                items_processed=stats['games_processed'],
+                items_successful=stats['successful'],
+                items_failed=stats['failed']
+            )
+            db.add(log_entry)
+            db.commit()
+        except Exception as e:
+            logger.error(f"Error logging review update: {e}")
+            db.rollback()
+        
         return stats
         
     except Exception as e:

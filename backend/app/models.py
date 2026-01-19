@@ -188,3 +188,21 @@ class PasswordResetToken(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     expires_at = Column(DateTime(timezone=True), nullable=False)
     used = Column(Boolean, default=False, nullable=False)
+
+
+class DailyUpdateLog(Base):
+    """Daily Update Log - tracks daily automated update operations"""
+    __tablename__ = "daily_update_log"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    update_type = Column(String(50), nullable=False, index=True)  # 'news', 'games', 'sentiment', 'tags', 'reviews'
+    update_date = Column(Date, nullable=False, index=True)  # Date of the update
+    status = Column(String(20), nullable=False)  # 'success', 'partial', 'failed'
+    items_processed = Column(Integer, default=0)
+    items_successful = Column(Integer, default=0)
+    items_failed = Column(Integer, default=0)
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # For tracking incomplete game updates
+    game_id = Column(Integer, ForeignKey("game.id"), nullable=True, index=True)  # Specific game if applicable

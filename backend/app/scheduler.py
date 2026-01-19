@@ -10,8 +10,42 @@ from sqlalchemy.orm import Session
 from .database import SessionLocal
 from .steam_api import SteamAPIClient
 from . import models
-from datetime import datetime
+from datetime import datetime, date
 import time
+
+def log_daily_update(db: Session, update_type: str, stats: dict, game_id: int = None):
+    """Helper function to log daily update operations"""
+    try:
+        today = date.today()
+        
+        # Determine status based on stats
+        status = 'success'
+        items_processed = stats.get('games_processed', 0) or stats.get('total_processed', 0) or stats.get('imported', 0)
+        items_successful = stats.get('updated', 0) or stats.get('added', 0) or stats.get('imported', 0) or stats.get('games_successful', 0)
+        items_failed = stats.get('errors', 0) or stats.get('failed', 0) or stats.get('games_failed', 0)
+        
+        if items_failed > 0 and items_successful == 0:
+            status = 'failed'
+        elif items_failed > 0:
+            status = 'partial'
+        
+        # Create log entry
+        log_entry = models.DailyUpdateLog(
+            update_type=update_type,
+            update_date=today,
+            status=status,
+            items_processed=items_processed,
+            items_successful=items_successful,
+            items_failed=items_failed,
+            game_id=game_id
+        )
+        
+        db.add(log_entry)
+        db.commit()
+        print(f"[Daily Update Log] Logged {update_type} update: {status}")
+    except Exception as e:
+        print(f"[Daily Update Log] Error logging update: {e}")
+        db.rollback()
 
 def update_all_sentiments():
     """Update sentiment for all games with steam_app_id"""
@@ -97,6 +131,9 @@ def update_all_sentiments():
         stats['updated'] = updated_count
         stats['errors'] = error_count
         
+        # Log the daily update
+        log_daily_update(db, 'sentiment', stats)
+        
         print(f"[Sentiment Scheduler] Update complete! Updated: {updated_count}, Errors: {error_count}")
         return stats
         
@@ -177,6 +214,9 @@ def update_review_tags(update_existing: bool = True):
         stats['updated'] = updated_count
         stats['skipped'] = skipped_count
         stats['errors'] = error_count
+        
+        # Log the daily update
+        log_daily_update(db, 'tags', stats)
         
         print(f"[Review Tags Scheduler] Update complete! Updated: {updated_count}, Skipped: {skipped_count}, Errors: {error_count}")
         return stats
@@ -377,6 +417,9 @@ def import_newest_games():
         stats['imported'] = imported_count
         stats['skipped'] = skipped_count
         stats['failed'] = failed_count
+        
+        # Log the daily update
+        log_daily_update(db, 'games', stats)
         
         print(f"[Newest Games Scheduler] Complete! Imported: {imported_count}, Skipped: {skipped_count}, Failed: {failed_count}")
         return stats

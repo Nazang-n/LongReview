@@ -84,7 +84,30 @@ async def sync_news(db: Session = Depends(get_db)):
     Returns:
         Sync statistics
     """
+    from datetime import date
+    from ..models import DailyUpdateLog
+    
     result = await NewsService.sync_news_from_api(db, max_pages=6)
+    
+    # Log the update
+    try:
+        today = date.today()
+        status = 'success' if result.get('added', 0) > 0 or result.get('updated', 0) > 0 else 'success'
+        
+        log_entry = DailyUpdateLog(
+            update_type='news',
+            update_date=today,
+            status=status,
+            items_processed=result.get('total_processed', 0),
+            items_successful=result.get('added', 0) + result.get('updated', 0),
+            items_failed=0
+        )
+        db.add(log_entry)
+        db.commit()
+    except Exception as e:
+        print(f"Error logging news sync: {e}")
+        db.rollback()
+    
     return result
 
 
