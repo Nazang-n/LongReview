@@ -155,31 +155,21 @@ def get_games(
             models.GameSentiment.total_reviews >= 1000
         )
         
-        if primary_tag_sort is not None:
-            query = query.order_by(
-                primary_tag_sort,
-                models.GameSentiment.total_reviews.desc().nullslast(),
-                models.GameSentiment.positive_percent.desc().nullslast()
-            )
-        else:
-            query = query.order_by(
-                models.GameSentiment.total_reviews.desc().nullslast(),
-                models.GameSentiment.positive_percent.desc().nullslast()
-            )
+        # Strict Sort: Total Reviews DESC -> Positive Percent DESC
+        query = query.order_by(
+            models.GameSentiment.total_reviews.desc().nullslast(),
+            models.GameSentiment.positive_percent.desc().nullslast()
+        )
 
     elif sort_by == "popular":
-        # Standard Popular Sort (for categories etc.) - No strict filters
-        if primary_tag_sort is not None:
-            query = query.order_by(
-                primary_tag_sort,
-                models.GameSentiment.total_reviews.desc().nullslast(),
-                models.GameSentiment.positive_percent.desc().nullslast()
-            )
-        else:
-            query = query.order_by(
-                models.GameSentiment.total_reviews.desc().nullslast(),
-                models.GameSentiment.positive_percent.desc().nullslast()
-            )
+        # Standard Popular Sort (for categories etc.) - Only "Positive" labeled games
+        query = query.filter(models.GameSentiment.review_score_desc.ilike('%positive%'))
+        
+        # Strict Sort: Total Reviews DESC -> Positive Percent DESC
+        query = query.order_by(
+            models.GameSentiment.total_reviews.desc().nullslast(),
+            models.GameSentiment.positive_percent.desc().nullslast()
+        )
     elif sort_by == "rating":
         # Sort by rating descending (nulls last), then by total_reviews descending
         if primary_tag_sort is not None:
