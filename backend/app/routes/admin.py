@@ -659,7 +659,7 @@ async def get_incomplete_games(db: Session = Depends(get_db)) -> Dict:
                 # No sentiment data at all, needs update
                 not_updated.append('sentiment')
             
-            # 2. Check if tags were updated today
+            # 2. Check if tags are up-to-date (tags are valid for 7 days)
             tags = db.query(GameReviewTag).filter(
                 GameReviewTag.game_id == game.id
             ).first()
@@ -667,7 +667,9 @@ async def get_incomplete_games(db: Session = Depends(get_db)) -> Dict:
             if tags:
                 if tags.updated_at:
                     last_update_date = tags.updated_at.date()
-                    if last_update_date < today:
+                    # Calculate age of tags
+                    days_diff = (today - last_update_date).days
+                    if days_diff > 7:
                         not_updated.append('tags')
                 else:
                     not_updated.append('tags')

@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from .database import SessionLocal
 from .steam_api import SteamAPIClient
 from . import models
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import time
 
 def log_daily_update(db: Session, update_type: str, stats: dict, game_id: int = None):
@@ -516,7 +516,8 @@ scheduler.add_job(
     trigger=CronTrigger(hour=23, minute=59),
     id='cleanup_daily_logs',
     name='Clean up old daily update logs',
-    replace_existing=True
+    replace_existing=True,
+    misfire_grace_time=86400 # 24 hours grace time for sleep/hibernate
 )
 
 # Import newest games job (daily at 12:00 AM)
@@ -525,7 +526,54 @@ scheduler.add_job(
     trigger=CronTrigger(hour=0, minute=0),
     id='import_newest_games',
     name='Import newest games from Steam',
-    replace_existing=True
+    replace_existing=True,
+    misfire_grace_time=86400
+)
+
+def update_news_daily():
+    """Daily job to sync news and log status (wrapper for async service)"""
+    print("[News Scheduler] Starting daily update...")
+    import asyncio
+    from .services.news_service import NewsService
+    
+    db = SessionLocal()
+    stats = {
+        'games_processed': 0, # Not applicable
+        'updated': 0,
+        'added': 0,
+        'errors': 0
+    }
+    
+    try:
+        # Run async sync in sync context
+        # BackgroundScheduler runs in a thread, so asyncio.run is safe
+        result = asyncio.run(NewsService.sync_news_from_api(db, max_pages=4))
+        
+        if result.get('status') == 'success':
+            stats['added'] = result.get('new_articles', 0)
+            stats['updated'] = result.get('updated_articles', 0)
+        else:
+            stats['errors'] = 1
+            
+        # Log to daily_update_log
+        log_daily_update(db, 'news', stats)
+        print(f"[News Scheduler] Update complete! Added: {stats['added']}, Updated: {stats['updated']}")
+        
+    except Exception as e:
+        print(f"[News Scheduler] Fatal error: {e}")
+        stats['errors'] = 1
+        log_daily_update(db, 'news', stats)
+    finally:
+        db.close()
+
+# News update job (daily at 00:15 AM)
+scheduler.add_job(
+    func=update_news_daily,
+    trigger=CronTrigger(hour=0, minute=15),
+    id='update_news',
+    name='Update gaming news',
+    replace_existing=True,
+    misfire_grace_time=86400
 )
 
 # Sentiment update job (daily at 12:30 AM)
@@ -534,7 +582,8 @@ scheduler.add_job(
     trigger=CronTrigger(hour=0, minute=30),
     id='update_sentiments',
     name='Update game sentiments from Steam API',
-    replace_existing=True
+    replace_existing=True,
+    misfire_grace_time=86400
 )
 
 # Review tags update job (daily at 2:00 AM)
@@ -543,7 +592,37 @@ scheduler.add_job(
     trigger=CronTrigger(hour=2, minute=0),
     id='update_review_tags',
     name='Update game review tags from Steam reviews',
-    replace_existing=True
+    replace_existing=True,
+    misfire_grace_time=86400
+)
+
+def update_thai_reviews_daily():
+    """Daily job to update Thai reviews for all games"""
+    print("[Thai Review Scheduler] Starting daily update...")
+    try:
+        from .services.review_scheduler import trigger_manual_update
+        
+        # Run the update
+        stats = trigger_manual_update()
+        
+        # Log to daily_update_log
+        db = SessionLocal()
+        try:
+            log_daily_update(db, 'reviews', stats)
+        finally:
+            db.close()
+            
+    except Exception as e:
+        print(f"[Thai Review Scheduler] Fatal error: {e}")
+
+# Thai reviews update job (daily at 1:30 AM)
+scheduler.add_job(
+    func=update_thai_reviews_daily,
+    trigger=CronTrigger(hour=1, minute=30),
+    id='update_thai_reviews',
+    name='Update Thai reviews from Steam',
+    replace_existing=True,
+    misfire_grace_time=86400
 )
 
 # Password reset token cleanup job (daily at 1:00 AM)
@@ -552,14 +631,111 @@ scheduler.add_job(
     trigger=CronTrigger(hour=1, minute=0),
     id='cleanup_password_tokens',
     name='Clean up expired and old password reset tokens',
-    replace_existing=True
+    replace_existing=True,
+    misfire_grace_time=86400
 )
+
+def check_missed_daily_tasks():
+    """Check if any daily tasks were missed and run them"""
+    print("[Scheduler] Checking for missed daily tasks...")
+    db = SessionLocal()
+    try:
+        today = date.today()
+        
+        # Check 'games' import
+        games_log = db.query(models.DailyUpdateLog).filter(
+            models.DailyUpdateLog.update_type == 'games',
+            models.DailyUpdateLog.update_date == today
+        ).first()
+        
+        if not games_log:
+            print("[Scheduler] Missed 'games' import. Scheduling now...")
+            scheduler.add_job(import_newest_games, id='catchup_games', name='Catch-up: Import games')
+
+        # Check 'news' update
+        news_log = db.query(models.DailyUpdateLog).filter(
+            models.DailyUpdateLog.update_type == 'news',
+            models.DailyUpdateLog.update_date == today
+        ).first()
+
+        if not news_log:
+            print("[Scheduler] Missed 'news' sync. Scheduling now...")
+            scheduler.add_job(
+                update_news_daily,
+                'date',
+                run_date=datetime.now() + timedelta(seconds=5),
+                id='catchup_news',
+                name='Catch-up: News'
+            )
+            
+        # Check 'sentiment' update
+        sentiment_log = db.query(models.DailyUpdateLog).filter(
+            models.DailyUpdateLog.update_type == 'sentiment',
+            models.DailyUpdateLog.update_date == today
+        ).first()
+        
+        if not sentiment_log:
+            print("[Scheduler] Missed 'sentiment' update. Scheduling now...")
+            # Run 10s later to stagger
+            scheduler.add_job(
+                update_all_sentiments, 
+                'date', 
+                run_date=datetime.now() + timedelta(seconds=10),
+                id='catchup_sentiment', 
+                name='Catch-up: Sentiment'
+            )
+
+        # Check 'reviews' (Thai reviews)
+        reviews_log = db.query(models.DailyUpdateLog).filter(
+            models.DailyUpdateLog.update_type == 'reviews',
+            models.DailyUpdateLog.update_date == today
+        ).first()
+        
+        if not reviews_log:
+            print("[Scheduler] Missed 'reviews' update. Scheduling now...")
+            scheduler.add_job(
+                update_thai_reviews_daily, 
+                'date', 
+                run_date=datetime.now() + timedelta(seconds=20),
+                id='catchup_reviews', 
+                name='Catch-up: Thai Reviews'
+            )
+            
+        # Check 'tags' update
+        tags_log = db.query(models.DailyUpdateLog).filter(
+            models.DailyUpdateLog.update_type == 'tags',
+            models.DailyUpdateLog.update_date == today
+        ).first()
+        
+        if not tags_log:
+            print("[Scheduler] Missed 'tags' update. Scheduling now...")
+            scheduler.add_job(
+                update_review_tags, 
+                'date', 
+                run_date=datetime.now() + timedelta(seconds=30),
+                id='catchup_tags', 
+                name='Catch-up: Review Tags'
+            )
+            
+    except Exception as e:
+        print(f"[Scheduler] Error checking missed tasks: {e}")
+    finally:
+        db.close()
 
 def start_scheduler():
     """Start the background scheduler"""
+    from datetime import timedelta # Ensure timedelta is available
     if not scheduler.running:
         scheduler.start()
-        print("[Scheduler] Started - All jobs run daily: Newest games (12:00 AM), Sentiment (12:30 AM), Review tags (1:00 AM), Token cleanup (2:00 AM)")
+        print("[Scheduler] Started - All jobs run daily: Newest games (12:00 AM), Sentiment (12:30 AM), Review tags (2:00 AM), Thai Reviews (1:30 AM)")
+        
+        # Run catch-up check after 5 seconds
+        scheduler.add_job(
+            check_missed_daily_tasks, 
+            'date', 
+            run_date=datetime.now() + timedelta(seconds=5), 
+            id='startup_check'
+        )
 
 def stop_scheduler():
     """Stop the background scheduler"""
