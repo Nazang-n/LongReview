@@ -31,7 +31,7 @@ def update_thai_reviews():
     db = SessionLocal()
     try:
         # Get games that need review updates (not fetched or >24 hours old)
-        cutoff_time = datetime.utcnow() - timedelta(hours=24)
+        cutoff_time = datetime.now() - timedelta(hours=24)
         
         games_to_update = db.query(models.Game).filter(
             (models.Game.last_review_fetch == None) | (models.Game.last_review_fetch < cutoff_time),
@@ -64,7 +64,7 @@ def update_thai_reviews():
                 if not steam_reviews:
                     logger.info(f"  ℹ No Thai reviews found for {game.title}")
                     # Still update timestamp to avoid retrying immediately
-                    game.last_review_fetch = datetime.utcnow()
+                    game.last_review_fetch = datetime.now()
                     db.commit()
                     continue
                 
@@ -122,7 +122,7 @@ def update_thai_reviews():
                         continue
                 
                 # Update last fetch timestamp
-                game.last_review_fetch = datetime.utcnow()
+                game.last_review_fetch = datetime.now()
                 db.commit()
                 
                 total_new_reviews += imported_count
@@ -235,7 +235,7 @@ def trigger_manual_update():
                     steam_reviews = [r for r in steam_reviews if is_valid_thai_content(r.get('review', ''))]
                 
                 if not steam_reviews:
-                    game.last_review_fetch = datetime.utcnow()
+                    game.last_review_fetch = datetime.now()
                     db.commit()
                     continue
                 
@@ -280,7 +280,7 @@ def trigger_manual_update():
                         db.rollback()
                         continue
                 
-                game.last_review_fetch = datetime.utcnow()
+                game.last_review_fetch = datetime.now()
                 db.commit()
                 
                 stats['total_new_reviews'] += imported_count

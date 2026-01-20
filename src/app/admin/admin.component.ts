@@ -851,8 +851,8 @@ export class AdminComponent implements OnInit, OnDestroy {
 
                     this.messageService.add({
                         severity: 'success',
-                        summary: 'อัปเดตเสร็จสิ้น',
-                        detail: 'ระบบได้อัปเดตข้อมูลทั้งหมดแล้ว',
+                        summary: 'เริ่มการอัปเดตแล้ว',
+                        detail: 'ระบบกำลังอัปเดตข้อมูลในเบื้องหลัง กรุณารอสักครู่...',
                         life: 5000
                     });
                 },

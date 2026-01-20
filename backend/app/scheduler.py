@@ -54,7 +54,7 @@ def cleanup_old_daily_logs():
     """
     db = SessionLocal()
     try:
-        today = date.today()
+        today = datetime.now().date()
         
         # Delete all logs that are not from today
         deleted = db.query(models.DailyUpdateLog).filter(
@@ -123,7 +123,7 @@ def update_all_sentiments():
                         sentiment.negative_percent = neg_pct
                         sentiment.total_reviews = total
                         sentiment.review_score_desc = review_score_desc
-                        sentiment.last_updated = datetime.utcnow()
+                        sentiment.last_updated = datetime.now()
                     else:
                         # Create new sentiment record
                         sentiment = models.GameSentiment(
@@ -132,7 +132,7 @@ def update_all_sentiments():
                             negative_percent=neg_pct,
                             total_reviews=total,
                             review_score_desc=review_score_desc,
-                            last_updated=datetime.utcnow()
+                            last_updated=datetime.now()
                         )
                         db.add(sentiment)
                     
@@ -424,11 +424,24 @@ def import_newest_games():
                 except:
                     pass
                 
+                # Generate Review Tags (AI)
+                try:
+                    from .services.review_tags_service import ReviewTagsService
+                    tags_service = ReviewTagsService(db)
+                    print(f"[Newest Games] Generating review tags for {new_game.title}...")
+                    tags_service.generate_tags_for_game(new_game.id, top_n=10, max_reviews=1500)
+                except Exception as e:
+                    print(f"[Newest Games] Warning: Failed to generate tags for {new_game.title}: {e}")
+                    # Don't fail the import just because tags failed
+                    pass
+                
                 db.commit()
                 imported_count += 1
                 print(f"[Newest Games] ✓ Imported: {new_game.title}")
                 
-                time.sleep(1.5)
+                # Increased delay to 10s because we are now generating AI tags which takes time
+                # and we want to avoid rate limits or overwhelming the system
+                time.sleep(10)
                 
             except Exception as e:
                 print(f"[Newest Games] Error importing game {app_id}: {e}")
@@ -510,10 +523,10 @@ def cleanup_password_reset_tokens():
 # Initialize scheduler
 scheduler = BackgroundScheduler()
 
-# Daily log cleanup job (runs at 11:59 PM to clean old logs before new day)
+# Daily log cleanup job (runs at 00:30 AM to clean old logs from previous day)
 scheduler.add_job(
     func=cleanup_old_daily_logs,
-    trigger=CronTrigger(hour=23, minute=59),
+    trigger=CronTrigger(hour=0, minute=30),
     id='cleanup_daily_logs',
     name='Clean up old daily update logs',
     replace_existing=True,
@@ -569,7 +582,7 @@ def update_news_daily():
 # News update job (daily at 00:15 AM)
 scheduler.add_job(
     func=update_news_daily,
-    trigger=CronTrigger(hour=0, minute=15),
+    trigger=CronTrigger(hour=1, minute=0),
     id='update_news',
     name='Update gaming news',
     replace_existing=True,
@@ -579,7 +592,7 @@ scheduler.add_job(
 # Sentiment update job (daily at 12:30 AM)
 scheduler.add_job(
     func=update_all_sentiments,
-    trigger=CronTrigger(hour=0, minute=30),
+    trigger=CronTrigger(hour=1, minute=30),
     id='update_sentiments',
     name='Update game sentiments from Steam API',
     replace_existing=True,
@@ -618,7 +631,7 @@ def update_thai_reviews_daily():
 # Thai reviews update job (daily at 1:30 AM)
 scheduler.add_job(
     func=update_thai_reviews_daily,
-    trigger=CronTrigger(hour=1, minute=30),
+    trigger=CronTrigger(hour=3, minute=0),
     id='update_thai_reviews',
     name='Update Thai reviews from Steam',
     replace_existing=True,
@@ -628,7 +641,7 @@ scheduler.add_job(
 # Password reset token cleanup job (daily at 1:00 AM)
 scheduler.add_job(
     func=cleanup_password_reset_tokens,
-    trigger=CronTrigger(hour=1, minute=0),
+    trigger=CronTrigger(hour=3, minute=30),
     id='cleanup_password_tokens',
     name='Clean up expired and old password reset tokens',
     replace_existing=True,
@@ -727,7 +740,7 @@ def start_scheduler():
     from datetime import timedelta # Ensure timedelta is available
     if not scheduler.running:
         scheduler.start()
-        print("[Scheduler] Started - All jobs run daily: Newest games (12:00 AM), Sentiment (12:30 AM), Review tags (2:00 AM), Thai Reviews (1:30 AM)")
+        print("[Scheduler] Started - Schedule: New Games (00:00), News (01:00), Sentiment (01:30), Tags (02:00), Thai Reviews (03:00), Cleanup (03:30)")
         
         # Run catch-up check after 5 seconds
         scheduler.add_job(
