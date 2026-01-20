@@ -128,7 +128,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     });
 
     // 2. Get Popular Games (Top 10 Popular) - Sort by Total Reviews
-    this.gameService.getGames(0, 10, [], 'popular').subscribe({
+    this.gameService.getGames(0, 10, [], 'popular_hero').subscribe({
       next: (games: any[]) => {
         this.popularGames = this.mapGames(games);
         this.isLoading = false;
