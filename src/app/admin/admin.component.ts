@@ -169,12 +169,6 @@ export class AdminComponent implements OnInit, OnDestroy {
         this.loadDashboardAnalytics();
         this.loadDailyUpdateStatus();
         this.loadGames();
-
-        // Auto-refresh dashboard analytics every 30 seconds (but NOT incomplete games)
-        this.dashboardRefreshInterval = setInterval(() => {
-            this.loadDashboardAnalytics();
-            // Removed loadDailyUpdateStatus() from auto-refresh
-        }, 30000);
     }
 
     ngOnDestroy() {
