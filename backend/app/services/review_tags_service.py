@@ -141,11 +141,30 @@ class ReviewTagsService:
             with open("debug_backend.log", "a", encoding="utf-8") as f:
                 f.write(f"[Info] Got {len(steam_reviews) if steam_reviews else 0} reviews from Steam API\n")
             
-            if not steam_reviews:
-                 return {
-                    'success': False,
-                    'error': f'No English reviews found on Steam for analysis.',
-                    'game_id': game_id
+                # Case: No reviews found - Insert a 'system' tag to mark as checked
+                # This ensures the game is not flagged as "Incomplete" in dashboard
+                self.db.query(GameReviewTag).filter(
+                    GameReviewTag.game_id == game_id
+                ).delete()
+                
+                system_tag = GameReviewTag(
+                    game_id=game_id,
+                    tag_type='system',
+                    tag_word='no_reviews',
+                    updated_at=datetime.now()
+                )
+                self.db.add(system_tag)
+                self.db.commit()
+
+                print(f"[ReviewTags] No English reviews for {game_name}. Marked as checked.")
+                
+                return {
+                    'success': True, # Return true so scheduler marks it as successful
+                    'game_id': game_id,
+                    'positive_tags': [],
+                    'negative_tags': [],
+                    'total_reviews_analyzed': 0,
+                    'message': 'No English reviews found. Marked as checked.'
                 }
 
             # Format reviews for analyzer
@@ -342,6 +361,17 @@ class ReviewTagsService:
                 )
                 self.db.add(tag)
             
+            # If no tags were generated (but reviews existed), insert system tag to mark as checked
+            if not positive_tags and not negative_tags:
+                system_tag = GameReviewTag(
+                    game_id=game_id,
+                    tag_type='system',
+                    tag_word='no_tags_generated',
+                    updated_at=now
+                )
+                self.db.add(system_tag)
+                print(f"[ReviewTags] No tags generated for {game_name}. Marked as checked.")
+
             self.db.commit()
             
             print(f"[ReviewTags] Saved {len(positive_tags)} positive and {len(negative_tags)} negative tags")

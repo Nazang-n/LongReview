@@ -94,8 +94,8 @@ async def trigger_review_tags_update(background_tasks: BackgroundTasks) -> Dict:
     from ..scheduler import update_review_tags
     
     try:
-        # Pass False to ONLY generate specific missing tags
-        stats = update_review_tags(update_existing=False)
+        # Pass True to Check expiry of existing tags
+        stats = update_review_tags(update_existing=True)
         
         return {
             "status": "success",
