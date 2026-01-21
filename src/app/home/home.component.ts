@@ -99,8 +99,8 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.isLoadingPositive = true;
     this.positiveGames = []; // Clear list while loading (optional, or keep old data)
 
-    // Get Popular + Specific Year (With Positive > 70% filter)
-    this.gameService.getGames(0, 10, [], 'popular', 'positive', this.selectedYear).subscribe({
+    // Get Popular + Specific Year (Sorted by Reviews DESC -> Positive % DESC, with "Positive" label filter)
+    this.gameService.getGames(0, 10, [], 'popular', undefined, this.selectedYear).subscribe({
       next: (games: any[]) => {
         this.positiveGames = this.mapGames(games);
         this.loadGameSentiments(this.positiveGames);
@@ -128,7 +128,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     });
 
     // 2. Get Popular Games (Top 10 Popular) - Sort by Total Reviews
-    this.gameService.getGames(0, 10, [], 'popular').subscribe({
+    this.gameService.getGames(0, 10, [], 'popular_hero').subscribe({
       next: (games: any[]) => {
         this.popularGames = this.mapGames(games);
         this.isLoading = false;
