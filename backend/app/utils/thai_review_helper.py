@@ -46,7 +46,7 @@ def fetch_and_cache_thai_reviews(game_id: int, steam_app_id: int, db: Session, m
         ).count()
         
         if existing_reviews_count > 0:
-            print(f"  [Thai Reviews] ✓ Game already has {existing_reviews_count} Steam reviews, skipping fetch")
+            print(f"  [Thai Reviews] [INFO] Game already has {existing_reviews_count} Steam reviews, skipping fetch")
             return True
         
         # Fetch Thai reviews from Steam API
@@ -57,7 +57,7 @@ def fetch_and_cache_thai_reviews(game_id: int, steam_app_id: int, db: Session, m
         )
         
         if not steam_reviews:
-            print(f"  [Thai Reviews] ℹ No Thai reviews found on Steam")
+            print(f"  [Thai Reviews] [INFO] No Thai reviews found on Steam")
             return True  # Not an error, just no content
         
         # Filter and save Thai reviews
@@ -122,15 +122,15 @@ def fetch_and_cache_thai_reviews(game_id: int, steam_app_id: int, db: Session, m
         
         if saved_count > 0:
             db.commit()
-            print(f"  [Thai Reviews] ✓ Saved {saved_count} Thai reviews for game {game_id}")
+            print(f"  [Thai Reviews] [OK] Saved {saved_count} Thai reviews for game {game_id}")
         else:
             # Even if no reviews were saved, update the timestamp to show we tried
             db.commit()
-            print(f"  [Thai Reviews] ℹ No Thai reviews passed the filter")
+            print(f"  [Thai Reviews] [INFO] No Thai reviews passed the filter")
         
         return True
         
     except Exception as e:
-        print(f"  [Thai Reviews] ✗ Error fetching Thai reviews for game {game_id}: {e}")
+        print(f"  [Thai Reviews] [ERROR] Error fetching Thai reviews for game {game_id}: {e}")
         db.rollback()
         return False

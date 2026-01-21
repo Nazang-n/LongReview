@@ -303,9 +303,16 @@ export class GameDetailComponent implements OnInit {
                         console.log('No video data available');
                     }
                 } catch (e) {
-                    console.error('Error parsing videos:', e);
-                    console.error('Video data:', gameData.video);
-                    this.videos = [];
+                    console.warn('Video data is not JSON, treating as legacy URL:', gameData.video);
+                    if (gameData.video && typeof gameData.video === 'string' && gameData.video.startsWith('http')) {
+                        this.videos = [{
+                            name: 'Trailer',
+                            thumbnail: '',
+                            url: gameData.video
+                        }];
+                    } else {
+                        this.videos = [];
+                    }
                 }
 
                 try {

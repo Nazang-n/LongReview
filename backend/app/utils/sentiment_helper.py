@@ -53,7 +53,7 @@ def fetch_and_cache_sentiment(game_id: int, steam_app_id: int, db: Session) -> b
                 sentiment.negative_percent = neg_pct
                 sentiment.total_reviews = total
                 sentiment.review_score_desc = review_score_desc
-                sentiment.last_updated = datetime.utcnow()
+                sentiment.last_updated = datetime.now()
             else:
                 # Create new
                 sentiment = models.GameSentiment(
@@ -62,7 +62,7 @@ def fetch_and_cache_sentiment(game_id: int, steam_app_id: int, db: Session) -> b
                     negative_percent=neg_pct,
                     total_reviews=total,
                     review_score_desc=review_score_desc,
-                    last_updated=datetime.utcnow()
+                    last_updated=datetime.now()
                 )
                 db.add(sentiment)
             
@@ -71,12 +71,12 @@ def fetch_and_cache_sentiment(game_id: int, steam_app_id: int, db: Session) -> b
             game = db.query(models.Game).filter(models.Game.id == game_id).first()
             if game:
                 game.rating = rating_val
-                print(f"  ✓ Updated Game {game_id} rating to {rating_val}")
+                print(f"  [OK] Updated Game {game_id} rating to {rating_val}")
             
             db.commit()
-            print(f"✓ Cached sentiment for game {game_id}: {review_score_desc} ({pos_pct}% positive)")
+            print(f"[OK] Cached sentiment for game {game_id}: {review_score_desc} ({pos_pct}% positive)")
             return True
             
     except Exception as e:
-        print(f"✗ Error fetching sentiment for game {game_id}: {e}")
+        print(f"[ERROR] Error fetching sentiment for game {game_id}: {e}")
         return False

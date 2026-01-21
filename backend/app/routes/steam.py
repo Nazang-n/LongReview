@@ -325,7 +325,7 @@ def import_game_from_steam(
                 if not existing_link:
                     game_tag = models.GameTag(game_id=new_game.id, tag_id=genre_tag.id)
                     db.add(game_tag)
-                    print(f"   ✓ Auto-linked Genre: {genre_name}")
+                    print(f"   [OK] Auto-linked Genre: {genre_name}")
             db.commit()
         except Exception as e:
             print(f"Error auto-tagging genres: {e}")
@@ -353,9 +353,9 @@ def import_game_from_steam(
             tags_service = ReviewTagsService(db)
             tags_result = tags_service.generate_tags_for_game(new_game.id, top_n=10, max_reviews=1500)
             if tags_result.get('success'):
-                print(f"[Import] ✓ Generated {len(tags_result.get('positive_tags', []))} positive and {len(tags_result.get('negative_tags', []))} negative tags")
+                print(f"[Import] [OK] Generated {len(tags_result.get('positive_tags', []))} positive and {len(tags_result.get('negative_tags', []))} negative tags")
             else:
-                print(f"[Import] ✗ Failed to generate tags: {tags_result.get('error')}")
+                print(f"[Import] [ERROR] Failed to generate tags: {tags_result.get('error')}")
         except Exception as e:
             print(f"[Import] Error generating review tags: {e}")
             # Don't fail import if tag generation fails
@@ -634,14 +634,14 @@ def import_games_batch_from_steamspy(
                             detected_lang = translator.detect_language(cleaned_thai)
                             if detected_lang == 'th':
                                 thai_desc = cleaned_thai
-                                print(f"   ✓ Using native Thai description")
+                                print(f"   [OK] Using native Thai description")
                             else:
-                                print(f"   ⚠ Steam Thai API returned {detected_lang}, not Thai. Will translate.")
+                                print(f"   [WARN] Steam Thai API returned {detected_lang}, not Thai. Will translate.")
                     
                     # If no Thai description, translate English
                     if not thai_desc and english_desc:
                         thai_desc = translator.translate_to_thai(english_desc)
-                        print(f"   ⚡ Translated English description to Thai")
+                        print(f"   [INFO] Translated English description to Thai")
                     
                     # Extract platform info
                     platforms = steam_details_en.get('platforms', {})
@@ -683,7 +683,7 @@ def import_games_batch_from_steamspy(
                     coming_soon = release_date_info.get('coming_soon', False)
                     
                     # Debug: Print raw release date info
-                    print(f"🔍 Game: {steam_details_en.get('name')}")
+                    print(f"   [DEBUG] Game: {steam_details_en.get('name')}")
                     print(f"   Release date info: {release_date_info}")
                     print(f"   Date string: '{release_date_str}'")
                     print(f"   Coming soon: {coming_soon}")
@@ -707,20 +707,20 @@ def import_games_batch_from_steamspy(
                             for fmt in date_formats:
                                 try:
                                     release_date_obj = datetime.strptime(release_date_str, fmt).date()
-                                    print(f"   ✓ Parsed date '{release_date_str}' using format '{fmt}' -> {release_date_obj}")
+                                    print(f"   [OK] Parsed date '{release_date_str}' using format '{fmt}' -> {release_date_obj}")
                                     break
                                 except ValueError:
                                     continue
                             
                             if not release_date_obj:
-                                print(f"   ⚠ Failed to parse date: '{release_date_str}'")
+                                print(f"   [WARN] Failed to parse date: '{release_date_str}'")
                         except Exception as e:
-                            print(f"   ⚠ Error parsing date '{release_date_str}': {e}")
+                            print(f"   [WARN] Error parsing date '{release_date_str}': {e}")
                             pass
                     elif coming_soon:
-                        print(f"   ⏳ Game is coming soon, skipping date")
+                        print(f"   [INFO] Game is coming soon, skipping date")
                     else:
-                        print(f"   ⚠ No release date string found")
+                        print(f"   [WARN] No release date string found")
                     
                     # Use Steam API data (English in description, Thai in about_game_th)
                     new_game = models.Game(
@@ -807,7 +807,7 @@ def import_games_batch_from_steamspy(
                     if not existing_link:
                         game_tag = models.GameTag(game_id=new_game.id, tag_id=multiplayer_tag.id)
                         db.add(game_tag)
-                        print(f"   ✓ Auto-linked Massively Multiplayer game to Multi-player tag")
+                        print(f"   [OK] Auto-linked Massively Multiplayer game to Multi-player tag")
                 
                 # Auto-tag Genres (NEW logic)
                 genres = steam_details_en.get('genres', [])
@@ -836,7 +836,7 @@ def import_games_batch_from_steamspy(
                     if not existing_link:
                         game_tag = models.GameTag(game_id=new_game.id, tag_id=genre_tag.id)
                         db.add(game_tag)
-                        print(f"   ✓ Auto-linked Genre: {genre_name}")
+                        print(f"   [OK] Auto-linked Genre: {genre_name}")
                 
                 imported_count += 1
                 
@@ -845,14 +845,14 @@ def import_games_batch_from_steamspy(
                     from ..utils.sentiment_helper import fetch_and_cache_sentiment
                     fetch_and_cache_sentiment(new_game.id, int(app_id), db)
                 except Exception as e:
-                    print(f"   ✗ Error fetching sentiment: {e}")
+                    print(f"   [ERROR] Error fetching sentiment: {e}")
                 
                 # Fetch and cache Thai reviews for the newly imported game
                 try:
                     from ..utils.thai_review_helper import fetch_and_cache_thai_reviews
                     fetch_and_cache_thai_reviews(new_game.id, int(app_id), db, max_reviews=50)
                 except Exception as e:
-                    print(f"   ✗ Error fetching Thai reviews: {e}")
+                    print(f"   [ERROR] Error fetching Thai reviews: {e}")
                 
                 # Generate review tags automatically
                 try:
@@ -861,9 +861,9 @@ def import_games_batch_from_steamspy(
                     tags_service = ReviewTagsService(db)
                     tags_result = tags_service.generate_tags_for_game(new_game.id, top_n=10, max_reviews=1500)
                     if tags_result.get('success'):
-                        print(f"   ✓ Generated {len(tags_result.get('positive_tags', []))} positive and {len(tags_result.get('negative_tags', []))} negative tags")
+                        print(f"   [OK] Generated {len(tags_result.get('positive_tags', []))} positive and {len(tags_result.get('negative_tags', []))} negative tags")
                 except Exception as e:
-                    print(f"   ✗ Error generating review tags: {e}")
+                    print(f"   [ERROR] Error generating review tags: {e}")
                 
                 # Commit every 10 games to avoid losing progress
                 if imported_count % 10 == 0:
@@ -993,14 +993,14 @@ def import_newest_games_from_steamspy(
                             detected_lang = translator.detect_language(cleaned_thai)
                             if detected_lang == 'th':
                                 thai_desc = cleaned_thai
-                                print(f"   ✓ Using native Thai description")
+                                print(f"   [OK] Using native Thai description")
                             else:
-                                print(f"   ⚠ Steam Thai API returned {detected_lang}, not Thai. Will translate.")
+                                print(f"   [WARN] Steam Thai API returned {detected_lang}, not Thai. Will translate.")
                     
                     # If no Thai description, translate English
                     if not thai_desc and english_desc:
                         thai_desc = translator.translate_to_thai(english_desc)
-                        print(f"   ⚡ Translated English description to Thai")
+                        print(f"   [INFO] Translated English description to Thai")
                     
                     # Extract platform info
                     platforms = steam_details_en.get('platforms', {})
@@ -1014,11 +1014,27 @@ def import_newest_games_from_steamspy(
                     price_overview = steam_details_en.get('price_overview', {})
                     price_str = price_overview.get('final_formatted') if price_overview else None
                     
-                    # Extract video URL (first movie)
+                    # Extract video and screenshots
                     movies = steam_details_en.get('movies', [])
-                    video_url = movies[0].get('webm', {}).get('480') if movies else None
-                    if not video_url and movies:
-                        video_url = movies[0].get('mp4', {}).get('480')
+                    videos_list = []
+                    for movie in movies:
+                        videos_list.append({
+                            "name": movie.get("name"),
+                            "thumbnail": movie.get("thumbnail"),
+                            "url": movie.get("mp4", {}).get("480"),
+                            "hls_url": movie.get("webm", {}).get("480")
+                        })
+                    videos_json = json.dumps(videos_list) if videos_list else None
+
+                    screenshots = steam_details_en.get('screenshots', [])
+                    screenshots_list = []
+                    for ss in screenshots:
+                        screenshots_list.append({
+                            "id": ss.get("id"),
+                            "path_thumbnail": ss.get("path_thumbnail"),
+                            "path_full": ss.get("path_full")
+                        })
+                    screenshots_json = json.dumps(screenshots_list) if screenshots_list else None
                     
                     # Parse release date (from English API for reliable parsing)
                     release_date_info = steam_details_en.get('release_date', {})
@@ -1026,7 +1042,7 @@ def import_newest_games_from_steamspy(
                     coming_soon = release_date_info.get('coming_soon', False)
                     
                     # Debug: Print raw release date info
-                    print(f"🔍 Game: {steam_details_en.get('name')}")
+                    print(f"   [DEBUG] Game: {steam_details_en.get('name')}")
                     print(f"   Release date info: {release_date_info}")
                     print(f"   Date string: '{release_date_str}'")
                     print(f"   Coming soon: {coming_soon}")
@@ -1050,20 +1066,20 @@ def import_newest_games_from_steamspy(
                             for fmt in date_formats:
                                 try:
                                     release_date_obj = datetime.strptime(release_date_str, fmt).date()
-                                    print(f"   ✓ Parsed date '{release_date_str}' using format '{fmt}' -> {release_date_obj}")
+                                    print(f"   [OK] Parsed date '{release_date_str}' using format '{fmt}' -> {release_date_obj}")
                                     break
                                 except ValueError:
                                     continue
                             
                             if not release_date_obj:
-                                print(f"   ⚠ Failed to parse date: '{release_date_str}'")
+                                print(f"   [WARN] Failed to parse date: '{release_date_str}'")
                         except Exception as e:
-                            print(f"   ⚠ Error parsing date '{release_date_str}': {e}")
+                            print(f"   [WARN] Error parsing date '{release_date_str}': {e}")
                             pass
                     elif coming_soon:
-                        print(f"   ⏳ Game is coming soon, skipping date")
+                        print(f"   [INFO] Game is coming soon, skipping date")
                     else:
-                        print(f"   ⚠ No release date string found")
+                        print(f"   [WARN] No release date string found")
                     
                     # Use Steam API data (English in description, Thai in about_game_th)
                     new_game = models.Game(
@@ -1077,7 +1093,8 @@ def import_newest_games_from_steamspy(
                         publisher=", ".join(steam_details_en.get('publishers', [])),
                         platform=platform_str,
                         price=price_str,
-                        video=video_url,
+                        video=videos_json,
+                        screenshots=screenshots_json,
                         steam_app_id=int(app_id)  # Store Steam App ID
                     )
                 
@@ -1149,7 +1166,7 @@ def import_newest_games_from_steamspy(
                     if not existing_link:
                         game_tag = models.GameTag(game_id=new_game.id, tag_id=multiplayer_tag.id)
                         db.add(game_tag)
-                        print(f"   ✓ Auto-linked Massively Multiplayer game to Multi-player tag")
+                        print(f"   [OK] Auto-linked Massively Multiplayer game to Multi-player tag")
                 
                 imported_count += 1
                 
@@ -1158,14 +1175,14 @@ def import_newest_games_from_steamspy(
                     from ..utils.sentiment_helper import fetch_and_cache_sentiment
                     fetch_and_cache_sentiment(new_game.id, int(app_id), db)
                 except Exception as e:
-                    print(f"   ✗ Error fetching sentiment: {e}")
+                    print(f"   [ERROR] Error fetching sentiment: {e}")
                 
                 # Fetch and cache Thai reviews for the newly imported game
                 try:
                     from ..utils.thai_review_helper import fetch_and_cache_thai_reviews
                     fetch_and_cache_thai_reviews(new_game.id, int(app_id), db, max_reviews=50)
                 except Exception as e:
-                    print(f"   ✗ Error fetching Thai reviews: {e}")
+                    print(f"   [ERROR] Error fetching Thai reviews: {e}")
                 
                 # Generate review tags automatically
                 try:
@@ -1174,9 +1191,9 @@ def import_newest_games_from_steamspy(
                     tags_service = ReviewTagsService(db)
                     tags_result = tags_service.generate_tags_for_game(new_game.id, top_n=10, max_reviews=1500)
                     if tags_result.get('success'):
-                        print(f"   ✓ Generated {len(tags_result.get('positive_tags', []))} positive and {len(tags_result.get('negative_tags', []))} negative tags")
+                        print(f"   [OK] Generated {len(tags_result.get('positive_tags', []))} positive and {len(tags_result.get('negative_tags', []))} negative tags")
                 except Exception as e:
-                    print(f"   ✗ Error generating review tags: {e}")
+                    print(f"   [ERROR] Error generating review tags: {e}")
                 
                 # Commit every 10 games to avoid losing progress
                 if imported_count % 10 == 0:

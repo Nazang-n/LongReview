@@ -219,10 +219,10 @@ def update_review_tags(update_existing: bool = True):
                     
                     if result.get('success'):
                         updated_count += 1
-                        print(f"[Review Tags] ✓ Updated tags for {game.title}")
+                        print(f"[Review Tags] [OK] Updated tags for {game.title}")
                     else:
                         error_count += 1
-                        print(f"[Review Tags] ✗ Failed to update {game.title}: {result.get('error')}")
+                        print(f"[Review Tags] [ERROR] Failed to update {game.title}: {result.get('error')}")
                     
                     # Delay to avoid overwhelming the API
                     time.sleep(5)
@@ -502,7 +502,7 @@ def cleanup_password_reset_tokens():
         
         # Delete expired tokens
         expired_count = db.query(models.PasswordResetToken).filter(
-            models.PasswordResetToken.expires_at < datetime.utcnow()
+            models.PasswordResetToken.expires_at < datetime.now()
         ).delete(synchronize_session=False)
         stats['expired_deleted'] = expired_count
         
@@ -513,7 +513,7 @@ def cleanup_password_reset_tokens():
         stats['used_deleted'] = used_count
         
         # Delete old tokens (>7 days)
-        cutoff_date = datetime.utcnow() - timedelta(days=7)
+        cutoff_date = datetime.now() - timedelta(days=7)
         old_count = db.query(models.PasswordResetToken).filter(
             models.PasswordResetToken.created_at < cutoff_date
         ).delete(synchronize_session=False)

@@ -62,12 +62,12 @@ class ReviewService:
                 data = response.json()
                 
                 if not data.get("success"):
-                    print(f"  ✗ Steam API returned success=false")
+                    print(f"  [ERROR] Steam API returned success=false")
                     break
                 
                 reviews = data.get("reviews", [])
                 if not reviews:
-                    print(f"  ℹ No more reviews found")
+                    print(f"  [INFO] No more reviews found")
                     break
                 
                 # Store reviews in database
@@ -91,7 +91,7 @@ class ReviewService:
                 
                 # Check max_reviews limit if specified
                 if max_reviews and total_fetched >= max_reviews:
-                    print(f"  ℹ Reached max_reviews limit ({max_reviews})")
+                    print(f"  [INFO] Reached max_reviews limit ({max_reviews})")
                     break
                 
                 # Commit every 100 reviews to avoid memory issues
@@ -102,12 +102,12 @@ class ReviewService:
             # Update game's last_review_fetch timestamp
             game = db.query(Game).filter(Game.id == game_id).first()
             if game:
-                game.last_review_fetch = datetime.utcnow()
+                game.last_review_fetch = datetime.now()
             db.commit()
             
-            print(f"  ✓ Stored {new_count} new reviews ({positive_count} positive, {negative_count} negative)")
+            print(f"  [OK] Stored {new_count} new reviews ({positive_count} positive, {negative_count} negative)")
             print(f"  Total fetched: {total_fetched} reviews")
-            print(f"  ✓ Updated last_review_fetch timestamp")
+            print(f"  [OK] Updated last_review_fetch timestamp")
             
             return {
                 "success": True,
@@ -118,10 +118,10 @@ class ReviewService:
             }
             
         except requests.RequestException as e:
-            print(f"  ✗ Error fetching reviews: {e}")
+            print(f"  [ERROR] Error fetching reviews: {e}")
             return {"success": False, "new_reviews": 0, "error": str(e)}
         except Exception as e:
-            print(f"  ✗ Unexpected error: {e}")
+            print(f"  [ERROR] Unexpected error: {e}")
             db.rollback()
             return {"success": False, "new_reviews": 0, "error": str(e)}
     
@@ -140,7 +140,7 @@ class ReviewService:
             return True
         
         # Fetch if last fetch was more than 24 hours ago
-        time_since_fetch = datetime.utcnow() - game.last_review_fetch
+        time_since_fetch = datetime.now() - game.last_review_fetch
         return time_since_fetch > timedelta(hours=24)
     
     def get_games_needing_review_update(self, db: Session, limit: int = 50) -> List[Game]:
@@ -157,7 +157,7 @@ class ReviewService:
             List of Game instances ordered by priority
         """
         # Reduced to 1 hour so hourly scheduler can continuously update games
-        cutoff_time = datetime.utcnow() - timedelta(hours=1)
+        cutoff_time = datetime.now() - timedelta(hours=1)
         
         # Prioritize: 1) Never fetched, 2) Not fetched in 1+ hour
         games = db.query(Game).filter(
