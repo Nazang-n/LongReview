@@ -12,6 +12,7 @@ from .steam_api import SteamAPIClient
 from . import models
 from datetime import datetime, date, timedelta
 import time
+import json
 
 def log_daily_update(db: Session, update_type: str, stats: dict, game_id: int = None):
     """Helper function to log daily update operations"""
@@ -335,11 +336,27 @@ def import_newest_games():
                 price_overview = steam_details_en.get('price_overview', {})
                 price_str = price_overview.get('final_formatted') if price_overview else None
                 
-                # Extract video
+                # Extract video and screenshots
                 movies = steam_details_en.get('movies', [])
-                video_url = None
-                if movies:
-                    video_url = movies[0].get('webm', {}).get('480') or movies[0].get('mp4', {}).get('480')
+                videos_list = []
+                for movie in movies:
+                    videos_list.append({
+                        "name": movie.get("name"),
+                        "thumbnail": movie.get("thumbnail"),
+                        "url": movie.get("mp4", {}).get("480"),
+                        "hls_url": movie.get("webm", {}).get("480")
+                    })
+                videos_json = json.dumps(videos_list) if videos_list else None
+
+                screenshots = steam_details_en.get('screenshots', [])
+                screenshots_list = []
+                for ss in screenshots:
+                    screenshots_list.append({
+                        "id": ss.get("id"),
+                        "path_thumbnail": ss.get("path_thumbnail"),
+                        "path_full": ss.get("path_full")
+                    })
+                screenshots_json = json.dumps(screenshots_list) if screenshots_list else None
                 
                 # Parse release date
                 release_date_info = steam_details_en.get('release_date', {})
@@ -371,7 +388,8 @@ def import_newest_games():
                     publisher=", ".join(steam_details_en.get("publishers", [])),
                     platform=platform_str,
                     price=price_str,
-                    video=video_url,
+                    video=videos_json,
+                    screenshots=screenshots_json,
                     steam_app_id=int(app_id)
                 )
                 
