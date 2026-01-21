@@ -167,7 +167,14 @@
 
                 <!-- Sentiment Bars (only show when not loading) -->
                 <div *ngIf="!loadingSentiment">
-                    <div class="space-y-4 mb-6">
+                    <!-- Show message if NO reviews -->
+                    <div *ngIf="totalReviewsAnalyzed === 0" class="text-center py-8">
+                        <i class="pi pi-comments text-4xl text-gray-300 mb-3"></i>
+                        <p class="text-gray-500 font-medium">เกมนี้ยังไม่มีรีวิว</p>
+                    </div>
+
+                    <!-- Show bars if there ARE reviews -->
+                    <div *ngIf="totalReviewsAnalyzed > 0" class="space-y-4 mb-6">
                         <div>
                             <div class="flex items-center justify-between mb-2">
                                 <span class="text-sm font-medium text-green-700 mt-5">
@@ -191,11 +198,8 @@
                         </div>
 
                         <div class="text-sm text-gray-600 mt-5">
-                            <span *ngIf="totalReviewsAnalyzed > 0">
+                            <span>
                                 วิเคราะห์จาก {{ totalReviewsAnalyzed | number }} รีวิวจาก Steam
-                            </span>
-                            <span *ngIf="totalReviewsAnalyzed === 0">
-                                ไม่มีข้อมูลรีวิว
                             </span>
                         </div>
                     </div>
