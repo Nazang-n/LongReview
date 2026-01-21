@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import time
+import json
 from .. import models, schemas
 from ..database import get_db
 from ..steam_api import SteamAPIClient
@@ -654,11 +655,27 @@ def import_games_batch_from_steamspy(
                     price_overview = steam_details_en.get('price_overview', {})
                     price_str = price_overview.get('final_formatted') if price_overview else None
                     
-                    # Extract video URL (first movie)
+                    # Extract video and screenshots
                     movies = steam_details_en.get('movies', [])
-                    video_url = movies[0].get('webm', {}).get('480') if movies else None
-                    if not video_url and movies:
-                        video_url = movies[0].get('mp4', {}).get('480')
+                    videos_list = []
+                    for movie in movies:
+                        videos_list.append({
+                            "name": movie.get("name"),
+                            "thumbnail": movie.get("thumbnail"),
+                            "url": movie.get("mp4", {}).get("480"),
+                            "hls_url": movie.get("webm", {}).get("480")
+                        })
+                    videos_json = json.dumps(videos_list) if videos_list else None  # Uses json imported at top
+
+                    screenshots = steam_details_en.get('screenshots', [])
+                    screenshots_list = []
+                    for ss in screenshots:
+                        screenshots_list.append({
+                            "id": ss.get("id"),
+                            "path_thumbnail": ss.get("path_thumbnail"),
+                            "path_full": ss.get("path_full")
+                        })
+                    screenshots_json = json.dumps(screenshots_list) if screenshots_list else None
                     
                     # Parse release date (from English API for reliable parsing)
                     release_date_info = steam_details_en.get('release_date', {})
