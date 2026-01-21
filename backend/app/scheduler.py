@@ -523,20 +523,20 @@ def cleanup_password_reset_tokens():
 # Initialize scheduler
 scheduler = BackgroundScheduler()
 
-# Daily log cleanup job (runs at 00:30 AM to clean old logs from previous day)
+# Daily log cleanup job (runs at 00:00 AM - First thing in the day)
 scheduler.add_job(
     func=cleanup_old_daily_logs,
-    trigger=CronTrigger(hour=0, minute=30),
+    trigger=CronTrigger(hour=0, minute=0),
     id='cleanup_daily_logs',
     name='Clean up old daily update logs',
     replace_existing=True,
     misfire_grace_time=86400 # 24 hours grace time for sleep/hibernate
 )
 
-# Import newest games job (daily at 12:00 AM)
+# Import newest games job (daily at 00:05 AM - After cleanup)
 scheduler.add_job(
     func=import_newest_games,
-    trigger=CronTrigger(hour=0, minute=0),
+    trigger=CronTrigger(hour=0, minute=5),
     id='import_newest_games',
     name='Import newest games from Steam',
     replace_existing=True,
