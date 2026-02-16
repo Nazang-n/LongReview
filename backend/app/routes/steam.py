@@ -360,6 +360,26 @@ def import_game_from_steam(
             print(f"[Import] Error generating review tags: {e}")
             # Don't fail import if tag generation fails
         
+        
+        # Log this import to daily_update_log so it counts in "New Games Today"
+        try:
+            from datetime import date
+            from ..models import DailyUpdateLog
+            
+            log_entry = DailyUpdateLog(
+                update_type='games',
+                update_date=date.today(),
+                status='success',
+                items_processed=1,
+                items_successful=1,
+                items_failed=0,
+                game_id=new_game.id  # Track which specific game
+            )
+            db.add(log_entry)
+            db.commit()
+        except Exception as e:
+            print(f"[WARN] Failed to create daily update log: {e}")
+        
         return {
             "success": True,
             "message": "Game imported successfully",
@@ -880,6 +900,25 @@ def import_games_batch_from_steamspy(
         # Final commit
         db.commit()
         
+        # Log this import to daily_update_log so it counts in analytics
+        try:
+            from datetime import date
+            from ..models import DailyUpdateLog
+            
+            log_entry = DailyUpdateLog(
+                update_type='games',
+                update_date=date.today(),
+                status='success' if failed_count == 0 else 'partial',
+                items_processed=imported_count + skipped_count + failed_count,
+                items_successful=imported_count,
+                items_failed=failed_count,
+                error_message=f"Skipped {skipped_count} existing games" if skipped_count > 0 else None
+            )
+            db.add(log_entry)
+            db.commit()
+        except Exception as e:
+            print(f"[WARN] Failed to create daily update log: {e}")
+        
         return {
             "success": True,
             "message": f"Batch import completed",
@@ -914,15 +953,15 @@ def import_newest_games_from_steamspy(
     """
 
     try:
-        # Get newest games from Steam Store Scraper (more reliable for "Released Date")
-        print(f"Fetching newest games from Steam Store Scraper (limit={limit})...")
-        newest_games = SteamAPIClient.get_newest_games_from_steam_store(limit=limit)
-
+        # Get newest games from SteamSpy API
+        print(f"Fetching newest games from SteamSpy API (limit={limit})...")
+        newest_games = SteamAPIClient.get_newest_games_from_steamspy(limit=limit)
         
+        # Check if we got games from SteamSpy
         if not newest_games:
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to fetch newest games from SteamSpy"
+                status_code=500,
+                detail="Failed to fetch newest games from SteamSpy API"
             )
         
         imported_count = 0
@@ -1209,6 +1248,25 @@ def import_newest_games_from_steamspy(
         
         # Final commit
         db.commit()
+        
+        # Log this import to daily_update_log so it counts in "New Games Today"
+        try:
+            from datetime import date
+            from ..models import DailyUpdateLog
+            
+            log_entry = DailyUpdateLog(
+                update_type='games',
+                update_date=date.today(),
+                status='success' if failed_count == 0 else 'partial',
+                items_processed=imported_count + skipped_count + failed_count,
+                items_successful=imported_count,
+                items_failed=failed_count,
+                error_message=f"Skipped {skipped_count} existing games" if skipped_count > 0 else None
+            )
+            db.add(log_entry)
+            db.commit()
+        except Exception as e:
+            print(f"[WARN] Failed to create daily update log: {e}")
         
         return {
             "success": True,

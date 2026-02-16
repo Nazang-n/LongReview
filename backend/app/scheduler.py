@@ -263,11 +263,11 @@ def import_newest_games():
     try:
         print("[Newest Games Scheduler] Starting import of newest games...")
         
-        # Import 20 newest games daily
-        newest_games = SteamAPIClient.get_newest_games_from_steam_store(limit=20)
+        # Import 20 newest games daily using SteamSpy API
+        newest_games = SteamAPIClient.get_newest_games_from_steamspy(limit=20)
         
         if not newest_games:
-            print("[Newest Games Scheduler] No games fetched from Steam")
+            print("[Newest Games Scheduler] No games fetched from SteamSpy")
             return stats
         
         imported_count = 0
