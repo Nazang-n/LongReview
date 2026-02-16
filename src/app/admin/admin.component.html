@@ -212,10 +212,6 @@
                                                         </span>
                                                     </div>
                                                 </div>
-                                                <button pButton icon="pi pi-wrench"
-                                                    class="p-button-sm p-button-outlined p-button-warning"
-                                                    (click)="fixIncompleteGame(game)" pTooltip="แก้ไขข้อมูล">
-                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -303,7 +299,7 @@
                     <!-- 4. Review Tags -->
                     <p-card header="แท็กรีวิว" subheader="สร้างแท็กอธิบายเกม">
                         <div class="sync-section">
-                            <p>สร้างแท็กจุดเด่น/จุดด้อยจากรีวิวผู้เล่น</p>
+                            <p>สร้างแท็กแง่บวก/แง่ลบจากรีวิวผู้เล่น</p>
 
                             <!-- Batch Update Button -->
                             <!-- Check Untagged Games (Manual) -->
@@ -322,7 +318,8 @@
                             <p-dropdown [options]="games" [(ngModel)]="selectedGameForTagsId" optionLabel="title"
                                 optionValue="id" [filter]="true" filterBy="title"
                                 placeholder="เลือกเกมที่ต้องการสร้างแท็ก" [style]="{'width': '100%'}"
-                                styleClass="w-full mb-3">
+                                styleClass="w-full mb-3" appendTo="body"
+                                [panelStyle]="{'width': '400px', 'max-width': '90vw'}">
                             </p-dropdown>
 
                             <button pButton type="button" label="สร้างแท็กสำหรับเกมนี้" icon="pi pi-bolt"
@@ -637,7 +634,7 @@
 </p-dialog>
 
 <!-- Dialog for Untagged Games (Moved Outside) -->
-<p-dialog [(visible)]="showUntaggedDialog" [modal]="true" [style]="{width: '600px'}" header="ตรวจสอบเกมที่ไม่มีแท็ก"
+<p-dialog [(visible)]="showUntaggedDialog" [modal]="true" [style]="{width: '800px'}" header="ตรวจสอบเกมที่ไม่มีแท็ก"
     [draggable]="false" [resizable]="false" styleClass="custom-dialog">
     <div class="flex flex-col">
         <!-- Loading State -->
@@ -678,7 +675,7 @@
                             <span class="text-xs text-gray-500">ID: {{game.id}} | AppID:
                                 {{game.steam_app_id}}</span>
                         </div>
-                        <button pButton icon="pi pi-bolt" label="Gen Tag" class="p-button-rounded p-button-warning"
+                        <button pButton icon="pi pi-bolt" label="สร้างแท็ก" class="p-button-rounded p-button-warning"
                             [loading]="isGeneratingSingleTag[game.id]" (click)="generateSingleTag(game.id)">
                         </button>
                     </div>

@@ -138,9 +138,18 @@ class ReviewTagsService:
                 max_reviews=max_reviews # Use parameterized limit
             )
             
+            
+            
             with open("debug_backend.log", "a", encoding="utf-8") as f:
                 f.write(f"[Info] Got {len(steam_reviews) if steam_reviews else 0} reviews from Steam API\n")
             
+            # DEBUG: Print what we actually got
+            print(f"[DEBUG] steam_reviews type: {type(steam_reviews)}")
+            print(f"[DEBUG] steam_reviews length: {len(steam_reviews) if steam_reviews else 'None/Empty'}")
+            print(f"[DEBUG] steam_reviews bool: {bool(steam_reviews)}")
+            
+            # Check if no reviews found
+            if not steam_reviews:
                 # Case: No reviews found - Insert a 'system' tag to mark as checked
                 # This ensures the game is not flagged as "Incomplete" in dashboard
                 self.db.query(GameReviewTag).filter(
@@ -167,6 +176,7 @@ class ReviewTagsService:
                     'message': 'No English reviews found. Marked as checked.'
                 }
 
+
             # Format reviews for analyzer
             db_reviews = []
             for r in steam_reviews:
@@ -192,10 +202,21 @@ class ReviewTagsService:
 
             if language == "english":
                 # --- AI APPROACH ---
-                with open("debug_backend.log", "a", encoding="utf-8") as f:
-                    f.write(f"[Info] Attempt 1: Using Groq AI with FULL context...\n")
+                # Only generate tags if we have reviews for that sentiment
+                positive_tags = []
+                negative_tags = []
+                
+                # Skip AI call if BOTH positive and negative are empty
+                if len(positive_reviews) == 0 and len(negative_reviews) == 0:
+                    print(f"[ReviewTags] No reviews at all, skipping AI generation")
+                    ai_summary = {"positive": [], "negative": []}
+                else:
+                    # Call AI only with the reviews we actually have
+                    with open("debug_backend.log", "a", encoding="utf-8") as f:
+                        f.write(f"[Info] Attempt 1: Using Groq AI with FULL context...\n")
+                        f.write(f"[Info] Positive reviews: {len(positive_reviews)}, Negative reviews: {len(negative_reviews)}\n")
 
-                ai_summary = self.polisher.summarize_reviews(positive_reviews, negative_reviews)
+                    ai_summary = self.polisher.summarize_reviews(positive_reviews, negative_reviews)
                 
                 # Check for Rate Limit Fallback
                 if ai_summary is None:
@@ -234,12 +255,25 @@ class ReviewTagsService:
                 # AI returns ordered list (Most important first). Set count to 0 since they're not real counts.
                 
                 positive_tags = []
-                for tag in ai_summary.get("positive", []):
-                    positive_tags.append({'word': tag, 'count': 0})
-                    
                 negative_tags = []
-                for tag in ai_summary.get("negative", []):
-                    negative_tags.append({'word': tag, 'count': 0})
+                
+                # CRITICAL: Only keep tags if we actually had reviews for that sentiment
+                # This prevents AI hallucination when game has 0 negative/positive reviews
+                if len(positive_reviews) > 0:
+                    for tag in ai_summary.get("positive", []):
+                        positive_tags.append({'word': tag, 'count': 0})
+                    print(f"[ReviewTags] Generated {len(positive_tags)} positive tags from {len(positive_reviews)} reviews")
+                else:
+                    print(f"[ReviewTags] SKIPPED positive tags - no positive reviews found")
+                
+                if len(negative_reviews) > 0:
+                    for tag in ai_summary.get("negative", []):
+                        negative_tags.append({'word': tag, 'count': 0})
+                    print(f"[ReviewTags] Generated {len(negative_tags)} negative tags from {len(negative_reviews)} reviews")
+                else:
+                    print(f"[ReviewTags] SKIPPED negative tags - no negative reviews found")
+                    
+                    
                     
                 with open("debug_backend.log", "a", encoding="utf-8") as f:
                      f.write(f"[Info] AI Summary Complete. Pos: {len(positive_tags)}, Neg: {len(negative_tags)}\n")

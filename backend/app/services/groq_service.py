@@ -4,7 +4,7 @@ import time
 from groq import Groq
 
 # API Key provided by user (Fallback if not in env)
-DEFAULT_KEY = "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"
+DEFAULT_KEY = "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"
 
 class GroqService:
     _instance = None
@@ -154,18 +154,24 @@ Output JSON:"""
         # Increased: 10 Pos + 10 Neg (Total 20) for better accuracy
         # Truncate each review to max 400 chars to get more context
         
-        sample_pos = [r[:400] for r in positive_reviews[:10]]
-        sample_neg = [r[:400] for r in negative_reviews[:10]]
+        has_positive = len(positive_reviews) > 0
+        has_negative = len(negative_reviews) > 0
+        
+        sample_pos = [r[:400] for r in positive_reviews[:10]] if has_positive else []
+        sample_neg = [r[:400] for r in negative_reviews[:10]] if has_negative else []
         
         system_prompt = "You are a Senior Game Reviewer. Summarize the pros and cons of a game based on user reviews."
         
+        # Build dynamic prompt based on what reviews we have
+        review_sections = []
+        if has_positive:
+            review_sections.append(f"POSITIVE REVIEWS:\n{json.dumps(sample_pos)}")
+        if has_negative:
+            review_sections.append(f"NEGATIVE REVIEWS:\n{json.dumps(sample_neg)}")
+        
         user_prompt = f"""Task: Read these reviews CAREFULLY and extract the Top 5 most frequently mentioned UNIQUE topics for PROS and CONS in Thai.
 
-POSITIVE REVIEWS:
-{json.dumps(sample_pos)}
-
-NEGATIVE REVIEWS:
-{json.dumps(sample_neg)}
+{chr(10).join(review_sections)}
 
 CRITICAL INSTRUCTIONS - READ CAREFULLY:
 
@@ -266,6 +272,12 @@ Output JSON:"""
             except Exception as e:
                 elapsed = time.time() - start_time
                 error_msg = str(e)
+                
+                # Check for authentication error (401)
+                if "401" in error_msg or "Unauthorized" in error_msg or "authentication" in error_msg.lower():
+                    self._log(f"[CRITICAL] Authentication failed! API key invalid or expired: {error_msg}")
+                    print(f"[ERROR] Groq API Key is invalid or expired! Check GROQ_API_KEY environment variable.")
+                    return {"positive": [], "negative": []}
                 
                 # Check if it's a rate limit error
                 if "429" in error_msg or "Too Many Requests" in error_msg or "Rate limit" in error_msg:

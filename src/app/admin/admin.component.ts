@@ -524,8 +524,8 @@ export class AdminComponent implements OnInit, OnDestroy {
 
                 this.showResultDialog('สร้างแท็กสำเร็จ', {
                     'เกม': gameName || 'ไม่ระบุ',
-                    'แท็กจุดเด่น': posCount,
-                    'แท็กจุดด้อย': negCount,
+                    'แท็กแง่บวก': posCount,
+                    'แท็กแง่ลบ': negCount,
                     'รีวิวที่วิเคราะห์': data.total_reviews_analyzed || 0
                 });
 
@@ -753,21 +753,21 @@ export class AdminComponent implements OnInit, OnDestroy {
         // Update sentiment for this specific game
         if (game.not_updated.includes('sentiment')) {
             updates.push(
-                this.http.post(`/api/admin/sentiment/update/${game.id}`, {})
+                this.http.post(`http://localhost:8000/api/admin/sentiment/update/${game.id}`, {})
             );
         }
 
         // Generate tags for this specific game
         if (game.not_updated.includes('tags')) {
             updates.push(
-                this.http.post(`/api/admin/review-tags/generate/${game.id}`, {})
+                this.http.post(`http://localhost:8000/api/admin/review-tags/generate/${game.id}`, {})
             );
         }
 
         // Update Thai reviews for this specific game
         if (game.not_updated.includes('reviews')) {
             updates.push(
-                this.http.post(`/api/admin/reviews/update/${game.id}`, {})
+                this.http.post(`http://localhost:8000/api/admin/reviews/update/${game.id}`, {})
             );
         }
 
@@ -897,7 +897,28 @@ export class AdminComponent implements OnInit, OnDestroy {
     }
 
     generateSingleTag(gameId: number) {
+        // Check if any tag generation is already in progress
+        const isAnyGenerating = Object.values(this.isGeneratingSingleTag).some(value => value === true);
+
+        if (isAnyGenerating) {
+            this.messageService.add({
+                severity: 'warn',
+                summary: 'กรุณารอสักครู่',
+                detail: 'กำลังสร้างแท็กเกมอื่นอยู่ กรุณารอให้เสร็จก่อน',
+                life: 3000
+            });
+            return;
+        }
+
         this.isGeneratingSingleTag[gameId] = true;
+
+        // Show progress toast (same as main generateTagsForGame)
+        this.messageService.add({
+            severity: 'info',
+            summary: 'กำลังสร้างแท็ก',
+            detail: 'กำลังวิเคราะห์รีวิวและสร้างแท็ก...',
+            life: 3000
+        });
 
         this.gameService.generateTagsForGame(gameId).subscribe({
             next: (result: any) => {
@@ -916,12 +937,21 @@ export class AdminComponent implements OnInit, OnDestroy {
                             detail: 'เกมนี้ไม่มีรีวิวให้วิเคราะห์ หรือรีวิวไม่เพียงพอ'
                         });
                     } else {
-                        // Case: Success with tags -> Show Result Dialog
+                        // Case: Success with tags -> Show Result Dialog (same format as main flow)
+                        const data = result.data || {};
+
+                        // Get game name from result or find in untagged list
+                        let gameName = data.game_name || result.game_name;
+                        if (!gameName) {
+                            const game = this.untaggedGames.find(g => g.id === gameId);
+                            gameName = game?.title || `Game ${gameId}`;
+                        }
+
                         this.showResultDialog('สร้างแท็กสำเร็จ', {
-                            'Game ID': gameId,
-                            'Game Name': result.game_name,
-                            'Positive Tags': posCount,
-                            'Negative Tags': negCount
+                            'เกม': gameName,
+                            'แท็กแง่บวก': posCount,
+                            'แท็กแง่ลบ': negCount,
+                            'รีวิวที่วิเคราะห์': data.total_reviews_analyzed || 0
                         });
 
                         // Remove from list

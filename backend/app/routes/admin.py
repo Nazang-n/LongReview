@@ -24,10 +24,31 @@ async def generate_review_tags_for_game(game_id: int, db: Session = Depends(get_
         result = service.generate_tags_for_game(game_id, top_n=10, max_reviews=1500)
         
         if result.get('success'):
+            # Get game name from database
+            from ..models import Game
+            game = db.query(Game).filter(Game.id == game_id).first()
+            
+            # Debug: Log what we found
+            print(f"[DEBUG] Looking up game {game_id}")
+            print(f"[DEBUG] Found game: {game}")
+            print(f"[DEBUG] Game title: {game.title if game else 'None'}")
+            
+            game_name = game.title if game else f"Game {game_id}"
+            
+            print(f"[DEBUG] Final game_name: {game_name}")
+            
+            response_data = {
+                **result,
+                "game_name": game_name  # Add game name to response
+            }
+            
+            print(f"[DEBUG] Response data keys: {response_data.keys()}")
+            print(f"[DEBUG] game_name in response: {response_data.get('game_name')}")
+            
             return {
                 "status": "success",
-                "message": f"Successfully generated tags for game {game_id}",
-                "data": result,
+                "message": f"Successfully generated tags for {game_name}",
+                "data": response_data,
                 "positive_tags": result.get('positive_tags', []),
                 "negative_tags": result.get('negative_tags', [])
             }
@@ -58,10 +79,13 @@ async def get_missing_review_tags(db: Session = Depends(get_db)) -> Dict:
     from sqlalchemy import exists, not_
     
     try:
-        # Query games that don't have any review tags
-        # We check for NOT EXISTS in game_review_tags
+        # Query games that don't have any ACTUAL review tags (positive/negative)
+        # Exclude system tags like 'no_reviews' or 'no_tags_generated'
         untagged_games = db.query(Game).filter(
-            ~exists().where(GameReviewTag.game_id == Game.id),
+            ~exists().where(
+                (GameReviewTag.game_id == Game.id) &
+                (GameReviewTag.tag_type.in_(['positive', 'negative']))
+            ),
             Game.steam_app_id.isnot(None) # Only Steam games
         ).all()
         
@@ -132,9 +156,8 @@ async def update_single_game_sentiment(game_id: int, db: Session = Depends(get_d
     Update sentiment for a single game (does NOT log to daily_update_log)
     Used for individual game fixes from admin panel
     """
-    from ..steam_api import SteamAPIClient
-    from ..models import Game, GameSentiment
-    from datetime import datetime
+    from ..models import Game
+    from ..utils.sentiment_helper import fetch_and_cache_sentiment
     
     try:
         game = db.query(Game).filter(Game.id == game_id).first()
@@ -144,41 +167,19 @@ async def update_single_game_sentiment(game_id: int, db: Session = Depends(get_d
                 "message": "Game not found or missing Steam App ID"
             }
         
-        # Fetch sentiment from Steam
-        sentiment_data = SteamAPIClient.get_review_summary(int(game.steam_app_id))
+        # Use the helper function to fetch and cache sentiment
+        success = fetch_and_cache_sentiment(game_id, int(game.steam_app_id), db)
         
-        if not sentiment_data:
+        if success:
+            return {
+                "status": "success",
+                "message": f"Updated sentiment for {game.title}"
+            }
+        else:
             return {
                 "status": "error",
                 "message": "Failed to fetch sentiment data"
             }
-        
-        # Update or create sentiment
-        sentiment = db.query(GameSentiment).filter(GameSentiment.game_id == game_id).first()
-        
-        if sentiment:
-            sentiment.positive_percent = sentiment_data.get('positive_percent', 0)
-            sentiment.negative_percent = sentiment_data.get('negative_percent', 0)
-            sentiment.total_reviews = sentiment_data.get('total_reviews', 0)
-            sentiment.review_score_desc = sentiment_data.get('review_score_desc', '')
-            sentiment.last_updated = datetime.now()
-        else:
-            sentiment = GameSentiment(
-                game_id=game_id,
-                positive_percent=sentiment_data.get('positive_percent', 0),
-                negative_percent=sentiment_data.get('negative_percent', 0),
-                total_reviews=sentiment_data.get('total_reviews', 0),
-                review_score_desc=sentiment_data.get('review_score_desc', ''),
-                last_updated=datetime.now()
-            )
-            db.add(sentiment)
-        
-        db.commit()
-        
-        return {
-            "status": "success",
-            "message": f"Updated sentiment for {game.title}"
-        }
     except Exception as e:
         db.rollback()
         return {
@@ -484,7 +485,7 @@ async def delete_game(game_id: int, db: Session = Depends(get_db)) -> Dict:
 @router.get("/analytics/new-games-today")
 async def get_new_games_today(db: Session = Depends(get_db)) -> Dict:
     """
-    Get count of new games added today
+    Get count of ALL new games added today (from any source: scheduler, manual import, etc.)
     """
     from sqlalchemy import func
     from datetime import datetime
@@ -494,16 +495,17 @@ async def get_new_games_today(db: Session = Depends(get_db)) -> Dict:
         now = datetime.now()
         today_start = datetime(now.year, now.month, now.day)
         
-        # Count games created today (assuming Game has a created_at or similar field)
-        # Since Game model doesn't have created_at, we'll use the daily_update_log
+        # Count ALL games imported today via DailyUpdateLog
+        # This includes: scheduler imports, manual admin imports, batch imports, etc.
         from ..models import DailyUpdateLog
         
-        # Get today's game import logs
+        # Get all game import logs for today (not just scheduler)
         today_logs = db.query(DailyUpdateLog).filter(
             DailyUpdateLog.update_type == 'games',
             DailyUpdateLog.update_date == today_start.date()
         ).all()
         
+        # Sum up successful imports from all sources
         total_new_games = sum(log.items_successful for log in today_logs)
         
         return {
@@ -605,9 +607,21 @@ async def get_incomplete_games(db: Session = Depends(get_db)) -> Dict:
                 not_updated.append('sentiment')
             
             # 2. Check if tags are up-to-date (tags are valid for 7 days)
+            # Only check for ACTUAL tags (positive/negative), not system tags
             tags = db.query(GameReviewTag).filter(
-                GameReviewTag.game_id == game.id
+                GameReviewTag.game_id == game.id,
+                GameReviewTag.tag_type.in_(['positive', 'negative'])  # Exclude 'system' tags
             ).first()
+            
+            # DEBUG: Check total tags including system
+            all_tags_count = db.query(GameReviewTag).filter(GameReviewTag.game_id == game.id).count()
+            actual_tags_count = db.query(GameReviewTag).filter(
+                GameReviewTag.game_id == game.id,
+                GameReviewTag.tag_type.in_(['positive', 'negative'])
+            ).count()
+            
+            if all_tags_count > 0 and actual_tags_count == 0:
+                print(f"[DEBUG] Game {game.id} has {all_tags_count} system tags but 0 actual review tags")
             
             if tags:
                 if tags.updated_at:
@@ -619,7 +633,7 @@ async def get_incomplete_games(db: Session = Depends(get_db)) -> Dict:
                 else:
                     not_updated.append('tags')
             else:
-                # No tags data at all, needs update
+                # No actual review tags (positive/negative), needs update
                 not_updated.append('tags')
             
             # 3. Check if Thai reviews were fetched today
