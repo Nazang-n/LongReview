@@ -100,6 +100,7 @@ export class AdminComponent implements OnInit, OnDestroy {
     showUntaggedDialog = false;
     untaggedGames: any[] = [];
     isCheckingUntagged = false;
+    showAllIncompleteDialog: boolean = false;
     isGeneratingSingleTag: { [key: number]: boolean } = {};
 
     // Game import
@@ -129,7 +130,7 @@ export class AdminComponent implements OnInit, OnDestroy {
     monthlyComments = 0;
     todayNews = 0;
     todayReports = 0;
-    monthlyReports = 0;
+    totalPendingReports = 0;
 
     // Global processing flag to prevent concurrent operations
     isAnyProcessing = false;
@@ -270,6 +271,7 @@ export class AdminComponent implements OnInit, OnDestroy {
         this.commentService.getAllReports(user.id).subscribe({
             next: (reports) => {
                 this.reportedComments = reports;
+                this.totalPendingReports = reports.length;
                 this.isLoadingReports = false;
             },
             error: (err) => {
@@ -666,7 +668,7 @@ export class AdminComponent implements OnInit, OnDestroy {
 
             // Update reports data
             this.todayReports = reports?.today_count || 0;
-            this.monthlyReports = reports?.monthly_total || 0;
+            this.totalPendingReports = reports?.total_pending || this.reportedComments.length;
 
             this.isLoadingAnalytics = false;
         }).catch(error => {
@@ -865,6 +867,10 @@ export class AdminComponent implements OnInit, OnDestroy {
         });
     }
 
+    showAllIncomplete() {
+        this.showAllIncompleteDialog = true;
+    }
+
     checkUntaggedGames() {
         this.showUntaggedDialog = true;
         this.isCheckingUntagged = true;
@@ -1047,6 +1053,42 @@ export class AdminComponent implements OnInit, OnDestroy {
 
     cancelDeleteGame() {
         this.showDeleteGameDialog = false;
+    }
+
+    getTagStatusLabel(status: string | null | undefined): string {
+        switch (status) {
+            case 'success': return 'อัปเดตแล้ว';
+            case 'insufficient': return 'รีวิวน้อยเกินไป (<5)';
+            case 'insufficient_english': return 'รีวิว Eng น้อยเกินไป';
+            case 'no_reviews': return 'ไม่มีรีวิว (0)';
+            case 'no_english_reviews': return 'ไม่มีรีวิวภาษาอังกฤษ';
+            case 'error': return 'Error';
+            default: return 'Tags ยังไม่อัปเดต';
+        }
+    }
+
+    getTagStatusClass(status: string | null | undefined): string {
+        switch (status) {
+            case 'success': return 'bg-green-100 text-green-700';
+            case 'insufficient': return 'bg-yellow-100 text-yellow-700';
+            case 'insufficient_english': return 'bg-orange-100 text-orange-700';
+            case 'no_reviews': return 'bg-yellow-100 text-yellow-700';
+            case 'no_english_reviews': return 'bg-orange-100 text-orange-700';
+            case 'error': return 'bg-red-100 text-red-700';
+            default: return 'bg-orange-100 text-orange-700';
+        }
+    }
+
+    getTagStatusIcon(status: string | null | undefined): string {
+        switch (status) {
+            case 'success': return 'pi pi-check';
+            case 'insufficient': return 'pi pi-exclamation-triangle';
+            case 'insufficient_english': return 'pi pi-globe';
+            case 'no_reviews': return 'pi pi-info-circle';
+            case 'no_english_reviews': return 'pi pi-globe';
+            case 'error': return 'pi pi-times';
+            default: return 'pi pi-clock';
+        }
     }
 }
 

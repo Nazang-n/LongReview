@@ -47,7 +47,7 @@
 
                                 <!-- Video -->
                                 <video *ngIf="getCurrentMedia()?.type === 'video'" [src]="getCurrentMedia()?.url"
-                                    controls muted class="w-full h-full">
+                                    controls autoplay muted loop class="w-full h-full">
                                 </video>
 
                                 <!-- Screenshot -->

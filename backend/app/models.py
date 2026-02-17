@@ -82,6 +82,7 @@ class GameSentiment(Base):
     total_reviews = Column(Integer, nullable=True)
     review_score_desc = Column(String(50), nullable=True)
     last_updated = Column(DateTime(timezone=True), nullable=True)
+    tag_status = Column(String(20), default='pending', nullable=True)  # 'success', 'insufficient', 'no_reviews', 'error'
 
 
 

@@ -45,7 +45,7 @@
                             <div class="stat-summary">
                                 <div class="stat-item">
                                     <span class="stat-label">วันนี้</span>
-                                    <span class="stat-value">{{ todayNews }}</span>
+                                    <span class="stat-value">{{ dailyUpdates?.news?.count || 0 }}</span>
                                 </div>
                             </div>
                         </p-card>
@@ -58,8 +58,8 @@
                                     <span class="stat-value">{{ todayReports }}</span>
                                 </div>
                                 <div class="stat-item">
-                                    <span class="stat-label">เดือนนี้</span>
-                                    <span class="stat-value">{{ monthlyReports }}</span>
+                                    <span class="stat-label">รอดำเนินการทั้งหมด</span>
+                                    <span class="stat-value">{{ totalPendingReports }}</span>
                                 </div>
                             </div>
                         </p-card>
@@ -205,21 +205,66 @@
                                                     </p>
                                                     <div class="flex flex-wrap gap-1 mt-1">
                                                         <!-- Not Updated Items -->
-                                                        <span *ngFor="let notUpdated of game.not_updated"
-                                                            class="text-xs px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full font-medium">
-                                                            <i class="pi pi-clock text-xs mr-1"></i>{{
-                                                            getNotUpdatedLabel(notUpdated) }}ยังไม่อัปเดต
-                                                        </span>
+                                                        <ng-container *ngFor="let notUpdated of game.not_updated">
+                                                            <span *ngIf="notUpdated !== 'tags'"
+                                                                class="text-xs px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full font-medium">
+                                                                <i class="pi pi-clock text-xs mr-1"></i>{{
+                                                                getNotUpdatedLabel(notUpdated) }}ยังไม่อัปเดต
+                                                            </span>
+                                                            <span *ngIf="notUpdated === 'tags'"
+                                                                [class]="getTagStatusClass(game.tag_status)"
+                                                                class="text-xs px-2 py-0.5 rounded-full font-medium">
+                                                                <i [class]="getTagStatusIcon(game.tag_status)"
+                                                                    class="text-xs mr-1"></i>
+                                                                {{ getTagStatusLabel(game.tag_status) }}
+                                                            </span>
+                                                        </ng-container>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div *ngIf="totalNotUpdatedGames > 10" class="mt-2 text-center">
-                                        <p class="text-xs text-gray-500">และอีก {{ totalNotUpdatedGames - 10 }} เกม...
-                                        </p>
+                                    <div *ngIf="totalNotUpdatedGames > 10"
+                                        class="mt-2 text-center cursor-pointer hover:bg-gray-100 rounded p-1"
+                                        (click)="showAllIncomplete()">
+                                        <p class="text-xs font-bold"
+                                            style="background: linear-gradient(135deg, #7c3aed 0%, #c026d3 100%); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                                            และอีก {{ totalNotUpdatedGames - 10
+                                            }} เกม... (คลิกเพื่อดูทั้งหมด)</p>
                                     </div>
+
+                                    <!-- Dialog for All Incomplete Games -->
+                                    <p-dialog header="รายการเกมที่ยังไม่อัปเดตทั้งหมด ({{incompleteGames.length}} เกม)"
+                                        [(visible)]="showAllIncompleteDialog" [modal]="true"
+                                        [style]="{width: '70vw', maxWidth: '800px', maxHeight: '80vh'}"
+                                        [draggable]="false" [resizable]="false">
+                                        <div class="space-y-2">
+                                            <div *ngFor="let game of incompleteGames"
+                                                class="p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors flex justify-between items-center">
+
+                                                <div class="flex-1">
+                                                    <div class="font-bold text-gray-900">{{ game.title }}</div>
+                                                    <div class="flex flex-wrap gap-1 mt-1">
+                                                        <ng-container *ngFor="let notUpdated of game.not_updated">
+                                                            <span *ngIf="notUpdated !== 'tags'"
+                                                                class="text-xs px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full font-medium">
+                                                                <i class="pi pi-clock text-xs mr-1"></i>{{
+                                                                getNotUpdatedLabel(notUpdated) }}ยังไม่อัปเดต
+                                                            </span>
+                                                            <span *ngIf="notUpdated === 'tags'"
+                                                                [class]="getTagStatusClass(game.tag_status)"
+                                                                class="text-xs px-2 py-0.5 rounded-full font-medium">
+                                                                <i [class]="getTagStatusIcon(game.tag_status)"
+                                                                    class="text-xs mr-1"></i>
+                                                                {{ getTagStatusLabel(game.tag_status) }}
+                                                            </span>
+                                                        </ng-container>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </p-dialog>
                                 </div>
                             </div>
                         </p-card>

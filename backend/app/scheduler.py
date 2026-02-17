@@ -22,7 +22,8 @@ def log_daily_update(db: Session, update_type: str, stats: dict, game_id: int = 
         # Determine status based on stats
         status = 'success'
         items_processed = stats.get('games_processed', 0) or stats.get('total_processed', 0) or stats.get('imported', 0)
-        items_successful = stats.get('updated', 0) or stats.get('added', 0) or stats.get('imported', 0) or stats.get('games_successful', 0)
+        # Prioritize 'added' over 'updated' so news updates show new articles count
+        items_successful = stats.get('added', 0) or stats.get('games_successful', 0) or stats.get('updated', 0) or stats.get('imported', 0)
         items_failed = stats.get('errors', 0) or stats.get('failed', 0) or stats.get('games_failed', 0)
         
         if items_failed > 0 and items_successful == 0:
@@ -70,12 +71,19 @@ def cleanup_old_daily_logs():
     finally:
         db.close()
 
-def update_all_sentiments():
-    """Update sentiment for all games with steam_app_id"""
+def update_all_sentiments(force_update: bool = False):
+    """
+    Update sentiment for all games with steam_app_id
+    
+    Args:
+        force_update: If True, update all games regardless of last_updated time.
+                      If False, only update games not updated in the last 24 hours.
+    """
     db = SessionLocal()
     stats = {
         'games_processed': 0,
         'updated': 0,
+        'skipped': 0,
         'errors': 0
     }
     try:
@@ -85,12 +93,26 @@ def update_all_sentiments():
         ).all()
         
         stats['games_processed'] = len(games)
-        print(f"[Sentiment Scheduler] Starting update for {len(games)} games...")
+        print(f"[Sentiment Scheduler] Starting update for {len(games)} games (force={force_update})...")
         updated_count = 0
+        skipped_count = 0
         error_count = 0
         
         for game in games:
             try:
+                # Check if we should skip
+                if not force_update:
+                    sentiment = db.query(models.GameSentiment).filter(
+                        models.GameSentiment.game_id == game.id
+                    ).first()
+                    
+                    if sentiment and sentiment.last_updated:
+                        # Check age
+                        age = datetime.now() - sentiment.last_updated
+                        if age < timedelta(hours=24):
+                            skipped_count += 1
+                            continue
+                
                 # Fetch from Steam API
                 review_summary = SteamAPIClient.get_app_reviews(
                     app_id=int(game.steam_app_id),
@@ -198,20 +220,21 @@ def update_review_tags(update_existing: bool = True):
         
         for game in games:
             try:
-                # Check if tags exist and are recent
+                # Check if ACTUAL review tags exist (positive/negative, not system tags)
                 existing_tags = db.query(models.GameReviewTag).filter(
-                    models.GameReviewTag.game_id == game.id
+                    models.GameReviewTag.game_id == game.id,
+                    models.GameReviewTag.tag_type.in_(['positive', 'negative'])  # Exclude system tags
                 ).first()
                 
                 needs_update = False
                 if not existing_tags:
                     needs_update = True
-                    print(f"[Review Tags] Game {game.id} ({game.title}) has no tags, generating...")
+                    print(f"[Review Tags] Game {game.id} ({game.title}) has no review tags, generating...")
                 elif update_existing:
                     age = datetime.now() - existing_tags.updated_at.replace(tzinfo=None)
                     if age > timedelta(days=7):
                         needs_update = True
-                        print(f"[Review Tags] Game {game.id} ({game.title}) tags are {age.days} old, refreshing...")
+                        print(f"[Review Tags] Game {game.id} ({game.title}) tags are {age.days} days old, refreshing...")
                 
                 if needs_update:
                     tags_service = ReviewTagsService(db)
@@ -263,16 +286,23 @@ def import_newest_games():
     try:
         print("[Newest Games Scheduler] Starting import of newest games...")
         
-        # Import 20 newest games daily using SteamSpy API
+        target_new_games = 20
+        imported_count = 0
+        skipped_count = 0
+        failed_count = 0
+        
+        # STRATEGY: Try small batch first (20), then escalate to large batch (100) if needed
+        
+        # STEP 1: Try 20 newest games first
+        print("[Newest Games] Fetching initial batch of 20 games...")
         newest_games = SteamAPIClient.get_newest_games_from_steamspy(limit=20)
         
         if not newest_games:
             print("[Newest Games Scheduler] No games fetched from SteamSpy")
             return stats
         
-        imported_count = 0
-        skipped_count = 0
-        failed_count = 0
+        # Process first batch
+        initial_batch_has_new_games = False
         
         for game in newest_games:
             app_id = game.get('app_id')
@@ -280,31 +310,31 @@ def import_newest_games():
             if not app_id:
                 continue
             
+            # Check if exists
+            existing_game = db.query(models.Game).filter(
+                models.Game.steam_app_id == int(app_id)
+            ).first()
+            
+            if existing_game:
+                skipped_count += 1
+                continue
+            
+            # Found a new game!
+            initial_batch_has_new_games = True
+            
             try:
-                # Check if game already exists
-                existing_game = db.query(models.Game).filter(
-                    models.Game.steam_app_id == int(app_id)
-                ).first()
-                
-                if existing_game:
-                    skipped_count += 1
-                    continue
-                
-                # Fetch detailed info from Steam API
+                # Import game (same logic as before)
                 steam_details_en = SteamAPIClient.get_app_details(int(app_id), language="english", country_code="us")
                 
                 if not steam_details_en:
                     failed_count += 1
                     continue
                 
-                # Fetch Thai version
                 steam_details_th = SteamAPIClient.get_app_details(int(app_id), language="thai", country_code="th")
                 
-                # Import utilities
                 from .utils.translator import translator
                 from .utils.text_cleaner import clean_html_text
                 
-                # Get descriptions
                 english_desc = None
                 thai_desc = None
                 
@@ -324,7 +354,6 @@ def import_newest_games():
                     except:
                         pass
                 
-                # Extract platform info
                 platforms = steam_details_en.get('platforms', {})
                 platform_list = []
                 if platforms.get('windows'): platform_list.append('Windows')
@@ -332,19 +361,17 @@ def import_newest_games():
                 if platforms.get('linux'): platform_list.append('Linux')
                 platform_str = ', '.join(platform_list) if platform_list else None
                 
-                # Extract price
                 price_overview = steam_details_en.get('price_overview', {})
                 price_str = price_overview.get('final_formatted') if price_overview else None
                 
-                # Extract video and screenshots
                 movies = steam_details_en.get('movies', [])
                 videos_list = []
                 for movie in movies:
                     videos_list.append({
                         "name": movie.get("name"),
                         "thumbnail": movie.get("thumbnail"),
-                        "url": movie.get("mp4", {}).get("480"),
-                        "hls_url": movie.get("webm", {}).get("480")
+                        "url": movie.get("dash_h264"),  # Use DASH streaming URL
+                        "hls_url": movie.get("hls_h264")  # Use HLS streaming URL
                     })
                 videos_json = json.dumps(videos_list) if videos_list else None
 
@@ -358,7 +385,6 @@ def import_newest_games():
                     })
                 screenshots_json = json.dumps(screenshots_list) if screenshots_list else None
                 
-                # Parse release date
                 release_date_info = steam_details_en.get('release_date', {})
                 release_date_str = release_date_info.get('date')
                 coming_soon = release_date_info.get('coming_soon', False)
@@ -376,7 +402,6 @@ def import_newest_games():
                         except ValueError:
                             continue
                 
-                # Create new game
                 new_game = models.Game(
                     title=steam_details_en.get("name"),
                     description=english_desc,
@@ -396,7 +421,7 @@ def import_newest_games():
                 db.add(new_game)
                 db.flush()
                 
-                # Auto-tag player modes and genres
+                # Auto-tag
                 try:
                     categories = steam_details_en.get('categories', [])
                     for category in categories:
@@ -429,7 +454,7 @@ def import_newest_games():
                 except Exception as e:
                     print(f"[Newest Games] Error tagging game: {e}")
                 
-                # Fetch sentiment and Thai reviews
+                # Fetch data
                 try:
                     from .utils.sentiment_helper import fetch_and_cache_sentiment
                     fetch_and_cache_sentiment(new_game.id, int(app_id), db)
@@ -442,7 +467,6 @@ def import_newest_games():
                 except:
                     pass
                 
-                # Generate Review Tags (AI)
                 try:
                     from .services.review_tags_service import ReviewTagsService
                     tags_service = ReviewTagsService(db)
@@ -450,31 +474,239 @@ def import_newest_games():
                     tags_service.generate_tags_for_game(new_game.id, top_n=10, max_reviews=1500)
                 except Exception as e:
                     print(f"[Newest Games] Warning: Failed to generate tags for {new_game.title}: {e}")
-                    # Don't fail the import just because tags failed
-                    pass
                 
                 db.commit()
                 imported_count += 1
-                print(f"[Newest Games] ✓ Imported: {new_game.title}")
+                print(f"[Newest Games] ✓ Imported: {new_game.title} ({imported_count}/{target_new_games})")
                 
-                # Increased delay to 10s because we are now generating AI tags which takes time
-                # and we want to avoid rate limits or overwhelming the system
                 time.sleep(10)
                 
+                if imported_count >= target_new_games:
+                    print(f"[Newest Games] Target reached!")
+                    break
+                    
             except Exception as e:
                 print(f"[Newest Games] Error importing game {app_id}: {e}")
                 failed_count += 1
                 db.rollback()
                 continue
         
+        # STEP 2: If no new games in first batch, fetch incrementally in batches of 20
+        if not initial_batch_has_new_games and imported_count < target_new_games:
+            print("[Newest Games] No new games in first 20. Fetching incrementally in batches of 20...")
+            
+            batch_offset = 20  # Start from offset 20 (we already processed 0-19)
+            max_attempts = 5  # Prevent infinite loops (max 5 batches of 20 = 100 games total)
+            attempt = 0
+            
+            while imported_count < target_new_games and attempt < max_attempts:
+                attempt += 1
+                print(f"[Newest Games] Fetching batch {attempt + 1} (games {batch_offset}-{batch_offset + 19})...")
+                
+                # Fetch next batch of 20 games
+                newest_games = SteamAPIClient.get_newest_games_from_steamspy(limit=batch_offset + 20)
+                
+                if not newest_games or len(newest_games) <= batch_offset:
+                    print("[Newest Games] No more games available from SteamSpy")
+                    break
+                
+                # Process only the new 20 games in this batch (skip the ones we already processed)
+                current_batch = newest_games[batch_offset:batch_offset + 20]
+                
+                if not current_batch:
+                    print("[Newest Games] No more games in this batch")
+                    break
+                
+                for game in current_batch:
+                    if imported_count >= target_new_games:
+                        print(f"[Newest Games] Target reached ({imported_count}/{target_new_games})!")
+                        break
+                    
+                    app_id = game.get('app_id')
+                    if not app_id:
+                        continue
+                    
+                    existing_game = db.query(models.Game).filter(
+                        models.Game.steam_app_id == int(app_id)
+                    ).first()
+                    
+                    if existing_game:
+                        skipped_count += 1
+                        continue
+                    
+                    # Same import logic as STEP 1
+                    try:
+                        steam_details_en = SteamAPIClient.get_app_details(int(app_id), language="english", country_code="us")
+                        if not steam_details_en:
+                            failed_count += 1
+                            continue
+                        
+                        steam_details_th = SteamAPIClient.get_app_details(int(app_id), language="thai", country_code="th")
+                        from .utils.translator import translator
+                        from .utils.text_cleaner import clean_html_text
+                        
+                        english_desc = None
+                        thai_desc = None
+                        
+                        if steam_details_en.get('about_the_game'):
+                            english_desc = clean_html_text(steam_details_en.get('about_the_game'))
+                        elif steam_details_en.get('short_description'):
+                            english_desc = clean_html_text(steam_details_en.get('short_description'))
+                        
+                        if steam_details_th and steam_details_th.get('about_the_game'):
+                            cleaned_thai = clean_html_text(steam_details_th.get('about_the_game'))
+                            if translator.detect_language(cleaned_thai) == 'th':
+                                thai_desc = cleaned_thai
+                        
+                        if not thai_desc and english_desc:
+                            try:
+                                thai_desc = translator.translate_to_thai(english_desc)
+                            except:
+                                pass
+                        
+                        platforms = steam_details_en.get('platforms', {})
+                        platform_list = []
+                        if platforms.get('windows'): platform_list.append('Windows')
+                        if platforms.get('mac'): platform_list.append('Mac')
+                        if platforms.get('linux'): platform_list.append('Linux')
+                        platform_str = ', '.join(platform_list) if platform_list else None
+                        
+                        price_overview = steam_details_en.get('price_overview', {})
+                        price_str = price_overview.get('final_formatted') if price_overview else None
+                        
+                        movies = steam_details_en.get('movies', [])
+                        videos_list = []
+                        for movie in movies:
+                            videos_list.append({
+                                "name": movie.get("name"),
+                                "thumbnail": movie.get("thumbnail"),
+                                "url": movie.get("dash_h264"),  # Use DASH streaming URL
+                                "hls_url": movie.get("hls_h264")  # Use HLS streaming URL
+                            })
+                        videos_json = json.dumps(videos_list) if videos_list else None
+
+                        screenshots = steam_details_en.get('screenshots', [])
+                        screenshots_list = []
+                        for ss in screenshots:
+                            screenshots_list.append({
+                                "id": ss.get("id"),
+                                "path_thumbnail": ss.get("path_thumbnail"),
+                                "path_full": ss.get("path_full")
+                            })
+                        screenshots_json = json.dumps(screenshots_list) if screenshots_list else None
+                        
+                        release_date_info = steam_details_en.get('release_date', {})
+                        release_date_str = release_date_info.get('date')
+                        coming_soon = release_date_info.get('coming_soon', False)
+                        release_date_obj = None
+                        
+                        if release_date_str and not coming_soon:
+                            date_formats = [
+                                '%d %b, %Y', '%b %d, %Y', '%d %B, %Y', '%B %d, %Y',
+                                '%Y-%m-%d', '%d %b %Y', '%b %d %Y', '%Y'
+                            ]
+                            for fmt in date_formats:
+                                try:
+                                    release_date_obj = datetime.strptime(release_date_str, fmt).date()
+                                    break
+                                except ValueError:
+                                    continue
+                        
+                        new_game = models.Game(
+                            title=steam_details_en.get("name"),
+                            description=english_desc,
+                            about_game_th=thai_desc,
+                            genre=", ".join([g["description"] for g in steam_details_en.get("genres", [])[:3]]),
+                            image_url=steam_details_en.get("header_image"),
+                            release_date=release_date_obj,
+                            developer=", ".join(steam_details_en.get("developers", [])),
+                            publisher=", ".join(steam_details_en.get("publishers", [])),
+                            platform=platform_str,
+                            price=price_str,
+                            video=videos_json,
+                            screenshots=screenshots_json,
+                            steam_app_id=int(app_id)
+                        )
+                        
+                        db.add(new_game)
+                        db.flush()
+                        
+                        try:
+                            categories = steam_details_en.get('categories', [])
+                            for category in categories:
+                                cat_id = category.get('id')
+                                mode_name = None
+                                if cat_id == 2: mode_name = 'Single-player'
+                                elif cat_id == 1: mode_name = 'Multi-player'
+                                elif cat_id in [9, 24, 36, 37, 38]: mode_name = 'Co-op'
+                                
+                                if mode_name:
+                                    tag = db.query(models.Tag).filter(models.Tag.name == mode_name, models.Tag.type == 'player_mode').first()
+                                    if not tag:
+                                        tag = models.Tag(name=mode_name, type='player_mode')
+                                        db.add(tag)
+                                        db.flush()
+                                    game_tag = models.GameTag(game_id=new_game.id, tag_id=tag.id)
+                                    db.add(game_tag)
+                            
+                            genres = steam_details_en.get('genres', [])
+                            for genre_data in genres:
+                                genre_name = genre_data.get('description')
+                                if genre_name:
+                                    genre_tag = db.query(models.Tag).filter(models.Tag.name == genre_name, models.Tag.type == 'genre').first()
+                                    if not genre_tag:
+                                        genre_tag = models.Tag(name=genre_name, type='genre')
+                                        db.add(genre_tag)
+                                        db.flush()
+                                    game_tag = models.GameTag(game_id=new_game.id, tag_id=genre_tag.id)
+                                    db.add(game_tag)
+                        except Exception as e:
+                            print(f"[Newest Games] Error tagging game: {e}")
+                        
+                        try:
+                            from .utils.sentiment_helper import fetch_and_cache_sentiment
+                            fetch_and_cache_sentiment(new_game.id, int(app_id), db)
+                        except:
+                            pass
+                        
+                        try:
+                            from .utils.thai_review_helper import fetch_and_cache_thai_reviews
+                            fetch_and_cache_thai_reviews(new_game.id, int(app_id), db, max_reviews=50)
+                        except:
+                            pass
+                        
+                        try:
+                            from .services.review_tags_service import ReviewTagsService
+                            tags_service = ReviewTagsService(db)
+                            print(f"[Newest Games] Generating review tags for {new_game.title}...")
+                            tags_service.generate_tags_for_game(new_game.id, top_n=10, max_reviews=1500)
+                        except Exception as e:
+                            print(f"[Newest Games] Warning: Failed to generate tags for {new_game.title}: {e}")
+                        
+                        db.commit()
+                        imported_count += 1
+                        print(f"[Newest Games] ✓ Imported from batch {attempt + 1}: {new_game.title} ({imported_count}/{target_new_games})")
+                        time.sleep(10)
+                        
+                    except Exception as e:
+                        print(f"[Newest Games] Error: {e}")
+                        failed_count += 1
+                        db.rollback()
+                
+                # Move to next batch
+                batch_offset += 20
+                
+                # If we reached target in this iteration, break
+                if imported_count >= target_new_games:
+                    break
+        
         stats['imported'] = imported_count
         stats['skipped'] = skipped_count
         stats['failed'] = failed_count
         
-        # Log the daily update
         log_daily_update(db, 'games', stats)
         
-        print(f"[Newest Games Scheduler] Complete! Imported: {imported_count}, Skipped: {skipped_count}, Failed: {failed_count}")
+        print(f"[Newest Games] Complete! Imported: {imported_count}, Skipped: {skipped_count}, Failed: {failed_count}")
         return stats
         
     except Exception as e:
@@ -706,12 +938,13 @@ def check_missed_daily_tasks():
         ).first()
         
         if not sentiment_log:
-            print("[Scheduler] Missed 'sentiment' update. Scheduling now...")
+            print("[Scheduler] Missed 'sentiment' update. Scheduling now (Smart Update)...")
             # Run 10s later to stagger
             scheduler.add_job(
                 update_all_sentiments, 
                 'date', 
                 run_date=datetime.now() + timedelta(seconds=10),
+                args=[False], # force_update=False (Smart Update)
                 id='catchup_sentiment', 
                 name='Catch-up: Sentiment'
             )
@@ -723,11 +956,14 @@ def check_missed_daily_tasks():
         ).first()
         
         if not reviews_log:
-            print("[Scheduler] Missed 'reviews' update. Scheduling now...")
+            print("[Scheduler] Missed 'reviews' update. Scheduling now (Smart Update)...")
             scheduler.add_job(
                 update_thai_reviews_daily, 
                 'date', 
                 run_date=datetime.now() + timedelta(seconds=20),
+                # Note: update_thai_reviews_daily calls trigger_manual_update internally
+                # We need to ensure it passes force_update=False
+                kwargs={'force_update': False},
                 id='catchup_reviews', 
                 name='Catch-up: Thai Reviews'
             )
@@ -744,6 +980,7 @@ def check_missed_daily_tasks():
                 update_review_tags, 
                 'date', 
                 run_date=datetime.now() + timedelta(seconds=30),
+                kwargs={'update_existing': True}, 
                 id='catchup_tags', 
                 name='Catch-up: Review Tags'
             )

@@ -5,7 +5,7 @@ Manages game review tags - generation, storage, and retrieval
 from typing import List, Dict, Optional
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
-from ..models import GameReviewTag, Review
+from ..models import GameReviewTag, Review, GameSentiment
 from .thai_text_analyzer import ThaiTextAnalyzer
 from .english_text_analyzer import EnglishTextAnalyzer
 from .english_text_analyzer import EnglishTextAnalyzer
@@ -26,6 +26,21 @@ class ReviewTagsService:
         with open("debug_backend.log", "a", encoding="utf-8") as f:
             f.write("[Info] ReviewTagsService initialized with Groq AI.\n")
     
+    def _update_tag_status(self, game_id: int, status: str):
+        """Helper to update tag generation status in GameSentiment"""
+        try:
+            sentiment = self.db.query(GameSentiment).filter(GameSentiment.game_id == game_id).first()
+            if not sentiment:
+                sentiment = GameSentiment(game_id=game_id)
+                self.db.add(sentiment)
+            
+            sentiment.tag_status = status
+            sentiment.last_updated = datetime.now()
+            self.db.commit()
+        except Exception as e:
+            print(f"[ReviewTags] Error updating tag status: {e}")
+            self.db.rollback()
+
     def get_tags_for_game(self, game_id: int) -> Dict:
         """
         Get review tags for a game from database
@@ -149,31 +164,70 @@ class ReviewTagsService:
             print(f"[DEBUG] steam_reviews bool: {bool(steam_reviews)}")
             
             # Check if no reviews found
+            # Check if no English reviews found
             if not steam_reviews:
-                # Case: No reviews found - Insert a 'system' tag to mark as checked
-                # This ensures the game is not flagged as "Incomplete" in dashboard
+                # Check if there are ANY reviews in other languages
+                # We fetch just 5 reviews to check existence (increased from 1 to be safe)
+                with open("debug_backend.log", "a", encoding="utf-8") as f:
+                    f.write(f"[Info] Checking checking non-English reviews for {steam_app_id}...\n")
+                
+                all_lang_reviews = SteamAPIClient.get_all_reviews(
+                    app_id=int(steam_app_id),
+                    language="all",
+                    max_reviews=5
+                )
+                
+                with open("debug_backend.log", "a", encoding="utf-8") as f:
+                    f.write(f"[Info] Got {len(all_lang_reviews) if all_lang_reviews else 0} reviews (all languages)\n")
+
+                # Delete existing tags
                 self.db.query(GameReviewTag).filter(
                     GameReviewTag.game_id == game_id
                 ).delete()
                 
-                system_tag = GameReviewTag(
-                    game_id=game_id,
-                    tag_type='system',
-                    tag_word='no_reviews',
-                    updated_at=datetime.now()
-                )
-                self.db.add(system_tag)
-                self.db.commit()
-
-                print(f"[ReviewTags] No English reviews for {game_name}. Marked as checked.")
+                if all_lang_reviews:
+                    # Case: No English reviews but has other languages
+                    system_tag = GameReviewTag(
+                        game_id=game_id,
+                        tag_type='system',
+                        tag_word='no_english_reviews',
+                        updated_at=datetime.now()
+                    )
+                    self.db.add(system_tag)
+                    self.db.commit()
+                    
+                    self._update_tag_status(game_id, 'no_english_reviews')
+                    print(f"[ReviewTags] No English reviews (but found others) for {game_name}. Marked as 'no_english_reviews'.")
+                    
+                    return {
+                        'success': True,
+                        'game_id': game_id,
+                        'positive_tags': [],
+                        'negative_tags': [],
+                        'total_reviews_analyzed': 0,
+                        'message': 'No English reviews found (but other languages exist).'
+                    }
+                else:
+                    # Case: No reviews at all
+                    system_tag = GameReviewTag(
+                        game_id=game_id,
+                        tag_type='system',
+                        tag_word='no_reviews',
+                        updated_at=datetime.now()
+                    )
+                    self.db.add(system_tag)
+                    self.db.commit()
+                    
+                    self._update_tag_status(game_id, 'no_reviews')
+                    print(f"[ReviewTags] No reviews found for {game_name}. Marked as 'no_reviews'.")
                 
                 return {
-                    'success': True, # Return true so scheduler marks it as successful
+                    'success': True, 
                     'game_id': game_id,
                     'positive_tags': [],
                     'negative_tags': [],
                     'total_reviews_analyzed': 0,
-                    'message': 'No English reviews found. Marked as checked.'
+                    'message': 'No reviews found.'
                 }
 
 
@@ -189,6 +243,36 @@ class ReviewTagsService:
                         'voted_up': voted,
                         'votes_up': votes_up
                     })
+            
+            # Check for insufficient reviews (threshold < 5)
+            if len(db_reviews) < 5:
+                # Still mark as checked with a system tag so it doesn't stay in "update needed" List forever?
+                # The user wants to see "Insufficient Reviews".
+                
+                # Check if there are reviews in other languages
+                all_lang_reviews = SteamAPIClient.get_all_reviews(
+                    app_id=int(steam_app_id),
+                    language="all",
+                    max_reviews=1
+                )
+                
+                if all_lang_reviews and len(all_lang_reviews) > len(db_reviews):
+                     # Found reviews in other languages 
+                     self._update_tag_status(game_id, 'insufficient_english')
+                     msg = f'Insufficient English reviews ({len(db_reviews)}), but found others.'
+                else:
+                     # Really insufficient everywhere
+                     self._update_tag_status(game_id, 'insufficient')
+                     msg = f'Insufficient reviews ({len(db_reviews)}). Need at least 5.'
+
+                return {
+                    'success': True,
+                    'game_id': game_id,
+                    'positive_tags': [],
+                    'negative_tags': [],
+                    'total_reviews_analyzed': len(db_reviews),
+                    'message': msg
+                }
             
             # Separate reviews by sentiment
             positive_reviews_data = [r for r in db_reviews if r['voted_up'] == True]
@@ -408,6 +492,9 @@ class ReviewTagsService:
 
             self.db.commit()
             
+            # Update status
+            self._update_tag_status(game_id, 'success')
+            
             print(f"[ReviewTags] Saved {len(positive_tags)} positive and {len(negative_tags)} negative tags")
             
             return {
@@ -426,6 +513,12 @@ class ReviewTagsService:
         except Exception as e:
             self.db.rollback()
             print(f"[ReviewTags] Error: {e}")
+            # Update status to error
+            try:
+                self._update_tag_status(game_id, 'error')
+            except:
+                pass
+                
             return {
                 'success': False,
                 'error': str(e),

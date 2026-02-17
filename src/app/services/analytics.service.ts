@@ -11,6 +11,7 @@ export interface AnalyticsResponse {
     daily: DailyStatistic[];
     monthly_total: number;
     today_count: number;
+    total_pending?: number;
 }
 
 export interface NewGamesTodayResponse {
@@ -49,6 +50,7 @@ export interface IncompleteGame {
     last_sentiment_update: string | null;
     last_tags_update: string | null;
     last_review_fetch: string | null;
+    tag_status?: string | null;
 }
 
 export interface IncompleteGamesResponse {

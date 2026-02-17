@@ -189,22 +189,27 @@ def stop_review_scheduler():
         logger.info("Thai review scheduler stopped")
 
 
-def trigger_manual_update():
+def trigger_manual_update(force_update: bool = False):
     """
     Manually trigger a Thai review update (for admin panel)
     Returns statistics about the update
+    
+    Args:
+        force_update: If True, update all games. If False, skip games updated in last 24h.
     """
-    logger.info("🔧 Admin manually triggered Thai review update")
+    logger.info(f"🔧 Admin manually triggered Thai review update (force={force_update})")
     
     from ..database import SessionLocal
     from ..steam_api import SteamAPIClient
     from .. import models
+    from datetime import timedelta
     
     db = SessionLocal()
     stats = {
         'games_processed': 0,
         'successful': 0,
         'failed': 0,
+        'skipped': 0,
         'total_new_reviews': 0
     }
     
@@ -221,6 +226,13 @@ def trigger_manual_update():
         
         for game in games_to_update:
             try:
+                # Check for smart update skipping
+                if not force_update and game.last_review_fetch:
+                    age = datetime.now() - game.last_review_fetch
+                    if age < timedelta(hours=24):
+                        stats['skipped'] += 1
+                        continue
+                
                 logger.info(f"Fetching Thai reviews for: {game.title}")
                 
                 steam_reviews = SteamAPIClient.get_all_reviews(

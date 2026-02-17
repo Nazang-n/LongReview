@@ -111,7 +111,12 @@ async def trigger_review_tags_update(background_tasks: BackgroundTasks) -> Dict:
     """
     from ..scheduler import update_review_tags
     
+    print("[Admin API] Review tags update endpoint called!")
+    print("[Admin API] Adding background task to queue...")
+    
     background_tasks.add_task(update_review_tags, update_existing=True)
+    
+    print("[Admin API] Background task added successfully")
     
     return {
         "status": "success",
@@ -124,30 +129,17 @@ async def trigger_review_tags_update(background_tasks: BackgroundTasks) -> Dict:
 async def trigger_newest_games_import(background_tasks: BackgroundTasks) -> Dict:
     """
     Manually trigger import of newest games from Steam (admin endpoint)
-    
-    Returns:
-        Status message and statistics about the import
+    Runs in background to avoid timeout.
     """
     from ..scheduler import import_newest_games
     
-    try:
-        stats = import_newest_games()
-        
-        return {
-            "status": "success",
-            "message": f"Imported {stats['imported']} games, {stats['skipped']} skipped, {stats['failed']} failed",
-            "stats": stats
-        }
-    except Exception as e:
-        return {
-            "status": "error",
-            "message": f"Failed to import newest games: {str(e)}",
-            "stats": {
-                "imported": 0,
-                "skipped": 0,
-                "failed": 0
-            }
-        }
+    background_tasks.add_task(import_newest_games)
+    
+    return {
+        "status": "success",
+        "message": "Import of newest games started in background. Please check logs for progress.",
+        "stats": {"status": "processing"}
+    }
 
 
 @router.post("/sentiment/update/{game_id}")
@@ -229,14 +221,16 @@ async def update_single_game_reviews(game_id: int, db: Session = Depends(get_db)
 async def trigger_sentiment_update(background_tasks: BackgroundTasks) -> Dict:
     """
     Manually trigger sentiment update for all games (Background Task)
+    Uses "Smart Update" (skips games updated in last 24h)
     """
     from ..scheduler import update_all_sentiments
     
-    background_tasks.add_task(update_all_sentiments)
+    # Use Smart Update (force_update=False)
+    background_tasks.add_task(update_all_sentiments, force_update=False)
     
     return {
         "status": "success",
-        "message": "Sentiment update started in background.",
+        "message": "Sentiment update started in background (Smart Update).",
         "stats": {"status": "processing"}
     }
 
@@ -245,14 +239,16 @@ async def trigger_sentiment_update(background_tasks: BackgroundTasks) -> Dict:
 async def trigger_thai_reviews_update(background_tasks: BackgroundTasks) -> Dict:
     """
     Manually trigger Thai review fetching for all games (Background Task)
+    Uses "Smart Update" (skips games updated in last 24h)
     """
     from ..services.review_scheduler import trigger_manual_update
     
-    background_tasks.add_task(trigger_manual_update)
+    # Use Smart Update (force_update=False)
+    background_tasks.add_task(trigger_manual_update, force_update=False)
     
     return {
         "status": "success",
-        "message": "Thai reviews update started in background.",
+        "message": "Thai reviews update started in background (Smart Update).",
         "stats": {"status": "processing"}
     }
 
@@ -576,64 +572,71 @@ async def get_incomplete_games(db: Session = Depends(get_db)) -> Dict:
     - Thai reviews
     """
     from ..models import Game, GameSentiment, GameReviewTag
+    from sqlalchemy.orm import joinedload
+    from sqlalchemy import func
     from datetime import date
     
     try:
         not_updated_games = []
         today = date.today()
         
-        # Get all games with steam_app_id
+        # OPTIMIZED: Use a single query with joins instead of N+1 queries
+        # This fetches all games with their sentiment and tags in ONE database hit
         games = db.query(Game).filter(
             Game.steam_app_id.isnot(None)
+        ).outerjoin(
+            GameSentiment, Game.id == GameSentiment.game_id
+        ).add_columns(
+            GameSentiment.last_updated.label('sentiment_updated'),
+            GameSentiment.id.label('sentiment_id'),
+            GameSentiment.tag_status.label('tag_status')
         ).all()
         
-        for game in games:
+        # Pre-fetch all tag data in one query (much faster than per-game queries)
+        tag_data = {}
+        tag_query = db.query(
+            GameReviewTag.game_id,
+            func.max(GameReviewTag.updated_at).label('latest_tag_update'),
+            func.count(GameReviewTag.id).label('tag_count')
+        ).filter(
+            GameReviewTag.tag_type.in_(['positive', 'negative'])
+        ).group_by(GameReviewTag.game_id).all()
+        
+        for row in tag_query:
+            tag_data[row.game_id] = {
+                'updated_at': row.latest_tag_update,
+                'count': row.tag_count
+            }
+        
+        for game_row in games:
+            game = game_row[0]  # The Game object
+            sentiment_updated = game_row[1]  # sentiment.last_updated
+            sentiment_id = game_row[2]  # sentiment.id
+            tag_status = game_row[3]  # sentiment.tag_status
+            
             not_updated = []
             
             # 1. Check if sentiment was updated today
-            sentiment = db.query(GameSentiment).filter(
-                GameSentiment.game_id == game.id
-            ).first()
-            
-            if sentiment:
-                if sentiment.last_updated:
-                    last_update_date = sentiment.last_updated.date()
+            if sentiment_id:
+                if sentiment_updated:
+                    last_update_date = sentiment_updated.date()
                     if last_update_date < today:
                         not_updated.append('sentiment')
                 else:
                     not_updated.append('sentiment')
             else:
-                # No sentiment data at all, needs update
+                # No sentiment data at all
                 not_updated.append('sentiment')
             
             # 2. Check if tags are up-to-date (tags are valid for 7 days)
-            # Only check for ACTUAL tags (positive/negative), not system tags
-            tags = db.query(GameReviewTag).filter(
-                GameReviewTag.game_id == game.id,
-                GameReviewTag.tag_type.in_(['positive', 'negative'])  # Exclude 'system' tags
-            ).first()
-            
-            # DEBUG: Check total tags including system
-            all_tags_count = db.query(GameReviewTag).filter(GameReviewTag.game_id == game.id).count()
-            actual_tags_count = db.query(GameReviewTag).filter(
-                GameReviewTag.game_id == game.id,
-                GameReviewTag.tag_type.in_(['positive', 'negative'])
-            ).count()
-            
-            if all_tags_count > 0 and actual_tags_count == 0:
-                print(f"[DEBUG] Game {game.id} has {all_tags_count} system tags but 0 actual review tags")
-            
-            if tags:
-                if tags.updated_at:
-                    last_update_date = tags.updated_at.date()
-                    # Calculate age of tags
-                    days_diff = (today - last_update_date).days
-                    if days_diff > 7:
-                        not_updated.append('tags')
-                else:
+            tags_info = tag_data.get(game.id)
+            if tags_info and tags_info['count'] > 0:
+                last_update_date = tags_info['updated_at'].date()
+                days_diff = (today - last_update_date).days
+                if days_diff > 7:
                     not_updated.append('tags')
             else:
-                # No actual review tags (positive/negative), needs update
+                # No actual review tags
                 not_updated.append('tags')
             
             # 3. Check if Thai reviews were fetched today
@@ -642,7 +645,7 @@ async def get_incomplete_games(db: Session = Depends(get_db)) -> Dict:
                 if last_fetch_date < today:
                     not_updated.append('reviews')
             else:
-                # Never fetched reviews, needs update
+                # Never fetched reviews
                 not_updated.append('reviews')
             
             # If any data was not updated today, add to list
@@ -651,10 +654,11 @@ async def get_incomplete_games(db: Session = Depends(get_db)) -> Dict:
                     'id': game.id,
                     'title': game.title,
                     'steam_app_id': game.steam_app_id,
-                    'not_updated': not_updated,  # What needs updating today
-                    'last_sentiment_update': sentiment.last_updated.isoformat() if sentiment and sentiment.last_updated else None,
-                    'last_tags_update': tags.updated_at.isoformat() if tags and tags.updated_at else None,
-                    'last_review_fetch': game.last_review_fetch.isoformat() if game.last_review_fetch else None
+                    'not_updated': not_updated,
+                    'last_sentiment_update': sentiment_updated.isoformat() if sentiment_updated else None,
+                    'last_tags_update': tags_info['updated_at'].isoformat() if tags_info and tags_info['updated_at'] else None,
+                    'last_review_fetch': game.last_review_fetch.isoformat() if game.last_review_fetch else None,
+                    'tag_status': tag_status
                 })
         
         return {
@@ -663,6 +667,5 @@ async def get_incomplete_games(db: Session = Depends(get_db)) -> Dict:
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch not updated games: {str(e)}")
-
 
 
