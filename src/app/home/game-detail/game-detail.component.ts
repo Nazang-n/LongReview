@@ -274,7 +274,7 @@ export class GameDetailComponent implements OnInit {
                     developer: gameData.developer || 'Unknown Developer',
                     publisher: gameData.publisher || 'Unknown Publisher',
                     platform: gameData.platform || 'Unknown Platform',
-                    description: gameData.description || 'No description available.',
+                    description: gameData.description || null,
                     aboutGameTh: gameData.about_game_th || '',
                     appId: gameData.app_id,
                     score: 77, // Mock data - will be calculated from reviews later

@@ -255,8 +255,8 @@
             </div>
 
 
-            <!-- Thai Game Details Section (เกี่ยวกับเกม) - Always shown -->
-            <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <!-- Thai Game Details Section (เกี่ยวกับเกม) - Only shown if description exists -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-8" *ngIf="game.aboutGameTh || game.description">
                 <h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
                     <i class="pi pi-info-circle text-red-600"></i>
                     เกี่ยวกับเกม
