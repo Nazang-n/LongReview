@@ -15,6 +15,7 @@ interface Game {
     description: string;
     releaseDate: string;
     genres: string[];
+    genresTh: string[];  // Thai translated genres
     reviewTags: string[];
     image: string;
     reviewType?: 'positive' | 'negative' | 'mixed';  // Optional - set by sentiment data
@@ -66,17 +67,21 @@ export class FavoritesComponent implements OnInit {
         this.favoriteService.getUserFavorites(user.id).subscribe({
             next: (favorites) => {
                 // Map API response to Game interface and store in allFavorites
-                this.allFavorites = favorites.map((fav: any) => ({
-                    id: fav.id,
-                    title: fav.title || 'Unknown Game',
-                    description: fav.description || fav.info || 'No description available',
-                    releaseDate: this.formatDate(fav.release_date) || 'Unknown',
-                    genres: fav.genre ? fav.genre.split(',').map((g: string) => g.trim()) : [],
-                    reviewTags: [], // Can be populated if needed
-                    image: fav.image_url || fav.picture || 'https://via.placeholder.com/460x215?text=No+Image',
-                    reviewType: undefined,  // Will be set by loadFavoriteSentiments()
-                    isNew: false
-                }));
+                this.allFavorites = favorites.map((fav: any) => {
+                    const genresEn = fav.genre ? fav.genre.split(',').map((g: string) => g.trim()) : [];
+                    const genresTh = fav.genre_th ? fav.genre_th.split(',').map((g: string) => g.trim()) : genresEn;
+                    return {
+                        id: fav.id,
+                        title: fav.title || 'Unknown Game',
+                        description: fav.description || fav.info || 'No description available',
+                        releaseDate: this.formatDate(fav.release_date) || 'Unknown',
+                        genres: genresEn,
+                        genresTh: genresTh,  // Use database Thai translations
+                        reviewTags: [], // Can be populated if needed
+                        image: fav.image_url || fav.picture || 'https://via.placeholder.com/460x215?text=No+Image',
+                        reviewType: undefined,  // Will be set by loadFavoriteSentiments()\n                        isNew: false
+                    };
+                });
 
                 // Initially show all favorites
                 this.favoriteGames = [...this.allFavorites];
@@ -158,7 +163,8 @@ export class FavoritesComponent implements OnInit {
             next: (sentiments) => {
                 this.favoriteGames.forEach(game => {
                     const sentiment = sentiments[game.id];
-                    if (sentiment) {
+                    // Only set reviewType if game has actual reviews
+                    if (sentiment && sentiment.total_reviews && sentiment.total_reviews > 0) {
                         const diff = Math.abs(sentiment.positive_percent - sentiment.negative_percent);
 
                         // Determine review type based on percentages
@@ -170,12 +176,45 @@ export class FavoritesComponent implements OnInit {
                             game.reviewType = 'negative';
                         }
                     }
+                    // If no reviews, reviewType stays undefined and badge won't show
                 });
             },
             error: (err) => {
                 console.error('Error loading sentiment data:', err);
             }
         });
+    }
+
+    translateGenres(genresEn: string[]): string[] {
+        const genreMap: { [key: string]: string } = {
+            'Action': 'แอคชัน',
+            'Adventure': 'ผจญภัย',
+            'RPG': 'อาร์พีจี',
+            'Strategy': 'กลยุทธ์',
+            'Simulation': 'จำลอง',
+            'Sports': 'กีฬา',
+            'Racing': 'แข่งรถ',
+            'Puzzle': 'ปริศนา',
+            'Platformer': 'แพลตฟอร์มเมอร์',
+            'Shooter': 'ยิง',
+            'Fighting': 'ต่อสู้',
+            'Horror': 'สยองขวัญ',
+            'Survival': 'เอาชีวิตรอด',
+            'Sandbox': 'แซนด์บ็อกซ์',
+            'MMORPG': 'เอ็มเอ็มโออาร์พีจี',
+            'MOBA': 'โมบา',
+            'Battle Royale': 'แบทเทิลรอยัล',
+            'Card Game': 'เกมการ์ด',
+            'Board Game': 'บอร์ดเกม',
+            'Educational': 'การศึกษา',
+            'Casual': 'สบายๆ',
+            'Indie': 'อินดี้',
+            'Massively Multiplayer': 'ผู้เล่นหลายคนจำนวนมาก',
+            'Free to Play': 'ฟรีในการเล่น',
+            'Early Access': 'เข้าถึงก่อนใคร'
+        };
+
+        return genresEn.map(genre => genreMap[genre] || genre);
     }
 
     filterGames() {
