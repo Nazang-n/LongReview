@@ -24,7 +24,7 @@ import { isPlatformBrowser } from '@angular/common';
 
       <nav class="nav-links">
         <a routerLink="/news" routerLinkActive="active">ข่าวสาร</a>
-        <a routerLink="/games" routerLinkActive="active">เกมส์</a>
+        <a routerLink="/games" routerLinkActive="active">เกม</a>
         <a routerLink="/favorites" routerLinkActive="active">รายการโปรด</a>
         <a *ngIf="isAdmin()" routerLink="/admin" routerLinkActive="active" class="admin-link">ผู้ดูแลระบบ</a>
       </nav>

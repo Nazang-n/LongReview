@@ -3,9 +3,6 @@ import json
 import time
 from groq import Groq
 
-# API Key provided by user (Fallback if not in env)
-DEFAULT_KEY = "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"
-
 class GroqService:
     _instance = None
     
@@ -18,7 +15,7 @@ class GroqService:
 
     def __init__(self):
         if self.client is None:
-            api_key = os.getenv("GROQ_API_KEY", DEFAULT_KEY)
+            api_key = os.getenv("GROQ_API_KEY")
             self.client = Groq(api_key=api_key)
             self._log(f"[Init] GroqService initialized with key ending in ...{api_key[-4:]}")
 
