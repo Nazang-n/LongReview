@@ -961,38 +961,28 @@ def import_newest_games_from_steamspy(
     """
 
     try:
-        # Get newest games from SteamSpy API with incremental batching
-        print(f"[Manual Import] Starting incremental import of {limit} newest games...")
+        # Fetch newest games from Steam Store (truly sorted by release date DESC)
+        fetch_limit = min(limit * 3, 500)
+        print(f"[Manual Import] Starting import of {limit} newest games from Steam Store...")
+        
+        newest_games = SteamAPIClient.get_newest_games_from_steam_store(limit=fetch_limit)
         
         imported_count = 0
         skipped_count = 0
         failed_count = 0
         
-        batch_size = 20
-        batch_offset = 0
-        batch_num = 0
-        max_attempts = 50  # Safety limit to prevent infinite loops (50 batches * 20 = 1000 games max)
+        if not newest_games:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to fetch newest games from Steam Store"
+            )
         
-        while imported_count < limit and batch_num < max_attempts:
-            batch_num += 1
-            
-            # Fetch next batch
-            print(f"[Manual Import] Fetching batch {batch_num} (games {batch_offset}-{batch_offset + batch_size - 1})...")
-            
-            newest_games = SteamAPIClient.get_newest_games_from_steamspy(limit=batch_offset + batch_size)
-            
-            if not newest_games or len(newest_games) <= batch_offset:
-                print(f"[Manual Import] No more games available from SteamSpy")
+        print(f"[Manual Import] Fetched {len(newest_games)} candidate games. Importing up to {limit} new ones...")
+        
+        for game in newest_games:
+            # Stop as soon as we have enough new games
+            if imported_count >= limit:
                 break
-            
-            # Process only the new 20 games in this batch
-            current_batch = newest_games[batch_offset:batch_offset + batch_size]
-            
-            if not current_batch:
-                print(f"[Manual Import] No more games in this batch")
-                break
-            
-            for game in current_batch:
                 
                 app_id = game.get('app_id')
                 
@@ -1274,10 +1264,7 @@ def import_newest_games_from_steamspy(
                     print(f"Error importing game {app_id}: {e}")
                     failed_count += 1
                     continue
-            
-            # Move to next batch
-            batch_offset += batch_size
-        
+
         # Final commit
         db.commit()
         
