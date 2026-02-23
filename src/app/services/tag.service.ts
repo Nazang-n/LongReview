@@ -26,7 +26,7 @@ export interface TagStats {
     providedIn: 'root'
 })
 export class TagService {
-    private apiUrl = 'http://localhost:8000/api/tags';
+    private apiUrl = 'https://longreview.onrender.com/api/tags';
 
     constructor(private http: HttpClient) { }
 

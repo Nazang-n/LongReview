@@ -12,7 +12,7 @@ export interface FavoriteResponse {
     providedIn: 'root'
 })
 export class FavoriteService {
-    private apiUrl = 'http://localhost:8000/api/favorites';
+    private apiUrl = 'https://longreview.onrender.com/api/favorites';
 
     constructor(private http: HttpClient) { }
 

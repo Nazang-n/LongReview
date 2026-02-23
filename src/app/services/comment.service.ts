@@ -35,7 +35,7 @@ export interface CommentReport {
     providedIn: 'root'
 })
 export class CommentService {
-    private apiUrl = 'http://localhost:8000/api/comments';
+    private apiUrl = 'https://longreview.onrender.com/api/comments';
 
     constructor(private http: HttpClient) { }
 

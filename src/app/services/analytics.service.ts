@@ -62,7 +62,7 @@ export interface IncompleteGamesResponse {
     providedIn: 'root'
 })
 export class AnalyticsService {
-    private apiUrl = 'http://localhost:8000/api/admin/analytics';
+    private apiUrl = 'https://longreview.onrender.com/api/admin/analytics';
 
     constructor(private http: HttpClient) { }
 

@@ -32,7 +32,7 @@ export interface UserComment {
     providedIn: 'root'
 })
 export class ProfileService {
-    private apiUrl = 'http://localhost:8000/api/profile';
+    private apiUrl = 'https://longreview.onrender.com/api/profile';
 
     constructor(private http: HttpClient) { }
 

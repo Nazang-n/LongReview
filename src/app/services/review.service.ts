@@ -17,7 +17,7 @@ export interface Review {
     providedIn: 'root'
 })
 export class ReviewService {
-    private apiUrl = 'http://localhost:8000/api/reviews';
+    private apiUrl = 'https://longreview.onrender.com/api/reviews';
 
     constructor(private http: HttpClient) { }
 

@@ -46,8 +46,8 @@ export interface SteamGameDetails {
     providedIn: 'root'
 })
 export class GameService {
-    private apiUrl = 'http://localhost:8000/api/games';
-    private steamApiUrl = 'http://localhost:8000/api/steam';
+    private apiUrl = 'https://longreview.onrender.com/api/games';
+    private steamApiUrl = 'https://longreview.onrender.com/api/steam';
 
     constructor(private http: HttpClient) { }
 
@@ -175,21 +175,21 @@ export class GameService {
      */
     syncSteamReviews(gameId: number, maxReviews: number = 20): Observable<any> {
         const params = new HttpParams().set('max_reviews', maxReviews.toString());
-        return this.http.post<any>(`http://localhost:8000/api/reviews/sync-steam/${gameId}`, null, { params });
+        return this.http.post<any>(`https://longreview.onrender.com/api/reviews/sync-steam/${gameId}`, null, { params });
     }
 
     /**
      * Get sentiment analysis from Steam reviews
      */
     getSteamSentiment(gameId: number): Observable<any> {
-        return this.http.get<any>(`http://localhost:8000/api/reviews/sentiment/${gameId}`);
+        return this.http.get<any>(`https://longreview.onrender.com/api/reviews/sentiment/${gameId}`);
     }
 
     /**
      * Get sentiment for multiple games at once (for game list)
      */
     getBatchSentiment(gameIds: number[]): Observable<any> {
-        return this.http.post<any>('http://localhost:8000/api/reviews/sentiment/batch', gameIds);
+        return this.http.post<any>('https://longreview.onrender.com/api/reviews/sentiment/batch', gameIds);
     }
 
     /**
@@ -204,39 +204,39 @@ export class GameService {
      */
     batchTranslateGames(limit: number = 10000): Observable<any> {
         const params = new HttpParams().set('limit', limit.toString());
-        return this.http.post<any>('http://localhost:8000/api/games/translate/batch', null, { params });
+        return this.http.post<any>('https://longreview.onrender.com/api/games/translate/batch', null, { params });
     }
 
     /**
      * Manually trigger Thai review update from Steam
      */
     triggerReviewUpdate(): Observable<any> {
-        return this.http.post<any>('http://localhost:8000/api/admin/reviews/update', {});
+        return this.http.post<any>('https://longreview.onrender.com/api/admin/reviews/update', {});
     }
 
     /**
      * Manually trigger sentiment cache update
      */
     triggerSentimentUpdate(): Observable<any> {
-        return this.http.post<any>('http://localhost:8000/api/admin/sentiment/update', {});
+        return this.http.post<any>('https://longreview.onrender.com/api/admin/sentiment/update', {});
     }
 
     /**
      * Manually trigger review tags update for all games
      */
     triggerReviewTagsUpdate(): Observable<any> {
-        return this.http.post<any>('http://localhost:8000/api/admin/review-tags/update', {});
+        return this.http.post<any>('https://longreview.onrender.com/api/admin/review-tags/update', {});
     }
 
     /**
      * Manually generate review tags for a specific game
      */
     generateTagsForGame(gameId: number): Observable<any> {
-        return this.http.post<any>(`http://localhost:8000/api/admin/review-tags/generate/${gameId}`, {});
+        return this.http.post<any>(`https://longreview.onrender.com/api/admin/review-tags/generate/${gameId}`, {});
     }
 
     getUntaggedGames(): Observable<any> {
-        return this.http.get<any>('http://localhost:8000/api/admin/review-tags/missing');
+        return this.http.get<any>('https://longreview.onrender.com/api/admin/review-tags/missing');
     }
 
     /**
@@ -258,13 +258,13 @@ export class GameService {
      * Get list of all games for admin dropdown (id and title only)
      */
     getGamesList(): Observable<any> {
-        return this.http.get<any>('http://localhost:8000/api/admin/games/list');
+        return this.http.get<any>('https://longreview.onrender.com/api/admin/games/list');
     }
 
     /**
      * Delete a game (admin only) - deletes game and all related data
      */
     deleteGame(gameId: number): Observable<any> {
-        return this.http.delete<any>(`http://localhost:8000/api/admin/games/${gameId}`);
+        return this.http.delete<any>(`https://longreview.onrender.com/api/admin/games/${gameId}`);
     }
 }

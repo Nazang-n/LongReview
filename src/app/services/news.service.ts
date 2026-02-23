@@ -28,7 +28,7 @@ export interface NewsResponse {
     providedIn: 'root'
 })
 export class NewsService {
-    private readonly API_URL = 'http://localhost:8000/news';
+    private readonly API_URL = 'https://longreview.onrender.com/news';
 
     // Simple cache to avoid excessive API calls
     private cache: Map<string, NewsResponse> = new Map();

@@ -755,21 +755,21 @@ export class AdminComponent implements OnInit, OnDestroy {
         // Update sentiment for this specific game
         if (game.not_updated.includes('sentiment')) {
             updates.push(
-                this.http.post(`http://localhost:8000/api/admin/sentiment/update/${game.id}`, {})
+                this.http.post(`https://longreview.onrender.com/api/admin/sentiment/update/${game.id}`, {})
             );
         }
 
         // Generate tags for this specific game
         if (game.not_updated.includes('tags')) {
             updates.push(
-                this.http.post(`http://localhost:8000/api/admin/review-tags/generate/${game.id}`, {})
+                this.http.post(`https://longreview.onrender.com/api/admin/review-tags/generate/${game.id}`, {})
             );
         }
 
         // Update Thai reviews for this specific game
         if (game.not_updated.includes('reviews')) {
             updates.push(
-                this.http.post(`http://localhost:8000/api/admin/reviews/update/${game.id}`, {})
+                this.http.post(`https://longreview.onrender.com/api/admin/reviews/update/${game.id}`, {})
             );
         }
 

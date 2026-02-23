@@ -29,7 +29,7 @@ export interface LoginRequest {
     providedIn: 'root'
 })
 export class AuthService {
-    private apiUrl = 'http://localhost:8000/api/auth';
+    private apiUrl = 'https://longreview.onrender.com/api/auth';
     private currentUser: BehaviorSubject<User | null>;
 
     constructor(

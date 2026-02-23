@@ -48,7 +48,7 @@ export class ForgotPasswordComponent implements OnDestroy {
     countdownSeconds = 0;
     countdownInterval: any;
 
-    private apiUrl = 'http://localhost:8000/api/auth';
+    private apiUrl = 'https://longreview.onrender.com/api/auth';
 
     constructor(
         private http: HttpClient,
