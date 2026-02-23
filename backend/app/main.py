@@ -67,7 +67,6 @@ app.include_router(profile.router)
 app.include_router(tags.router)
 app.include_router(admin.router)
 
-
 @app.get("/", tags=["root"])
 def read_root():
     """
