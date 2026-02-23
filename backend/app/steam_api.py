@@ -259,58 +259,85 @@ class SteamAPIClient:
     @staticmethod
     def get_newest_games_from_steamspy(limit: int = 100) -> Optional[List[Dict[str, Any]]]:
         """
-        Fetch newest games by release date from SteamSpy.
+        Fetch newest games sorted by release date using Steam's Featured Categories API.
 
-        Steam assigns App IDs sequentially — higher app_id = added to Steam more recently.
-        We fetch multiple SteamSpy pages (5000 games total) to ensure we capture
-        recently released games that may not yet have high player counts.
+        Uses the official Steam Store JSON API (not scraping) to get the newreleases
+        section which is sorted by release date descending. Falls back to SteamSpy
+        app_id sorting if the Steam API is unavailable.
 
         Args:
             limit: Number of newest games to fetch
 
         Returns:
-            List of game dictionaries sorted by app_id descending (newest first)
+            List of game dictionaries sorted by release date (newest first)
         """
-        # Fetch multiple pages to capture new games with lower player counts
-        # Page 0 = top 1000 by CCU, Page 1 = next 1000, etc.
-        all_games: Dict[str, Any] = {}
-        pages_to_fetch = 5  # 5 pages x 1000 games = 5000 game pool
+        games_list = []
 
-        for page in range(pages_to_fetch):
-            print(f"[SteamSpy] Fetching page {page} ({page * 1000}-{page * 1000 + 999})...")
-            page_data = SteamAPIClient.get_all_games_from_steamspy(page=page)
-            if not page_data:
-                print(f"[SteamSpy] No data on page {page}, stopping.")
-                break
-            all_games.update(page_data)
-            time.sleep(1)  # Be polite to SteamSpy API
+        # --- Primary: Steam Featured Categories API (newest releases, sorted by date) ---
+        try:
+            url = "https://store.steampowered.com/api/featuredcategories/"
+            params = {"cc": "us", "l": "english"}
+            response = requests.get(url, params=params, timeout=15)
+            response.raise_for_status()
+            data = response.json()
 
-        if not all_games:
+            new_releases = data.get("newreleases", {}).get("items", [])
+            print(f"[Steam API] Got {len(new_releases)} games from newreleases section")
+
+            for item in new_releases:
+                app_id = item.get("id")
+                name = item.get("name", "")
+                if not app_id or not name:
+                    continue
+                games_list.append({
+                    "app_id": str(app_id),
+                    "_app_id_int": int(app_id),
+                    "name": name,
+                    "developer": "",
+                    "publisher": "",
+                    "genre": "",
+                    "owners": "0 .. 20,000",
+                    "score_rank": "",
+                })
+
+        except Exception as e:
+            print(f"[Steam API] featuredcategories failed: {e}. Falling back to SteamSpy.")
+
+        # --- Fallback / Supplement: SteamSpy pages sorted by app_id ---
+        # Also used when Steam API doesn't return enough games to satisfy `limit`.
+        if len(games_list) < limit:
+            print(f"[SteamSpy] Fetching additional games (have {len(games_list)}, need {limit})...")
+            seen_ids = {g["_app_id_int"] for g in games_list}
+
+            for page in range(5):  # Up to 5000 games
+                print(f"[SteamSpy] Fetching page {page}...")
+                page_data = SteamAPIClient.get_all_games_from_steamspy(page=page)
+                if not page_data:
+                    break
+
+                for app_id_str, game_data in page_data.items():
+                    try:
+                        numeric_id = int(app_id_str)
+                    except (ValueError, TypeError):
+                        continue
+                    if numeric_id in seen_ids:
+                        continue
+                    seen_ids.add(numeric_id)
+                    game_data["app_id"] = app_id_str
+                    game_data["_app_id_int"] = numeric_id
+                    games_list.append(game_data)
+
+                time.sleep(1)
+
+        if not games_list:
             return None
 
-        print(f"[SteamSpy] Total games in pool: {len(all_games)}")
+        # Sort by app_id descending — higher ID = newer game (Steam assigns IDs sequentially)
+        games_list.sort(key=lambda x: x.get("_app_id_int", 0), reverse=True)
 
-        # Convert to list and embed the numeric app_id for sorting
-        games_list = []
-        for app_id, game_data in all_games.items():
-            try:
-                numeric_id = int(app_id)
-            except (ValueError, TypeError):
-                continue
-            game_data['app_id'] = app_id
-            game_data['_app_id_int'] = numeric_id
-            games_list.append(game_data)
-
-        # Sort by app_id descending — highest ID = most recently added to Steam
-        sorted_games = sorted(
-            games_list,
-            key=lambda x: x.get('_app_id_int', 0),
-            reverse=True
-        )
-
-        top_id = sorted_games[0].get('_app_id_int') if sorted_games else 'N/A'
-        print(f"[SteamSpy] Highest app_id found: {top_id} (newest game in pool)")
-        return sorted_games[:limit]
+        top_id = games_list[0].get('_app_id_int') if games_list else 'N/A'
+        print(f"[Newest] Highest app_id found: {top_id} | Total pool: {len(games_list)}")
+        return games_list[:limit]
 
     @staticmethod
     def get_newest_games_from_steam_store(limit: int = 50) -> Optional[List[Dict[str, Any]]]:
