@@ -577,8 +577,9 @@ def import_games_batch_from_steamspy(
     and import them into your database
     """
     try:
-        # Get top games from SteamSpy
-        top_games = SteamAPIClient.get_top_games_from_steamspy(limit=limit)
+        # Fetch more games than `limit` so we can skip duplicates and still hit the target
+        fetch_limit = min(limit * 3, 500)
+        top_games = SteamAPIClient.get_top_games_from_steamspy(limit=fetch_limit)
         
         if not top_games:
             raise HTTPException(
@@ -591,6 +592,9 @@ def import_games_batch_from_steamspy(
         failed_count = 0
         
         for game in top_games:
+            # Stop as soon as we have enough new games
+            if imported_count >= limit:
+                break
             app_id = game.get('app_id')
             
             if not app_id:
@@ -859,6 +863,10 @@ def import_games_batch_from_steamspy(
                         print(f"   [OK] Auto-linked Genre: {genre_name}")
                 
                 imported_count += 1
+                
+                # Stop as soon as we have enough new games
+                if imported_count >= limit:
+                    break
                 
                 # Fetch and cache sentiment data for the newly imported game
                 try:
@@ -1225,8 +1233,11 @@ def import_newest_games_from_steamspy(
                             print(f"   [OK] Auto-linked Massively Multiplayer game to Multi-player tag")
                     
                     imported_count += 1
-                    print(f"[Manual Import] ✓ Imported from batch {batch_num + 1}: {new_game.title} ({imported_count}/{limit})")
+                    print(f"[Manual Import] ✓ Imported from batch {batch_num}: {new_game.title} ({imported_count}/{limit})")
                     
+                    # Stop as soon as we have enough new games
+                    if imported_count >= limit:
+                        break
                     # Fetch and cache sentiment data for the newly imported game
                     try:
                         from ..utils.sentiment_helper import fetch_and_cache_sentiment
