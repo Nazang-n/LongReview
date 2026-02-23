@@ -259,47 +259,41 @@ class SteamAPIClient:
     @staticmethod
     def get_newest_games_from_steamspy(limit: int = 100) -> Optional[List[Dict[str, Any]]]:
         """
-        Fetch newest games by release date from SteamSpy
-        
+        Fetch newest games by release date from SteamSpy.
+
+        Steam assigns App IDs sequentially, so a higher app_id means the game
+        was added to Steam more recently. Sorting by app_id descending gives
+        the most recently released games first — no scraping required.
+
         Args:
             limit: Number of newest games to fetch
-            
+
         Returns:
-            List of game dictionaries sorted by release date (newest first)
+            List of game dictionaries sorted by app_id descending (newest first)
         """
         all_games = SteamAPIClient.get_all_games_from_steamspy()
-        
+
         if not all_games:
             return None
-        
-        # Convert to list
+
+        # Convert to list and embed the numeric app_id for sorting
         games_list = []
         for app_id, game_data in all_games.items():
-            game_data['app_id'] = app_id
-            games_list.append(game_data)
-        
-        # Filter out games without initialprice and convert to int
-        games_with_date = []
-        for game in games_list:
-            initialprice = game.get('initialprice', 0)
-            # Convert to int if it's a string
             try:
-                if isinstance(initialprice, str):
-                    initialprice = int(initialprice)
-                if initialprice > 0:
-                    game['initialprice_int'] = initialprice
-                    games_with_date.append(game)
+                numeric_id = int(app_id)
             except (ValueError, TypeError):
-                # Skip games with invalid initialprice
                 continue
-        
-        # Sort by initialprice (Unix timestamp) in descending order (newest first)
+            game_data['app_id'] = app_id
+            game_data['_app_id_int'] = numeric_id
+            games_list.append(game_data)
+
+        # Sort by app_id descending — highest ID = most recently added to Steam
         sorted_games = sorted(
-            games_with_date,
-            key=lambda x: x.get('initialprice_int', 0),
+            games_list,
+            key=lambda x: x.get('_app_id_int', 0),
             reverse=True
         )
-        
+
         return sorted_games[:limit]
 
     @staticmethod
