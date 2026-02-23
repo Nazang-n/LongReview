@@ -24,13 +24,13 @@ class Game(Base):
     id = Column(Integer, primary_key=True, index=True)
     
     # Map to existing database columns
-    title = Column("name", String(255), nullable=False, index=True)  # DB column: name
-    description = Column("info", String(255))  # DB column: info
-    image_url = Column("picture", String(255))  # DB column: picture
+    title = Column("name", Text, nullable=False, index=True)  # DB column: name
+    description = Column("info", Text)  # DB column: info
+    image_url = Column("picture", Text)  # DB column: picture
     
     # Existing columns in database
-    platform = Column(String(255))  # Platform (windows, mac, linux)
-    price = Column(String(255))  # Price from Steam
+    platform = Column(Text)  # Platform (windows, mac, linux)
+    price = Column(Text)  # Price from Steam
     video = Column(Text)  # Video URL (can store JSON for multiple videos)
     screenshots = Column(Text)  # Screenshots JSON array
     release_date = Column(Date)  # Release date
