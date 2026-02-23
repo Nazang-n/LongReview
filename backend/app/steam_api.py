@@ -261,9 +261,9 @@ class SteamAPIClient:
         """
         Fetch newest games by release date from SteamSpy.
 
-        Steam assigns App IDs sequentially, so a higher app_id means the game
-        was added to Steam more recently. Sorting by app_id descending gives
-        the most recently released games first — no scraping required.
+        Steam assigns App IDs sequentially — higher app_id = added to Steam more recently.
+        We fetch multiple SteamSpy pages (5000 games total) to ensure we capture
+        recently released games that may not yet have high player counts.
 
         Args:
             limit: Number of newest games to fetch
@@ -271,10 +271,24 @@ class SteamAPIClient:
         Returns:
             List of game dictionaries sorted by app_id descending (newest first)
         """
-        all_games = SteamAPIClient.get_all_games_from_steamspy()
+        # Fetch multiple pages to capture new games with lower player counts
+        # Page 0 = top 1000 by CCU, Page 1 = next 1000, etc.
+        all_games: Dict[str, Any] = {}
+        pages_to_fetch = 5  # 5 pages x 1000 games = 5000 game pool
+
+        for page in range(pages_to_fetch):
+            print(f"[SteamSpy] Fetching page {page} ({page * 1000}-{page * 1000 + 999})...")
+            page_data = SteamAPIClient.get_all_games_from_steamspy(page=page)
+            if not page_data:
+                print(f"[SteamSpy] No data on page {page}, stopping.")
+                break
+            all_games.update(page_data)
+            time.sleep(1)  # Be polite to SteamSpy API
 
         if not all_games:
             return None
+
+        print(f"[SteamSpy] Total games in pool: {len(all_games)}")
 
         # Convert to list and embed the numeric app_id for sorting
         games_list = []
@@ -294,6 +308,8 @@ class SteamAPIClient:
             reverse=True
         )
 
+        top_id = sorted_games[0].get('_app_id_int') if sorted_games else 'N/A'
+        print(f"[SteamSpy] Highest app_id found: {top_id} (newest game in pool)")
         return sorted_games[:limit]
 
     @staticmethod
