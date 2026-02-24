@@ -247,11 +247,11 @@ export class GameService {
     }
 
     /**
-     * Import newest games in batch
+     * Import newest games using scheduler logic (IStoreService + 3-tier)
+     * Note: limit param is ignored — backend imports up to 20 games per run
      */
     importNewestGames(limit: number): Observable<any> {
-        const params = new HttpParams().set('limit', limit.toString());
-        return this.http.post<any>(`${this.steamApiUrl}/steamspy/import/batch/newest`, null, { params });
+        return this.http.post<any>('https://longreview.onrender.com/api/admin/games/import-newest', {});
     }
 
     /**
