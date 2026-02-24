@@ -274,7 +274,17 @@ def update_review_tags(update_existing: bool = True):
         db.close()
 
 def import_newest_games():
-    """Import newest games from Steam (daily task)"""
+    """Import newest games from Steam (daily task)
+    
+    Strategy:
+      - ดึง candidates จาก Steam IStoreService (เรียงตาม last_modified)
+      - กรอง: type=game, ไม่ใช่ coming_soon, release_date ใน N วัน
+      - เช็คว่ามีใน DB แล้วหรือยัง (by steam_app_id)
+      - 3-tier escalation ถ้าหาเกมใหม่ได้ไม่ถึง target:
+          Tier 1: days_ago=60,  candidates=300
+          Tier 2: days_ago=120, candidates=500
+          Tier 3: days_ago=365, candidates=700
+    """
     db = SessionLocal()
     stats = {
         'imported': 0,
@@ -282,439 +292,270 @@ def import_newest_games():
         'failed': 0,
         'errors': 0
     }
-    
+
+    DATE_FORMATS = [
+        '%d %b, %Y', '%b %d, %Y', '%d %B, %Y', '%B %d, %Y',
+        '%Y-%m-%d', '%d %b %Y', '%b %d %Y', '%Y'
+    ]
+
+    def parse_release_date(date_str):
+        for fmt in DATE_FORMATS:
+            try:
+                return datetime.strptime(date_str.strip(), fmt).date()
+            except ValueError:
+                continue
+        return None
+
+    def import_single_game(app_id, imported_count, target_new_games, cutoff_date):
+        """ดึงรายละเอียดและ import เกมเดียว — คืนค่า 'imported'/'skipped'/'failed'"""
+        # เช็ค DB ก่อนเสมอ
+        existing_game = db.query(models.Game).filter(
+            models.Game.steam_app_id == int(app_id)
+        ).first()
+        if existing_game:
+            return 'skipped'
+
+        steam_details_en = SteamAPIClient.get_app_details(int(app_id), language="english", country_code="us")
+        if not steam_details_en:
+            return 'failed'
+
+        # กรอง: ต้องเป็น game เท่านั้น
+        if steam_details_en.get('type') not in ('game', None, ''):
+            app_type = steam_details_en.get('type')
+            if app_type and app_type != 'game':
+                print(f"[Newest Games] Skipping {app_id}: type={app_type}")
+                return 'skipped'
+
+        # กรอง: ต้องไม่ใช่ coming_soon
+        release_info = steam_details_en.get('release_date', {})
+        if release_info.get('coming_soon'):
+            print(f"[Newest Games] Skipping {app_id}: coming soon")
+            return 'skipped'
+
+        # กรอง: release_date ต้องอยู่ในช่วง cutoff และไม่ใช่วันในอนาคต
+        release_date_str = release_info.get('date', '')
+        release_date_obj = parse_release_date(release_date_str) if release_date_str else None
+        today = datetime.now().date()
+        if cutoff_date and release_date_obj and release_date_obj < cutoff_date:
+            print(f"[Newest Games] Skipping {app_id}: released {release_date_str} (too old)")
+            return 'skipped'
+        if release_date_obj and release_date_obj > today:
+            print(f"[Newest Games] Skipping {app_id}: future release ({release_date_str})")
+            return 'skipped'
+
+        # ดึง TH details
+        steam_details_th = SteamAPIClient.get_app_details(int(app_id), language="thai", country_code="th")
+
+        from .utils.translator import translator
+        from .utils.text_cleaner import clean_html_text
+
+        english_desc = None
+        thai_desc = None
+
+        if steam_details_en.get('about_the_game'):
+            english_desc = clean_html_text(steam_details_en.get('about_the_game'))
+        elif steam_details_en.get('short_description'):
+            english_desc = clean_html_text(steam_details_en.get('short_description'))
+
+        if steam_details_th and steam_details_th.get('about_the_game'):
+            cleaned_thai = clean_html_text(steam_details_th.get('about_the_game'))
+            if translator.detect_language(cleaned_thai) == 'th':
+                thai_desc = cleaned_thai
+
+        if not thai_desc and english_desc:
+            try:
+                thai_desc = translator.translate_to_thai(english_desc)
+            except:
+                pass
+
+        platforms = steam_details_en.get('platforms', {})
+        platform_list = []
+        if platforms.get('windows'): platform_list.append('Windows')
+        if platforms.get('mac'): platform_list.append('Mac')
+        if platforms.get('linux'): platform_list.append('Linux')
+        platform_str = ', '.join(platform_list) if platform_list else None
+
+        price_overview = steam_details_en.get('price_overview', {})
+        price_str = price_overview.get('final_formatted') if price_overview else None
+
+        movies = steam_details_en.get('movies', [])
+        videos_list = []
+        for movie in movies:
+            videos_list.append({
+                "name": movie.get("name"),
+                "thumbnail": movie.get("thumbnail"),
+                "url": movie.get("dash_h264"),
+                "hls_url": movie.get("hls_h264")
+            })
+        videos_json = json.dumps(videos_list) if videos_list else None
+
+        screenshots = steam_details_en.get('screenshots', [])
+        screenshots_list = []
+        for ss in screenshots:
+            screenshots_list.append({
+                "id": ss.get("id"),
+                "path_thumbnail": ss.get("path_thumbnail"),
+                "path_full": ss.get("path_full")
+            })
+        screenshots_json = json.dumps(screenshots_list) if screenshots_list else None
+
+        new_game = models.Game(
+            title=steam_details_en.get("name"),
+            description=english_desc,
+            about_game_th=thai_desc,
+            genre=", ".join([g["description"] for g in steam_details_en.get("genres", [])[:3]]),
+            image_url=steam_details_en.get("header_image"),
+            release_date=release_date_obj,
+            developer=", ".join(steam_details_en.get("developers", [])),
+            publisher=", ".join(steam_details_en.get("publishers", [])),
+            platform=platform_str,
+            price=price_str,
+            video=videos_json,
+            screenshots=screenshots_json,
+            steam_app_id=int(app_id)
+        )
+
+        db.add(new_game)
+        db.flush()
+
+        # Auto-tag player modes + genres
+        try:
+            categories = steam_details_en.get('categories', [])
+            for category in categories:
+                cat_id = category.get('id')
+                mode_name = None
+                if cat_id == 2: mode_name = 'Single-player'
+                elif cat_id == 1: mode_name = 'Multi-player'
+                elif cat_id in [9, 24, 36, 37, 38]: mode_name = 'Co-op'
+                if mode_name:
+                    tag = db.query(models.Tag).filter(models.Tag.name == mode_name, models.Tag.type == 'player_mode').first()
+                    if not tag:
+                        tag = models.Tag(name=mode_name, type='player_mode')
+                        db.add(tag)
+                        db.flush()
+                    db.add(models.GameTag(game_id=new_game.id, tag_id=tag.id))
+
+            genres = steam_details_en.get('genres', [])
+            for genre_data in genres:
+                genre_name = genre_data.get('description')
+                if genre_name:
+                    genre_tag = db.query(models.Tag).filter(models.Tag.name == genre_name, models.Tag.type == 'genre').first()
+                    if not genre_tag:
+                        genre_tag = models.Tag(name=genre_name, type='genre')
+                        db.add(genre_tag)
+                        db.flush()
+                    db.add(models.GameTag(game_id=new_game.id, tag_id=genre_tag.id))
+        except Exception as e:
+            print(f"[Newest Games] Error tagging game: {e}")
+
+        try:
+            from .utils.sentiment_helper import fetch_and_cache_sentiment
+            fetch_and_cache_sentiment(new_game.id, int(app_id), db)
+        except:
+            pass
+
+        try:
+            from .utils.thai_review_helper import fetch_and_cache_thai_reviews
+            fetch_and_cache_thai_reviews(new_game.id, int(app_id), db, max_reviews=50)
+        except:
+            pass
+
+        try:
+            from .services.review_tags_service import ReviewTagsService
+            tags_service = ReviewTagsService(db)
+            print(f"[Newest Games] Generating review tags for {new_game.title}...")
+            tags_service.generate_tags_for_game(new_game.id, top_n=10, max_reviews=1500)
+        except Exception as e:
+            print(f"[Newest Games] Warning: Failed to generate tags for {new_game.title}: {e}")
+
+        db.commit()
+        print(f"[Newest Games] Imported: {new_game.title} (release: {release_date_str})")
+        return 'imported'
+
     try:
         print("[Newest Games Scheduler] Starting import of newest games...")
-        
+
         target_new_games = 20
         imported_count = 0
         skipped_count = 0
         failed_count = 0
-        
-        # STRATEGY: Try small batch first (20), then escalate to large batch (100) if needed
-        
-        # STEP 1: Try 20 newest games first
-        print("[Newest Games] Fetching initial batch of 20 games...")
-        newest_games = SteamAPIClient.get_newest_games_from_steamspy(limit=20)
-        
-        if not newest_games:
-            print("[Newest Games Scheduler] No games fetched from SteamSpy")
-            return stats
-        
-        # Process first batch
-        initial_batch_has_new_games = False
-        
-        for game in newest_games:
-            app_id = game.get('app_id')
-            
-            if not app_id:
+        seen_app_ids = set()  # ป้องกัน import ซ้ำข้าม tier
+
+        # 3-tier escalation: ขยาย days_ago และ candidates ถ้าได้เกมใหม่ไม่พอ
+        tiers = [
+            {'days_ago': 60,  'candidates': 300,  'label': 'Tier 1 (60 days, 300 candidates)'},
+            {'days_ago': 120, 'candidates': 500,  'label': 'Tier 2 (120 days, 500 candidates)'},
+            {'days_ago': 365, 'candidates': 700,  'label': 'Tier 3 (365 days, 700 candidates)'},
+        ]
+
+        for tier in tiers:
+            if imported_count >= target_new_games:
+                break
+
+            days_ago = tier['days_ago']
+            candidate_limit = tier['candidates']
+            label = tier['label']
+            cutoff_date = (datetime.now() - timedelta(days=days_ago)).date()
+
+            print(f"[Newest Games] {label} — cutoff: {cutoff_date}")
+            print(f"[Newest Games] Fetching {candidate_limit} candidates from Steam IStoreService...")
+
+            candidates = SteamAPIClient.get_newest_released_games(candidate_limit=candidate_limit)
+
+            if not candidates:
+                print(f"[Newest Games] No candidates from Steam API, skipping {label}")
                 continue
-            
-            # Check if exists
-            existing_game = db.query(models.Game).filter(
-                models.Game.steam_app_id == int(app_id)
-            ).first()
-            
-            if existing_game:
-                skipped_count += 1
-                continue
-            
-            # Found a new game!
-            initial_batch_has_new_games = True
-            
-            try:
-                # Import game (same logic as before)
-                steam_details_en = SteamAPIClient.get_app_details(int(app_id), language="english", country_code="us")
-                
-                if not steam_details_en:
-                    failed_count += 1
+
+            print(f"[Newest Games] Got {len(candidates)} candidates, processing...")
+
+            for game in candidates:
+                if imported_count >= target_new_games:
+                    print(f"[Newest Games] Target reached ({imported_count}/{target_new_games})!")
+                    break
+
+                app_id = game.get('app_id')
+                if not app_id:
                     continue
-                
-                steam_details_th = SteamAPIClient.get_app_details(int(app_id), language="thai", country_code="th")
-                
-                from .utils.translator import translator
-                from .utils.text_cleaner import clean_html_text
-                
-                english_desc = None
-                thai_desc = None
-                
-                if steam_details_en.get('about_the_game'):
-                    english_desc = clean_html_text(steam_details_en.get('about_the_game'))
-                elif steam_details_en.get('short_description'):
-                    english_desc = clean_html_text(steam_details_en.get('short_description'))
-                
-                if steam_details_th and steam_details_th.get('about_the_game'):
-                    cleaned_thai = clean_html_text(steam_details_th.get('about_the_game'))
-                    if translator.detect_language(cleaned_thai) == 'th':
-                        thai_desc = cleaned_thai
-                
-                if not thai_desc and english_desc:
-                    try:
-                        thai_desc = translator.translate_to_thai(english_desc)
-                    except:
-                        pass
-                
-                platforms = steam_details_en.get('platforms', {})
-                platform_list = []
-                if platforms.get('windows'): platform_list.append('Windows')
-                if platforms.get('mac'): platform_list.append('Mac')
-                if platforms.get('linux'): platform_list.append('Linux')
-                platform_str = ', '.join(platform_list) if platform_list else None
-                
-                price_overview = steam_details_en.get('price_overview', {})
-                price_str = price_overview.get('final_formatted') if price_overview else None
-                
-                movies = steam_details_en.get('movies', [])
-                videos_list = []
-                for movie in movies:
-                    videos_list.append({
-                        "name": movie.get("name"),
-                        "thumbnail": movie.get("thumbnail"),
-                        "url": movie.get("dash_h264"),  # Use DASH streaming URL
-                        "hls_url": movie.get("hls_h264")  # Use HLS streaming URL
-                    })
-                videos_json = json.dumps(videos_list) if videos_list else None
 
-                screenshots = steam_details_en.get('screenshots', [])
-                screenshots_list = []
-                for ss in screenshots:
-                    screenshots_list.append({
-                        "id": ss.get("id"),
-                        "path_thumbnail": ss.get("path_thumbnail"),
-                        "path_full": ss.get("path_full")
-                    })
-                screenshots_json = json.dumps(screenshots_list) if screenshots_list else None
-                
-                release_date_info = steam_details_en.get('release_date', {})
-                release_date_str = release_date_info.get('date')
-                coming_soon = release_date_info.get('coming_soon', False)
-                release_date_obj = None
-                
-                if release_date_str and not coming_soon:
-                    date_formats = [
-                        '%d %b, %Y', '%b %d, %Y', '%d %B, %Y', '%B %d, %Y',
-                        '%Y-%m-%d', '%d %b %Y', '%b %d %Y', '%Y'
-                    ]
-                    for fmt in date_formats:
-                        try:
-                            release_date_obj = datetime.strptime(release_date_str, fmt).date()
-                            break
-                        except ValueError:
-                            continue
-                
-                new_game = models.Game(
-                    title=steam_details_en.get("name"),
-                    description=english_desc,
-                    about_game_th=thai_desc,
-                    genre=", ".join([g["description"] for g in steam_details_en.get("genres", [])[:3]]),
-                    image_url=steam_details_en.get("header_image"),
-                    release_date=release_date_obj,
-                    developer=", ".join(steam_details_en.get("developers", [])),
-                    publisher=", ".join(steam_details_en.get("publishers", [])),
-                    platform=platform_str,
-                    price=price_str,
-                    video=videos_json,
-                    screenshots=screenshots_json,
-                    steam_app_id=int(app_id)
-                )
-                
-                db.add(new_game)
-                db.flush()
-                
-                # Auto-tag
-                try:
-                    categories = steam_details_en.get('categories', [])
-                    for category in categories:
-                        cat_id = category.get('id')
-                        mode_name = None
-                        if cat_id == 2: mode_name = 'Single-player'
-                        elif cat_id == 1: mode_name = 'Multi-player'
-                        elif cat_id in [9, 24, 36, 37, 38]: mode_name = 'Co-op'
-                        
-                        if mode_name:
-                            tag = db.query(models.Tag).filter(models.Tag.name == mode_name, models.Tag.type == 'player_mode').first()
-                            if not tag:
-                                tag = models.Tag(name=mode_name, type='player_mode')
-                                db.add(tag)
-                                db.flush()
-                            game_tag = models.GameTag(game_id=new_game.id, tag_id=tag.id)
-                            db.add(game_tag)
-                    
-                    genres = steam_details_en.get('genres', [])
-                    for genre_data in genres:
-                        genre_name = genre_data.get('description')
-                        if genre_name:
-                            genre_tag = db.query(models.Tag).filter(models.Tag.name == genre_name, models.Tag.type == 'genre').first()
-                            if not genre_tag:
-                                genre_tag = models.Tag(name=genre_name, type='genre')
-                                db.add(genre_tag)
-                                db.flush()
-                            game_tag = models.GameTag(game_id=new_game.id, tag_id=genre_tag.id)
-                            db.add(game_tag)
-                except Exception as e:
-                    print(f"[Newest Games] Error tagging game: {e}")
-                
-                # Fetch data
-                try:
-                    from .utils.sentiment_helper import fetch_and_cache_sentiment
-                    fetch_and_cache_sentiment(new_game.id, int(app_id), db)
-                except:
-                    pass
-                
-                try:
-                    from .utils.thai_review_helper import fetch_and_cache_thai_reviews
-                    fetch_and_cache_thai_reviews(new_game.id, int(app_id), db, max_reviews=50)
-                except:
-                    pass
-                
-                try:
-                    from .services.review_tags_service import ReviewTagsService
-                    tags_service = ReviewTagsService(db)
-                    print(f"[Newest Games] Generating review tags for {new_game.title}...")
-                    tags_service.generate_tags_for_game(new_game.id, top_n=10, max_reviews=1500)
-                except Exception as e:
-                    print(f"[Newest Games] Warning: Failed to generate tags for {new_game.title}: {e}")
-                
-                db.commit()
-                imported_count += 1
-                print(f"[Newest Games] ✓ Imported: {new_game.title} ({imported_count}/{target_new_games})")
-                
-                time.sleep(10)
-                
-                if imported_count >= target_new_games:
-                    print(f"[Newest Games] Target reached!")
-                    break
-                    
-            except Exception as e:
-                print(f"[Newest Games] Error importing game {app_id}: {e}")
-                failed_count += 1
-                db.rollback()
-                continue
-        
-        # STEP 2: If no new games in first batch, fetch incrementally in batches of 20
-        if not initial_batch_has_new_games and imported_count < target_new_games:
-            print("[Newest Games] No new games in first 20. Fetching incrementally in batches of 20...")
-            
-            batch_offset = 20  # Start from offset 20 (we already processed 0-19)
-            max_attempts = 5  # Prevent infinite loops (max 5 batches of 20 = 100 games total)
-            attempt = 0
-            
-            while imported_count < target_new_games and attempt < max_attempts:
-                attempt += 1
-                print(f"[Newest Games] Fetching batch {attempt + 1} (games {batch_offset}-{batch_offset + 19})...")
-                
-                # Fetch next batch of 20 games
-                newest_games = SteamAPIClient.get_newest_games_from_steamspy(limit=batch_offset + 20)
-                
-                if not newest_games or len(newest_games) <= batch_offset:
-                    print("[Newest Games] No more games available from SteamSpy")
-                    break
-                
-                # Process only the new 20 games in this batch (skip the ones we already processed)
-                current_batch = newest_games[batch_offset:batch_offset + 20]
-                
-                if not current_batch:
-                    print("[Newest Games] No more games in this batch")
-                    break
-                
-                for game in current_batch:
-                    if imported_count >= target_new_games:
-                        print(f"[Newest Games] Target reached ({imported_count}/{target_new_games})!")
-                        break
-                    
-                    app_id = game.get('app_id')
-                    if not app_id:
-                        continue
-                    
-                    existing_game = db.query(models.Game).filter(
-                        models.Game.steam_app_id == int(app_id)
-                    ).first()
-                    
-                    if existing_game:
-                        skipped_count += 1
-                        continue
-                    
-                    # Same import logic as STEP 1
-                    try:
-                        steam_details_en = SteamAPIClient.get_app_details(int(app_id), language="english", country_code="us")
-                        if not steam_details_en:
-                            failed_count += 1
-                            continue
-                        
-                        steam_details_th = SteamAPIClient.get_app_details(int(app_id), language="thai", country_code="th")
-                        from .utils.translator import translator
-                        from .utils.text_cleaner import clean_html_text
-                        
-                        english_desc = None
-                        thai_desc = None
-                        
-                        if steam_details_en.get('about_the_game'):
-                            english_desc = clean_html_text(steam_details_en.get('about_the_game'))
-                        elif steam_details_en.get('short_description'):
-                            english_desc = clean_html_text(steam_details_en.get('short_description'))
-                        
-                        if steam_details_th and steam_details_th.get('about_the_game'):
-                            cleaned_thai = clean_html_text(steam_details_th.get('about_the_game'))
-                            if translator.detect_language(cleaned_thai) == 'th':
-                                thai_desc = cleaned_thai
-                        
-                        if not thai_desc and english_desc:
-                            try:
-                                thai_desc = translator.translate_to_thai(english_desc)
-                            except:
-                                pass
-                        
-                        platforms = steam_details_en.get('platforms', {})
-                        platform_list = []
-                        if platforms.get('windows'): platform_list.append('Windows')
-                        if platforms.get('mac'): platform_list.append('Mac')
-                        if platforms.get('linux'): platform_list.append('Linux')
-                        platform_str = ', '.join(platform_list) if platform_list else None
-                        
-                        price_overview = steam_details_en.get('price_overview', {})
-                        price_str = price_overview.get('final_formatted') if price_overview else None
-                        
-                        movies = steam_details_en.get('movies', [])
-                        videos_list = []
-                        for movie in movies:
-                            videos_list.append({
-                                "name": movie.get("name"),
-                                "thumbnail": movie.get("thumbnail"),
-                                "url": movie.get("dash_h264"),  # Use DASH streaming URL
-                                "hls_url": movie.get("hls_h264")  # Use HLS streaming URL
-                            })
-                        videos_json = json.dumps(videos_list) if videos_list else None
+                # ข้ามถ้าเคย process แล้วใน tier ก่อนหน้า
+                if app_id in seen_app_ids:
+                    continue
+                seen_app_ids.add(app_id)
 
-                        screenshots = steam_details_en.get('screenshots', [])
-                        screenshots_list = []
-                        for ss in screenshots:
-                            screenshots_list.append({
-                                "id": ss.get("id"),
-                                "path_thumbnail": ss.get("path_thumbnail"),
-                                "path_full": ss.get("path_full")
-                            })
-                        screenshots_json = json.dumps(screenshots_list) if screenshots_list else None
-                        
-                        release_date_info = steam_details_en.get('release_date', {})
-                        release_date_str = release_date_info.get('date')
-                        coming_soon = release_date_info.get('coming_soon', False)
-                        release_date_obj = None
-                        
-                        if release_date_str and not coming_soon:
-                            date_formats = [
-                                '%d %b, %Y', '%b %d, %Y', '%d %B, %Y', '%B %d, %Y',
-                                '%Y-%m-%d', '%d %b %Y', '%b %d %Y', '%Y'
-                            ]
-                            for fmt in date_formats:
-                                try:
-                                    release_date_obj = datetime.strptime(release_date_str, fmt).date()
-                                    break
-                                except ValueError:
-                                    continue
-                        
-                        new_game = models.Game(
-                            title=steam_details_en.get("name"),
-                            description=english_desc,
-                            about_game_th=thai_desc,
-                            genre=", ".join([g["description"] for g in steam_details_en.get("genres", [])[:3]]),
-                            image_url=steam_details_en.get("header_image"),
-                            release_date=release_date_obj,
-                            developer=", ".join(steam_details_en.get("developers", [])),
-                            publisher=", ".join(steam_details_en.get("publishers", [])),
-                            platform=platform_str,
-                            price=price_str,
-                            video=videos_json,
-                            screenshots=screenshots_json,
-                            steam_app_id=int(app_id)
-                        )
-                        
-                        db.add(new_game)
-                        db.flush()
-                        
-                        try:
-                            categories = steam_details_en.get('categories', [])
-                            for category in categories:
-                                cat_id = category.get('id')
-                                mode_name = None
-                                if cat_id == 2: mode_name = 'Single-player'
-                                elif cat_id == 1: mode_name = 'Multi-player'
-                                elif cat_id in [9, 24, 36, 37, 38]: mode_name = 'Co-op'
-                                
-                                if mode_name:
-                                    tag = db.query(models.Tag).filter(models.Tag.name == mode_name, models.Tag.type == 'player_mode').first()
-                                    if not tag:
-                                        tag = models.Tag(name=mode_name, type='player_mode')
-                                        db.add(tag)
-                                        db.flush()
-                                    game_tag = models.GameTag(game_id=new_game.id, tag_id=tag.id)
-                                    db.add(game_tag)
-                            
-                            genres = steam_details_en.get('genres', [])
-                            for genre_data in genres:
-                                genre_name = genre_data.get('description')
-                                if genre_name:
-                                    genre_tag = db.query(models.Tag).filter(models.Tag.name == genre_name, models.Tag.type == 'genre').first()
-                                    if not genre_tag:
-                                        genre_tag = models.Tag(name=genre_name, type='genre')
-                                        db.add(genre_tag)
-                                        db.flush()
-                                    game_tag = models.GameTag(game_id=new_game.id, tag_id=genre_tag.id)
-                                    db.add(game_tag)
-                        except Exception as e:
-                            print(f"[Newest Games] Error tagging game: {e}")
-                        
-                        try:
-                            from .utils.sentiment_helper import fetch_and_cache_sentiment
-                            fetch_and_cache_sentiment(new_game.id, int(app_id), db)
-                        except:
-                            pass
-                        
-                        try:
-                            from .utils.thai_review_helper import fetch_and_cache_thai_reviews
-                            fetch_and_cache_thai_reviews(new_game.id, int(app_id), db, max_reviews=50)
-                        except:
-                            pass
-                        
-                        try:
-                            from .services.review_tags_service import ReviewTagsService
-                            tags_service = ReviewTagsService(db)
-                            print(f"[Newest Games] Generating review tags for {new_game.title}...")
-                            tags_service.generate_tags_for_game(new_game.id, top_n=10, max_reviews=1500)
-                        except Exception as e:
-                            print(f"[Newest Games] Warning: Failed to generate tags for {new_game.title}: {e}")
-                        
-                        db.commit()
+                try:
+                    result = import_single_game(app_id, imported_count, target_new_games, cutoff_date)
+                    if result == 'imported':
                         imported_count += 1
-                        print(f"[Newest Games] ✓ Imported from batch {attempt + 1}: {new_game.title} ({imported_count}/{target_new_games})")
+                        print(f"[Newest Games] Progress: {imported_count}/{target_new_games}")
                         time.sleep(10)
-                        
-                    except Exception as e:
-                        print(f"[Newest Games] Error: {e}")
+                    elif result == 'skipped':
+                        skipped_count += 1
+                    elif result == 'failed':
                         failed_count += 1
-                        db.rollback()
-                
-                # Move to next batch
-                batch_offset += 20
-                
-                # If we reached target in this iteration, break
-                if imported_count >= target_new_games:
-                    break
-        
+                except Exception as e:
+                    print(f"[Newest Games] Error importing {app_id}: {e}")
+                    failed_count += 1
+                    db.rollback()
+
+            print(f"[Newest Games] {label} done — imported so far: {imported_count}/{target_new_games}")
+
         stats['imported'] = imported_count
         stats['skipped'] = skipped_count
         stats['failed'] = failed_count
-        
+
         log_daily_update(db, 'games', stats)
-        
+
         print(f"[Newest Games] Complete! Imported: {imported_count}, Skipped: {skipped_count}, Failed: {failed_count}")
         return stats
-        
+
     except Exception as e:
         print(f"[Newest Games Scheduler] Fatal error: {e}")
         stats['errors'] = 1
         return stats
     finally:
         db.close()
+
+
 
 def cleanup_password_reset_tokens():
     """Delete expired, used, and old password reset tokens (daily cleanup)"""

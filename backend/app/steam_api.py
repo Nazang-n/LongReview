@@ -340,6 +340,63 @@ class SteamAPIClient:
         return games_list[:limit]
 
     @staticmethod
+    def get_newest_released_games(candidate_limit: int = 300) -> Optional[List[Dict[str, Any]]]:
+        """
+        Fetch recently modified games from Steam IStoreService/GetAppList/v1.
+        Returns up to candidate_limit apps sorted by last_modified DESC.
+        Each item: {'app_id': str, 'name': str, 'last_modified': int}
+        Compatible with import_newest_games() in scheduler.py.
+        NOTE: Caller is responsible for filtering by release_date / type / coming_soon.
+        """
+        STEAM_API_KEY = "925DACE9202850368554F7061C00EDCD"
+        url = "https://api.steampowered.com/IStoreService/GetAppList/v1/"
+        params = {
+            "key": STEAM_API_KEY,
+            "max_results": 50000,
+            "include_games": "true",
+            "include_dlc": "false",
+            "include_software": "false",
+            "include_videos": "false",
+            "include_hardware": "false",
+            "last_appid": 0
+        }
+
+        all_apps = []
+        try:
+            while True:
+                response = requests.get(url, params=params, timeout=30)
+                response.raise_for_status()
+                data = response.json()
+                apps = data.get("response", {}).get("apps", [])
+                if not apps:
+                    break
+                all_apps.extend(apps)
+                if len(apps) < params["max_results"]:
+                    break
+                params["last_appid"] = apps[-1].get("appid", 0)
+                time.sleep(0.5)
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching Steam IStoreService app list: {e}")
+            return None
+
+        if not all_apps:
+            return None
+
+        # Sort by last_modified DESC (most recently modified first)
+        apps_with_ts = [a for a in all_apps if a.get("last_modified", 0) > 0]
+        apps_sorted = sorted(apps_with_ts, key=lambda x: x["last_modified"], reverse=True)
+
+        # Return in format compatible with scheduler (app_id as str key)
+        result = []
+        for app in apps_sorted[:candidate_limit]:
+            result.append({
+                "app_id": str(app.get("appid")),
+                "name": app.get("name", ""),
+                "last_modified": app.get("last_modified", 0)
+            })
+        return result
+
+    @staticmethod
     def get_newest_games_from_steam_store(limit: int = 50) -> Optional[List[Dict[str, Any]]]:
         """
         Fetch newest games by scraping Steam Store Search
