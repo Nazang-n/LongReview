@@ -228,7 +228,10 @@ def trigger_manual_update(force_update: bool = False):
             try:
                 # Check for smart update skipping
                 if not force_update and game.last_review_fetch:
-                    age = datetime.now() - game.last_review_fetch
+                    # Strip tzinfo so naive datetime.now() can be compared with
+                    # timezone-aware datetimes that may be stored in the DB
+                    last_fetch = game.last_review_fetch.replace(tzinfo=None)
+                    age = datetime.utcnow() - last_fetch
                     if age < timedelta(hours=24):
                         stats['skipped'] += 1
                         continue
