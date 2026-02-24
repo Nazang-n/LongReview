@@ -221,16 +221,16 @@ async def update_single_game_reviews(game_id: int, db: Session = Depends(get_db)
 async def trigger_sentiment_update(background_tasks: BackgroundTasks) -> Dict:
     """
     Manually trigger sentiment update for all games (Background Task)
-    Uses "Smart Update" (skips games updated in last 24h)
+    Uses Force Update (updates ALL games, ignoring 24h skip)
     """
     from ..scheduler import update_all_sentiments
     
-    # Use Smart Update (force_update=False)
-    background_tasks.add_task(update_all_sentiments, force_update=False)
+    # Force update — admin manual trigger should always re-update all games
+    background_tasks.add_task(update_all_sentiments, force_update=True)
     
     return {
         "status": "success",
-        "message": "Sentiment update started in background (Smart Update).",
+        "message": "Sentiment update started in background (Force Update — all games).",
         "stats": {"status": "processing"}
     }
 
@@ -239,16 +239,16 @@ async def trigger_sentiment_update(background_tasks: BackgroundTasks) -> Dict:
 async def trigger_thai_reviews_update(background_tasks: BackgroundTasks) -> Dict:
     """
     Manually trigger Thai review fetching for all games (Background Task)
-    Uses "Smart Update" (skips games updated in last 24h)
+    Uses Force Update (updates ALL games, ignoring 24h skip)
     """
     from ..services.review_scheduler import trigger_manual_update
     
-    # Use Smart Update (force_update=False)
-    background_tasks.add_task(trigger_manual_update, force_update=False)
+    # Force update — admin manual trigger should always re-fetch for all games
+    background_tasks.add_task(trigger_manual_update, force_update=True)
     
     return {
         "status": "success",
-        "message": "Thai reviews update started in background (Smart Update).",
+        "message": "Thai reviews update started in background (Force Update — all games).",
         "stats": {"status": "processing"}
     }
 
