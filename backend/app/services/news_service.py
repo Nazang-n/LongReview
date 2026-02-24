@@ -36,6 +36,11 @@ class NewsService:
             "ฟุตบอล", "บาสเกตบอล", "วอลเลย์บอล", "แบดมินตัน",
             "เทนนิส", "ว่ายน้ำ", "มวย", "มวยไทย", "กรีฑา",
             "sea games", "seagames", "อาเซียน เกมส์",
+            # Ping pong / Table tennis
+            "ปิงปอง", "เทเบิลเทนนิส", "table tennis", "สแมช",
+            "สิงคโปร์สแมช", "singapore smash", "เซิร์บ", "เซอร์เบีย",
+            "เข้ารอบ 16 คู่", "เข้ารอบ 64", "รอบ 16 คู่", "รอบ 64",
+            "ปราบเซอร์เบีย", "เฉือนสาว", "อรวรรณ", "ทิพย์-หญิง",
             # Football teams and leagues (including abbreviations)
             "แมนยู", "แมนฯ ยู", "แมนฯยู", "แมน ยู",
             "แมนซิตี้", "แมนฯ ซิตี้", "แมน ซิตี้",
@@ -80,7 +85,20 @@ class NewsService:
         # Entertainment/Celebrity keywords (non-gaming content)
         entertainment_keywords = [
             "บิลบอร์ด", "คอนเสิร์ต", "แฟนมีต", "งานแถลงข่าว",
-            "เซเลบ", "ดารา", "นักร้อง", "นักแสดง"
+            "เซเลบ", "ดารา", "นักร้อง", "นักแสดง",
+            # Variety shows / Celebrity gossip
+            "วาไรตี้", "รายการวาไรตี้", "running man", "รันนิ่งแมน",
+            "นักวิ่งซุปตาร์", "ดูทางไหน", "ซีรีส์", "ละคร",
+            "เรียลลิตี้", "reality show", "talk show"
+        ]
+        
+        # Gambling keywords (illegal in Thailand — must always be blocked)
+        gambling_keywords = [
+            "บาคาร่า", "สมัครบาคาร่า", "เว็บบาคาร่า", "คาสิโน", "casino",
+            "สล็อต", "สล็อตออนไลน์", "เดิมพัน", "การพนัน", "เล่นพนัน",
+            "แทงบอล", "แทงหวย", "หวยออนไลน์", "เว็บพนัน", "ฟรีสปิน",
+            "jackpot", "โปกเกอร์", "poker", "รูเล็ต", "roulette",
+            "ไฮโล", "น้ำเต้าปูปลา", "betting", "เกมไพ่มาแรง"
         ]
         
         # Political keywords (filter out political news)
@@ -127,6 +145,10 @@ class NewsService:
         if any(keyword in content for keyword in primary_sports_keywords):
             return True
         
+        # Check for gambling keywords (always block — illegal content)
+        if any(keyword in content for keyword in gambling_keywords):
+            return True
+        
         # Check for entertainment keywords (any one is enough)
         if any(keyword in content for keyword in entertainment_keywords):
             return True
@@ -144,8 +166,6 @@ class NewsService:
         if secondary_count >= 2:
             return True
         
-        # Don't require gaming keywords since our search query already targets gaming
-        # Just filter out obvious non-gaming content above
         return False
     
     @staticmethod
@@ -442,25 +462,28 @@ class NewsService:
     @staticmethod
     def get_news_from_db(db: Session, skip: int = 0, limit: int = 20) -> List[Dict[str, Any]]:
         """
-        Get news from database (newest first)
-        
-        Args:
-            db: Database session
-            skip: Number of records to skip (for pagination)
-            limit: Maximum number of records to return
-            
-        Returns:
-            List of news articles
+        Get news from database (newest first), with content filtering applied.
+        Articles that match the bad-content filter are silently marked inactive
+        so they won't appear again on subsequent calls.
         """
+        # Fetch a larger batch so we can filter and still return `limit` items
+        fetch_limit = limit * 3
         news_items = db.query(News).filter(
             News.is_active == True
         ).order_by(
             News.pub_date.desc()
-        ).offset(skip).limit(limit).all()
+        ).offset(skip).limit(fetch_limit).all()
         
-        # Convert to dict format
         results = []
         for item in news_items:
+            # Re-apply filter to catch articles saved before filter was updated
+            article_dict = {"title": item.title, "description": item.description or ""}
+            if NewsService._is_sports_news(article_dict):
+                # Mark as inactive so it never appears again
+                item.is_active = False
+                db.commit()
+                continue
+
             results.append({
                 "id": item.article_id,
                 "title": item.title,
@@ -470,6 +493,9 @@ class NewsService:
                 "date": item.pub_date.strftime("%d %B %Y") if item.pub_date else "",
                 "author": item.source_name
             })
+
+            if len(results) >= limit:
+                break
         
         return results
     
