@@ -107,8 +107,8 @@ def update_all_sentiments(force_update: bool = False):
                     ).first()
                     
                     if sentiment and sentiment.last_updated:
-                        # Check age
-                        age = datetime.now() - sentiment.last_updated
+                        # Check age — strip tzinfo so naive datetime.utcnow() is comparable
+                        age = datetime.utcnow() - sentiment.last_updated.replace(tzinfo=None)
                         if age < timedelta(hours=24):
                             skipped_count += 1
                             continue
