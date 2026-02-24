@@ -831,26 +831,48 @@ export class AdminComponent implements OnInit, OnDestroy {
             life: 3000
         });
 
-        // Use forkJoin to run all updates in parallel
+        // Build one request per game, per data type that's missing
+        const allUpdates: any[] = [];
+
+        for (const game of this.incompleteGames) {
+            if (game.not_updated.includes('sentiment')) {
+                allUpdates.push(
+                    this.http.post(`https://longreview.onrender.com/api/admin/sentiment/update/${game.id}`, {})
+                );
+            }
+            if (game.not_updated.includes('tags')) {
+                allUpdates.push(
+                    this.http.post(`https://longreview.onrender.com/api/admin/review-tags/generate/${game.id}`, {})
+                );
+            }
+            if (game.not_updated.includes('reviews')) {
+                allUpdates.push(
+                    this.http.post(`https://longreview.onrender.com/api/admin/reviews/update/${game.id}`, {})
+                );
+            }
+        }
+
+        if (allUpdates.length === 0) {
+            this.isFixingAll = false;
+            this.isAnyProcessing = false;
+            return;
+        }
+
         import('rxjs').then(({ forkJoin }) => {
-            forkJoin([
-                this.gameService.triggerSentimentUpdate(),
-                this.gameService.triggerReviewTagsUpdate(),
-                this.gameService.triggerReviewUpdate()
-            ]).subscribe({
-                next: (results) => {
+            forkJoin(allUpdates).subscribe({
+                next: () => {
                     this.isFixingAll = false;
                     this.isAnyProcessing = false;
 
-                    // Reload incomplete games to see updated status
-                    this.loadDailyUpdateStatus();
-
                     this.messageService.add({
                         severity: 'success',
-                        summary: 'เริ่มการอัปเดตแล้ว',
-                        detail: 'ระบบกำลังอัปเดตข้อมูลในเบื้องหลัง กรุณารอสักครู่...',
+                        summary: 'อัปเดตเสร็จสิ้น',
+                        detail: `อัปเดตข้อมูลสำหรับ ${this.incompleteGames.length} เกม เรียบร้อยแล้ว`,
                         life: 5000
                     });
+
+                    // Reload incomplete games to see updated status
+                    this.loadDailyUpdateStatus();
                 },
                 error: (error) => {
                     this.isFixingAll = false;
@@ -859,9 +881,12 @@ export class AdminComponent implements OnInit, OnDestroy {
                     this.messageService.add({
                         severity: 'error',
                         summary: 'เกิดข้อผิดพลาด',
-                        detail: 'ไม่สามารถอัปเดตข้อมูลได้ทั้งหมด',
+                        detail: 'ไม่สามารถอัปเดตข้อมูลได้บางส่วน',
                         life: 5000
                     });
+
+                    // Still reload to see which ones succeeded
+                    this.loadDailyUpdateStatus();
                 }
             });
         });
