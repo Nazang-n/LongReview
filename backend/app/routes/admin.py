@@ -650,9 +650,9 @@ async def get_incomplete_games(db: Session = Depends(get_db)) -> Dict:
             
             # 3. Check if Thai reviews were fetched today
             if game.last_review_fetch:
-                # User preference: if we already fetched them, and there are 0 or >0 reviews,
-                # mark them as updated so they disappear from the "Unupdated Games" admin dashboard.
-                pass
+                last_fetch_date = game.last_review_fetch.date()
+                if last_fetch_date < today:
+                    not_updated.append('reviews')
             else:
                 # Never fetched reviews
                 not_updated.append('reviews')
