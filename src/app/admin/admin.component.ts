@@ -248,7 +248,8 @@ export class AdminComponent implements OnInit, OnDestroy {
                 this.isTranslating = false;
                 this.isAnyProcessing = false;
                 this.showResultDialog('การแปลภาษาเสร็จสิ้น', {
-                    'แปลแล้ว': result.translated || 0,
+                    'เกมที่ต้องแปล': result.total_found || 0,
+                    'แปลสำเร็จ': result.translated || 0,
                     'ล้มเหลว': result.failed || 0
                 });
             },
@@ -1118,4 +1119,3 @@ export class AdminComponent implements OnInit, OnDestroy {
         }
     }
 }
-

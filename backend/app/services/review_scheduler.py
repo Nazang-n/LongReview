@@ -58,7 +58,7 @@ def update_thai_reviews():
                 steam_reviews = SteamAPIClient.get_all_reviews(
                     app_id=int(game.steam_app_id),
                     language="thai",
-                    max_reviews=100  # Limit to 100 Thai reviews per game
+                    max_reviews=50  # Limit to 50 Thai reviews per game to reduce memory usage
                 )
                 
                 if not steam_reviews:
@@ -189,15 +189,18 @@ def stop_review_scheduler():
         logger.info("Thai review scheduler stopped")
 
 
-def trigger_manual_update(force_update: bool = False):
+def trigger_manual_update(force_update: bool = False, limit: int = 0):
     """
-    Manually trigger a Thai review update (for admin panel)
+    Manually trigger a Thai review update (for admin panel or nightly scheduler)
     Returns statistics about the update
     
     Args:
-        force_update: If True, update all games. If False, skip games updated in last 24h.
+        force_update: If True, update all games regardless of last fetch time.
+                      If False, skip games updated in last 24h.
+        limit: Max number of games to process. 0 = no limit (process all).
+               Used by the nightly scheduler to cap at 50 games/night.
     """
-    logger.info(f"🔧 Admin manually triggered Thai review update (force={force_update})")
+    logger.info(f"🔧 Thai review update triggered (force={force_update}, limit={limit if limit > 0 else 'all'})")
     
     from ..database import SessionLocal
     from ..steam_api import SteamAPIClient
@@ -214,14 +217,16 @@ def trigger_manual_update(force_update: bool = False):
     }
     
     try:
-        # For manual triggers, fetch ALL games (no 24-hour restriction)
-        # This allows admins to force-refresh reviews anytime
-        games_to_update = db.query(models.Game).filter(
+        query = db.query(models.Game).filter(
             models.Game.steam_app_id != None
         ).order_by(
             models.Game.last_review_fetch.asc().nullsfirst()
-        ).all()  # No limit - process ALL games
+        )
         
+        if limit > 0:
+            query = query.limit(limit)
+        
+        games_to_update = query.all()
         stats['games_processed'] = len(games_to_update)
         
         for game in games_to_update:
@@ -241,7 +246,7 @@ def trigger_manual_update(force_update: bool = False):
                 steam_reviews = SteamAPIClient.get_all_reviews(
                     app_id=int(game.steam_app_id),
                     language="thai",
-                    max_reviews=100
+                    max_reviews=50  # 50 reviews/game to reduce memory usage
                 )
                 
                  # Filter for valid Thai content (strict check)

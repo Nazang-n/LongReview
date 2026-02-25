@@ -73,7 +73,7 @@ def cleanup_old_daily_logs():
 
 def update_all_sentiments(force_update: bool = False):
     """
-    Update sentiment for all games with steam_app_id
+    Update sentiment for all games, processed in chunks to stay within Render's 512 MB RAM.
     
     Args:
         force_update: If True, update all games regardless of last_updated time.
@@ -86,99 +86,103 @@ def update_all_sentiments(force_update: bool = False):
         'skipped': 0,
         'errors': 0
     }
+    CHUNK_SIZE = 30  # Process 30 games at a time to keep RAM low
     try:
-        # Get all games with steam_app_id
-        games = db.query(models.Game).filter(
+        # Count total games
+        total_games = db.query(models.Game).filter(
             models.Game.steam_app_id.isnot(None)
-        ).all()
+        ).count()
         
-        stats['games_processed'] = len(games)
-        print(f"[Sentiment Scheduler] Starting update for {len(games)} games (force={force_update})...")
+        stats['games_processed'] = total_games
+        print(f"[Sentiment Scheduler] Starting update for {total_games} games in chunks of {CHUNK_SIZE} (force={force_update})...")
         updated_count = 0
         skipped_count = 0
         error_count = 0
-        
-        for game in games:
-            try:
-                # Check if we should skip
-                if not force_update:
-                    sentiment = db.query(models.GameSentiment).filter(
-                        models.GameSentiment.game_id == game.id
-                    ).first()
+        offset = 0
+
+        while offset < total_games:
+            # Load one chunk
+            games = db.query(models.Game).filter(
+                models.Game.steam_app_id.isnot(None)
+            ).order_by(models.Game.id).offset(offset).limit(CHUNK_SIZE).all()
+
+            if not games:
+                break
+
+            for game in games:
+                try:
+                    # Check if we should skip
+                    if not force_update:
+                        sentiment = db.query(models.GameSentiment).filter(
+                            models.GameSentiment.game_id == game.id
+                        ).first()
+                        
+                        if sentiment and sentiment.last_updated:
+                            age = datetime.utcnow() - sentiment.last_updated.replace(tzinfo=None)
+                            if age < timedelta(hours=24):
+                                skipped_count += 1
+                                continue
                     
-                    if sentiment and sentiment.last_updated:
-                        # Check age — strip tzinfo so naive datetime.utcnow() is comparable
-                        age = datetime.utcnow() - sentiment.last_updated.replace(tzinfo=None)
-                        if age < timedelta(hours=24):
-                            skipped_count += 1
-                            continue
-                
-                # Fetch from Steam API
-                review_summary = SteamAPIClient.get_app_reviews(
-                    app_id=int(game.steam_app_id),
-                    language="all",
-                    num_per_page=0
-                )
-                
-                if review_summary and review_summary.get("success") == 1:
-                    summary = review_summary.get("query_summary", {})
-                    total = summary.get("total_reviews", 0)
-                    positive = summary.get("total_positive", 0)
-                    negative = summary.get("total_negative", 0)
-                    review_score_desc = summary.get("review_score_desc", "No user reviews")
+                    # Fetch from Steam API
+                    review_summary = SteamAPIClient.get_app_reviews(
+                        app_id=int(game.steam_app_id),
+                        language="all",
+                        num_per_page=0
+                    )
                     
-                    # Calculate percentages
-                    if total > 0:
-                        pos_pct = round((positive / total * 100), 1)
-                        neg_pct = round((negative / total * 100), 1)
-                    else:
-                        pos_pct = 0
-                        neg_pct = 0
-                    
-                    # Find or create sentiment record in game_sentiment table
-                    sentiment = db.query(models.GameSentiment).filter(
-                        models.GameSentiment.game_id == game.id
-                    ).first()
-                    
-                    if sentiment:
-                        # Update existing sentiment record
-                        sentiment.positive_percent = pos_pct
-                        sentiment.negative_percent = neg_pct
-                        sentiment.total_reviews = total
-                        sentiment.review_score_desc = review_score_desc
-                        sentiment.last_updated = datetime.now()
-                    else:
-                        # Create new sentiment record
-                        sentiment = models.GameSentiment(
-                            game_id=game.id,
-                            positive_percent=pos_pct,
-                            negative_percent=neg_pct,
-                            total_reviews=total,
-                            review_score_desc=review_score_desc,
-                            last_updated=datetime.now()
-                        )
-                        db.add(sentiment)
-                    
-                    # Update Game rating (0-10 scale)
-                    game.rating = round(pos_pct / 10.0, 1)
-                    
-                    db.commit()
-                    updated_count += 1
-                    
-                    # Small delay to avoid rate limiting
-                    time.sleep(0.5)
-                    
-            except Exception as e:
-                print(f"[Sentiment Scheduler] Error updating game {game.id} ({game.title}): {e}")
-                error_count += 1
-                continue
+                    if review_summary and review_summary.get("success") == 1:
+                        summary = review_summary.get("query_summary", {})
+                        total = summary.get("total_reviews", 0)
+                        positive = summary.get("total_positive", 0)
+                        negative = summary.get("total_negative", 0)
+                        review_score_desc = summary.get("review_score_desc", "No user reviews")
+                        
+                        if total > 0:
+                            pos_pct = round((positive / total * 100), 1)
+                            neg_pct = round((negative / total * 100), 1)
+                        else:
+                            pos_pct = 0
+                            neg_pct = 0
+                        
+                        sentiment = db.query(models.GameSentiment).filter(
+                            models.GameSentiment.game_id == game.id
+                        ).first()
+                        
+                        if sentiment:
+                            sentiment.positive_percent = pos_pct
+                            sentiment.negative_percent = neg_pct
+                            sentiment.total_reviews = total
+                            sentiment.review_score_desc = review_score_desc
+                            sentiment.last_updated = datetime.now()
+                        else:
+                            sentiment = models.GameSentiment(
+                                game_id=game.id,
+                                positive_percent=pos_pct,
+                                negative_percent=neg_pct,
+                                total_reviews=total,
+                                review_score_desc=review_score_desc,
+                                last_updated=datetime.now()
+                            )
+                            db.add(sentiment)
+                        
+                        game.rating = round(pos_pct / 10.0, 1)
+                        db.commit()
+                        updated_count += 1
+                        time.sleep(0.5)
+                        
+                except Exception as e:
+                    print(f"[Sentiment Scheduler] Error updating game {game.id} ({game.title}): {e}")
+                    error_count += 1
+                    continue
+
+            # Free all ORM objects for this chunk before loading the next one
+            db.expire_all()
+            offset += CHUNK_SIZE
+            print(f"[Sentiment Scheduler] Chunk done — offset {offset}/{total_games}, updated so far: {updated_count}")
         
         stats['updated'] = updated_count
         stats['errors'] = error_count
-        
-        # Log the daily update
         log_daily_update(db, 'sentiment', stats)
-        
         print(f"[Sentiment Scheduler] Update complete! Updated: {updated_count}, Errors: {error_count}")
         return stats
         
@@ -189,81 +193,91 @@ def update_all_sentiments(force_update: bool = False):
 
 def update_review_tags(update_existing: bool = True):
     """
-    Update review tags for games that need refresh.
+    Update review tags for games that need refresh, processed in chunks to stay within 512 MB RAM.
     
     Args:
         update_existing: If True, updates tags older than 7 days. If False, only updates games with NO tags.
     """
     db = SessionLocal()
     stats = {
-        'games_checked': 0,
+        'games_processed': 0,  # renamed from games_checked for log_daily_update compatibility
         'updated': 0,
         'skipped': 0,
         'errors': 0
     }
+    CHUNK_SIZE = 30
     
     try:
         from .services.review_tags_service import ReviewTagsService
         from datetime import timedelta
         
-        # Get all games with steam_app_id
-        games = db.query(models.Game).filter(
+        total_games = db.query(models.Game).filter(
             models.Game.steam_app_id.isnot(None)
-        ).all()
+        ).count()
         
-        stats['games_checked'] = len(games)
-        print(f"[Review Tags Scheduler] Checking {len(games)} games for tag updates (update_existing={update_existing})...")
+        stats['games_processed'] = total_games
+        print(f"[Review Tags Scheduler] Checking {total_games} games in chunks of {CHUNK_SIZE} (update_existing={update_existing})...")
         
         updated_count = 0
         skipped_count = 0
         error_count = 0
-        
-        for game in games:
-            try:
-                # Check if ACTUAL review tags exist (positive/negative, not system tags)
-                existing_tags = db.query(models.GameReviewTag).filter(
-                    models.GameReviewTag.game_id == game.id,
-                    models.GameReviewTag.tag_type.in_(['positive', 'negative'])  # Exclude system tags
-                ).first()
-                
-                needs_update = False
-                if not existing_tags:
-                    needs_update = True
-                    print(f"[Review Tags] Game {game.id} ({game.title}) has no review tags, generating...")
-                elif update_existing:
-                    age = datetime.now() - existing_tags.updated_at.replace(tzinfo=None)
-                    if age > timedelta(days=7):
+        offset = 0
+
+        while offset < total_games:
+            games = db.query(models.Game).filter(
+                models.Game.steam_app_id.isnot(None)
+            ).order_by(models.Game.id).offset(offset).limit(CHUNK_SIZE).all()
+
+            if not games:
+                break
+
+            for game in games:
+                try:
+                    existing_tags = db.query(models.GameReviewTag).filter(
+                        models.GameReviewTag.game_id == game.id,
+                        models.GameReviewTag.tag_type.in_(['positive', 'negative'])
+                    ).first()
+                    
+                    needs_update = False
+                    if not existing_tags:
                         needs_update = True
-                        print(f"[Review Tags] Game {game.id} ({game.title}) tags are {age.days} days old, refreshing...")
-                
-                if needs_update:
-                    tags_service = ReviewTagsService(db)
-                    result = tags_service.generate_tags_for_game(game.id, top_n=10, max_reviews=1500)
+                        print(f"[Review Tags] Game {game.id} ({game.title}) has no review tags, generating...")
+                    elif update_existing:
+                        age = datetime.now() - existing_tags.updated_at.replace(tzinfo=None)
+                        if age > timedelta(days=7):
+                            needs_update = True
+                            print(f"[Review Tags] Game {game.id} ({game.title}) tags are {age.days} days old, refreshing...")
                     
-                    if result.get('success'):
-                        updated_count += 1
-                        print(f"[Review Tags] [OK] Updated tags for {game.title}")
+                    if needs_update:
+                        tags_service = ReviewTagsService(db)
+                        result = tags_service.generate_tags_for_game(game.id, top_n=10, max_reviews=1500)
+                        
+                        if result.get('success'):
+                            updated_count += 1
+                            print(f"[Review Tags] [OK] Updated tags for {game.title}")
+                        else:
+                            error_count += 1
+                            print(f"[Review Tags] [ERROR] Failed to update {game.title}: {result.get('error')}")
+                        
+                        time.sleep(5)
                     else:
-                        error_count += 1
-                        print(f"[Review Tags] [ERROR] Failed to update {game.title}: {result.get('error')}")
-                    
-                    # Delay to avoid overwhelming the API
-                    time.sleep(5)
-                else:
-                    skipped_count += 1
-                    
-            except Exception as e:
-                print(f"[Review Tags Scheduler] Error updating game {game.id} ({game.title}): {e}")
-                error_count += 1
-                continue
+                        skipped_count += 1
+                        
+                except Exception as e:
+                    print(f"[Review Tags Scheduler] Error updating game {game.id} ({game.title}): {e}")
+                    error_count += 1
+                    continue
+
+            # Free chunk from memory before loading next
+            db.expire_all()
+            offset += CHUNK_SIZE
+            print(f"[Review Tags Scheduler] Chunk done — offset {offset}/{total_games}")
         
         stats['updated'] = updated_count
         stats['skipped'] = skipped_count
         stats['errors'] = error_count
         
-        # Log the daily update
         log_daily_update(db, 'tags', stats)
-        
         print(f"[Review Tags Scheduler] Update complete! Updated: {updated_count}, Skipped: {skipped_count}, Errors: {error_count}")
         return stats
         
@@ -688,20 +702,21 @@ scheduler.add_job(
     misfire_grace_time=86400
 )
 
-# Sentiment update job (daily at 12:30 AM)
+# Sentiment update job (daily at 2:00 AM) — force_update=True so ALL games are updated
 scheduler.add_job(
     func=update_all_sentiments,
-    trigger=CronTrigger(hour=1, minute=30),
+    trigger=CronTrigger(hour=2, minute=0),
     id='update_sentiments',
     name='Update game sentiments from Steam API',
     replace_existing=True,
-    misfire_grace_time=86400
+    misfire_grace_time=86400,
+    kwargs={'force_update': True}
 )
 
-# Review tags update job (daily at 2:00 AM)
+# Review tags update job (daily at 4:00 AM)
 scheduler.add_job(
     func=update_review_tags,
-    trigger=CronTrigger(hour=2, minute=0),
+    trigger=CronTrigger(hour=4, minute=0),
     id='update_review_tags',
     name='Update game review tags from Steam reviews',
     replace_existing=True,
@@ -709,13 +724,13 @@ scheduler.add_job(
 )
 
 def update_thai_reviews_daily():
-    """Daily job to update Thai reviews for all games"""
-    print("[Thai Review Scheduler] Starting daily update...")
+    """Daily job to update Thai reviews — processes games not updated in 24h, capped at 50/night to stay within 512 MB RAM"""
+    print("[Thai Review Scheduler] Starting daily update (smart mode, max 50 games)...")
     try:
         from .services.review_scheduler import trigger_manual_update
         
-        # Run the update
-        stats = trigger_manual_update()
+        # Smart update — skip games already fetched within 24h, cap at 50 games/night
+        stats = trigger_manual_update(force_update=False, limit=50)
         
         # Log to daily_update_log
         db = SessionLocal()
@@ -727,20 +742,20 @@ def update_thai_reviews_daily():
     except Exception as e:
         print(f"[Thai Review Scheduler] Fatal error: {e}")
 
-# Thai reviews update job (daily at 1:30 AM)
+# Thai reviews update job (daily at 3:00 AM)
 scheduler.add_job(
     func=update_thai_reviews_daily,
-    trigger=CronTrigger(hour=3, minute=0),
+    trigger=CronTrigger(hour=6, minute=0),
     id='update_thai_reviews',
     name='Update Thai reviews from Steam',
     replace_existing=True,
     misfire_grace_time=86400
 )
 
-# Password reset token cleanup job (daily at 1:00 AM)
+# Password reset token cleanup job (daily at 7:00 AM)
 scheduler.add_job(
     func=cleanup_password_reset_tokens,
-    trigger=CronTrigger(hour=3, minute=30),
+    trigger=CronTrigger(hour=7, minute=0),
     id='cleanup_password_tokens',
     name='Clean up expired and old password reset tokens',
     replace_existing=True,
@@ -762,7 +777,13 @@ def check_missed_daily_tasks():
         
         if not games_log:
             print("[Scheduler] Missed 'games' import. Scheduling now...")
-            scheduler.add_job(import_newest_games, id='catchup_games', name='Catch-up: Import games')
+            scheduler.add_job(
+                import_newest_games,
+                'date',
+                run_date=datetime.now() + timedelta(seconds=5),
+                id='catchup_games',
+                name='Catch-up: Import games'
+            )
 
         # Check 'news' update
         news_log = db.query(models.DailyUpdateLog).filter(
@@ -787,13 +808,13 @@ def check_missed_daily_tasks():
         ).first()
         
         if not sentiment_log:
-            print("[Scheduler] Missed 'sentiment' update. Scheduling now (Smart Update)...")
+            print("[Scheduler] Missed 'sentiment' update. Scheduling now (Force Update)...")
             # Run 10s later to stagger
             scheduler.add_job(
                 update_all_sentiments, 
                 'date', 
                 run_date=datetime.now() + timedelta(seconds=10),
-                args=[False], # force_update=False (Smart Update)
+                kwargs={'force_update': True},  # Force update — update ALL games
                 id='catchup_sentiment', 
                 name='Catch-up: Sentiment'
             )
@@ -805,14 +826,11 @@ def check_missed_daily_tasks():
         ).first()
         
         if not reviews_log:
-            print("[Scheduler] Missed 'reviews' update. Scheduling now (Smart Update)...")
+            print("[Scheduler] Missed 'reviews' update. Scheduling now (Force Update)...")
             scheduler.add_job(
                 update_thai_reviews_daily, 
                 'date', 
                 run_date=datetime.now() + timedelta(seconds=20),
-                # Note: update_thai_reviews_daily calls trigger_manual_update internally
-                # We need to ensure it passes force_update=False
-                kwargs={'force_update': False},
                 id='catchup_reviews', 
                 name='Catch-up: Thai Reviews'
             )
@@ -844,7 +862,7 @@ def start_scheduler():
     from datetime import timedelta # Ensure timedelta is available
     if not scheduler.running:
         scheduler.start()
-        print("[Scheduler] Started - Schedule: New Games (00:00), News (01:00), Sentiment (01:30), Tags (02:00), Thai Reviews (03:00), Cleanup (03:30)")
+        print("[Scheduler] Started - Schedule: Cleanup (00:00), New Games (00:05), News (01:00), Sentiment (02:00), Tags (04:00), Thai Reviews (06:00), Token Cleanup (07:00)")
         
         # Run catch-up check after 5 seconds
         scheduler.add_job(
