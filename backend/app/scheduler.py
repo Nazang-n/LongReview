@@ -21,12 +21,12 @@ def log_daily_update(db: Session, update_type: str, stats: dict, game_id: int = 
         
         # Determine status based on stats
         status = 'success'
-        items_processed = stats.get('games_processed', 0) or stats.get('total_processed', 0) or stats.get('imported', 0)
+        items_processed = stats.get('games_processed', 0) or stats.get('total_processed', 0) or stats.get('imported', 0) or stats.get('skipped', 0)
         # Prioritize 'added' over 'updated' so news updates show new articles count
-        items_successful = stats.get('added', 0) or stats.get('games_successful', 0) or stats.get('updated', 0) or stats.get('imported', 0)
+        items_successful = stats.get('added', 0) or stats.get('games_successful', 0) or stats.get('updated', 0) or stats.get('imported', 0) or stats.get('skipped', 0)
         items_failed = stats.get('errors', 0) or stats.get('failed', 0) or stats.get('games_failed', 0)
         
-        if items_failed > 0 and items_successful == 0:
+        if items_failed > 0 and items_successful == 0 and items_processed > 0:
             status = 'failed'
         elif items_failed > 0:
             status = 'partial'
@@ -318,7 +318,9 @@ def import_newest_games(target_limit: int = 10):
 
         steam_details_en = SteamAPIClient.get_app_details(int(app_id), language="english", country_code="us")
         if not steam_details_en:
-            return 'failed'
+            # No details = likely a DLC, tool, or removed app — treat as skipped, not failed
+            print(f"[Newest Games] Skipping {app_id}: no Steam details (likely DLC/tool/removed)")
+            return 'skipped'
 
         # กรอง: ต้องเป็น game เท่านั้น
         if steam_details_en.get('type') not in ('game', None, ''):
