@@ -636,20 +636,20 @@ def cleanup_password_reset_tokens():
 # Initialize scheduler
 scheduler = BackgroundScheduler()
 
-# Daily log cleanup job (runs at 00:00 AM - First thing in the day)
+# Daily log cleanup job (01:00 TH = 18:00 UTC)
 scheduler.add_job(
     func=cleanup_old_daily_logs,
-    trigger=CronTrigger(hour=0, minute=0),
+    trigger=CronTrigger(hour=18, minute=0),
     id='cleanup_daily_logs',
     name='Clean up old daily update logs',
     replace_existing=True,
     misfire_grace_time=86400 # 24 hours grace time for sleep/hibernate
 )
 
-# Import newest games job (daily at 00:05 AM - After cleanup)
+# Import newest games job (01:05 TH = 18:05 UTC)
 scheduler.add_job(
     func=import_newest_games,
-    trigger=CronTrigger(hour=0, minute=5),
+    trigger=CronTrigger(hour=18, minute=5),
     id='import_newest_games',
     name='Import newest games from Steam',
     replace_existing=True,
@@ -692,20 +692,20 @@ def update_news_daily():
     finally:
         db.close()
 
-# News update job (daily at 00:15 AM)
+# News update job (02:00 TH = 19:00 UTC)
 scheduler.add_job(
     func=update_news_daily,
-    trigger=CronTrigger(hour=1, minute=0),
+    trigger=CronTrigger(hour=19, minute=0),
     id='update_news',
     name='Update gaming news',
     replace_existing=True,
     misfire_grace_time=86400
 )
 
-# Sentiment update job (daily at 2:00 AM) — force_update=True so ALL games are updated
+# Sentiment update job (03:00 TH = 20:00 UTC)
 scheduler.add_job(
     func=update_all_sentiments,
-    trigger=CronTrigger(hour=2, minute=0),
+    trigger=CronTrigger(hour=20, minute=0),
     id='update_sentiments',
     name='Update game sentiments from Steam API',
     replace_existing=True,
@@ -713,10 +713,10 @@ scheduler.add_job(
     kwargs={'force_update': True}
 )
 
-# Review tags update job (daily at 4:00 AM)
+# Review tags update job (04:00 TH = 21:00 UTC)
 scheduler.add_job(
     func=update_review_tags,
-    trigger=CronTrigger(hour=4, minute=0),
+    trigger=CronTrigger(hour=21, minute=0),
     id='update_review_tags',
     name='Update game review tags from Steam reviews',
     replace_existing=True,
@@ -742,20 +742,20 @@ def update_thai_reviews_daily():
     except Exception as e:
         print(f"[Thai Review Scheduler] Fatal error: {e}")
 
-# Thai reviews update job (daily at 3:00 AM)
+# Thai reviews update job (05:00 TH = 22:00 UTC)
 scheduler.add_job(
     func=update_thai_reviews_daily,
-    trigger=CronTrigger(hour=6, minute=0),
+    trigger=CronTrigger(hour=22, minute=0),
     id='update_thai_reviews',
     name='Update Thai reviews from Steam',
     replace_existing=True,
     misfire_grace_time=86400
 )
 
-# Password reset token cleanup job (daily at 7:00 AM)
+# Token cleanup job (06:00 TH = 23:00 UTC)
 scheduler.add_job(
     func=cleanup_password_reset_tokens,
-    trigger=CronTrigger(hour=7, minute=0),
+    trigger=CronTrigger(hour=23, minute=0),
     id='cleanup_password_tokens',
     name='Clean up expired and old password reset tokens',
     replace_existing=True,
@@ -862,7 +862,7 @@ def start_scheduler():
     from datetime import timedelta # Ensure timedelta is available
     if not scheduler.running:
         scheduler.start()
-        print("[Scheduler] Started - Schedule: Cleanup (00:00), New Games (00:05), News (01:00), Sentiment (02:00), Tags (04:00), Thai Reviews (06:00), Token Cleanup (07:00)")
+        print("[Scheduler] Started - Thailand night schedule: Cleanup (01:00TH/18UTC), Games (01:05TH/18:05UTC), News (02:00TH/19UTC), Sentiment (03:00TH/20UTC), Tags (04:00TH/21UTC), Reviews (05:00TH/22UTC), Tokens (06:00TH/23UTC)")
         
         # Run catch-up check after 5 seconds
         scheduler.add_job(
