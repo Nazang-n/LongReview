@@ -580,7 +580,7 @@ async def get_incomplete_games(db: Session = Depends(get_db)) -> Dict:
     - Review tags  
     - Thai reviews
     """
-    from ..models import Game, GameSentiment, GameReviewTag
+    from ..models import Game, GameSentiment, GameReviewTag, Review
     from sqlalchemy.orm import joinedload
     from sqlalchemy import func
     from datetime import date
@@ -617,14 +617,26 @@ async def get_incomplete_games(db: Session = Depends(get_db)) -> Dict:
                 'count': row.tag_count
             }
         
+        # Pre-fetch Thai review counts per game in one query
+        review_counts = {}
+        review_count_query = db.query(
+            Review.game_id,
+            func.count(Review.id).label('review_count')
+        ).filter(
+            Review.is_steam_review == True
+        ).group_by(Review.game_id).all()
+
+        for row in review_count_query:
+            review_counts[row.game_id] = row.review_count
+
         for game_row in games:
             game = game_row[0]  # The Game object
             sentiment_updated = game_row[1]  # sentiment.last_updated
             sentiment_id = game_row[2]  # sentiment.id
             tag_status = game_row[3]  # sentiment.tag_status
-            
+
             not_updated = []
-            
+
             # 1. Check if sentiment was updated today
             if sentiment_id:
                 if sentiment_updated:
@@ -636,7 +648,7 @@ async def get_incomplete_games(db: Session = Depends(get_db)) -> Dict:
             else:
                 # No sentiment data at all
                 not_updated.append('sentiment')
-            
+
             # 2. Check if tags are up-to-date (tags are valid for 7 days)
             tags_info = tag_data.get(game.id)
             if tags_info and tags_info['count'] > 0:
@@ -647,14 +659,12 @@ async def get_incomplete_games(db: Session = Depends(get_db)) -> Dict:
             else:
                 # No actual review tags
                 not_updated.append('tags')
-            
-            # 3. Check if Thai reviews were fetched today
-            if game.last_review_fetch:
-                last_fetch_date = game.last_review_fetch.date()
-                if last_fetch_date < today:
-                    not_updated.append('reviews')
-            else:
-                # Never fetched reviews
+
+            # 3. Check if Thai reviews exist (fetched AND have actual saved reviews)
+            # Use count of actual saved reviews rather than just fetch date,
+            # so games that were fetched but found 0 Thai reviews on Steam stay listed
+            thai_review_count = review_counts.get(game.id, 0)
+            if thai_review_count == 0:
                 not_updated.append('reviews')
             
             # If any data was not updated today, add to list
