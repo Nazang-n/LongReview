@@ -645,19 +645,14 @@ async def get_incomplete_games(db: Session = Depends(get_db)) -> Dict:
                 if days_diff > 7:
                     not_updated.append('tags')
             else:
-                # No actual review tags. Check if we already tried and failed due to lack of reviews.
-                if tag_status in ['no_reviews', 'insufficient', 'no_english_reviews', 'insufficient_english']:
-                    # We tried, but it doesn't have enough reviews. Don't flag it as incomplete.
-                    pass
-                else:
-                    # Never processed or processed successfully but tags deleted
-                    not_updated.append('tags')
+                # No actual review tags
+                not_updated.append('tags')
             
             # 3. Check if Thai reviews were fetched today
             if game.last_review_fetch:
-                last_fetch_date = game.last_review_fetch.date()
-                if last_fetch_date < today:
-                    not_updated.append('reviews')
+                # User preference: if we already fetched them, and there are 0 or >0 reviews,
+                # mark them as updated so they disappear from the "Unupdated Games" admin dashboard.
+                pass
             else:
                 # Never fetched reviews
                 not_updated.append('reviews')
