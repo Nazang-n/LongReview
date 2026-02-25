@@ -580,7 +580,7 @@ async def get_incomplete_games(db: Session = Depends(get_db)) -> Dict:
     - Review tags  
     - Thai reviews
     """
-    from ..models import Game, GameSentiment, GameReviewTag, Review
+    from ..models import Game, GameSentiment, GameReviewTag
     from sqlalchemy.orm import joinedload
     from sqlalchemy import func
     from datetime import date
@@ -617,18 +617,6 @@ async def get_incomplete_games(db: Session = Depends(get_db)) -> Dict:
                 'count': row.tag_count
             }
         
-        # Pre-fetch Thai review counts per game in one query
-        review_counts = {}
-        review_count_query = db.query(
-            Review.game_id,
-            func.count(Review.id).label('review_count')
-        ).filter(
-            Review.is_steam_review == True
-        ).group_by(Review.game_id).all()
-
-        for row in review_count_query:
-            review_counts[row.game_id] = row.review_count
-
         for game_row in games:
             game = game_row[0]  # The Game object
             sentiment_updated = game_row[1]  # sentiment.last_updated
@@ -660,11 +648,11 @@ async def get_incomplete_games(db: Session = Depends(get_db)) -> Dict:
                 # No actual review tags
                 not_updated.append('tags')
 
-            # 3. Check if Thai reviews exist (fetched AND have actual saved reviews)
-            # Use count of actual saved reviews rather than just fetch date,
-            # so games that were fetched but found 0 Thai reviews on Steam stay listed
-            thai_review_count = review_counts.get(game.id, 0)
-            if thai_review_count == 0:
+            # 3. Check if Thai reviews have ever been fetched.
+            # The nightly scheduler re-fetches all games, so if a game has no Thai
+            # reviews today, it may get them in the future. Only flag as incomplete
+            # if we have NEVER attempted to fetch reviews for this game.
+            if not game.last_review_fetch:
                 not_updated.append('reviews')
             
             # If any data was not updated today, add to list
