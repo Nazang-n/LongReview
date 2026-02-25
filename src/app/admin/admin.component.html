@@ -236,10 +236,10 @@
 
                                     <!-- Dialog for All Incomplete Games -->
                                     <p-dialog header="รายการเกมที่ยังไม่อัปเดตทั้งหมด ({{incompleteGames.length}} เกม)"
-                                        [(visible)]="showAllIncompleteDialog" [modal]="true"
-                                        [style]="{width: '70vw', maxWidth: '800px', maxHeight: '80vh'}"
-                                        [draggable]="false" [resizable]="false">
-                                        <div class="space-y-2">
+                                        [(visible)]="showAllIncompleteDialog" [modal]="true" [blockScroll]="false"
+                                        appendTo="body" [style]="{width: '70vw', maxWidth: '800px'}" [draggable]="false"
+                                        [resizable]="false">
+                                        <div class="space-y-2 max-h-[60vh] overflow-y-auto pr-2">
                                             <div *ngFor="let game of incompleteGames"
                                                 class="p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors flex justify-between items-center">
 
