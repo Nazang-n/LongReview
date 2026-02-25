@@ -248,10 +248,10 @@ export class GameService {
 
     /**
      * Import newest games using scheduler logic (IStoreService + 3-tier)
-     * Note: limit param is ignored — backend imports up to 20 games per run
+     * Limit is passed to backend to control synchronous execution time.
      */
     importNewestGames(limit: number): Observable<any> {
-        return this.http.post<any>('https://longreview.onrender.com/api/admin/games/import-newest', {});
+        return this.http.post<any>(`https://longreview.onrender.com/api/admin/games/import-newest?limit=${limit}`, {});
     }
 
     /**

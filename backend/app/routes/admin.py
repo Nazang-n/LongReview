@@ -126,19 +126,28 @@ async def trigger_review_tags_update(background_tasks: BackgroundTasks) -> Dict:
 
 
 @router.post("/games/import-newest")
-async def trigger_newest_games_import(background_tasks: BackgroundTasks) -> Dict:
+async def trigger_newest_games_import(limit: int = 10, db: Session = Depends(get_db)) -> Dict:
     """
     Manually trigger import of newest games from Steam (admin endpoint)
-    Runs in background to avoid timeout.
+    Runs synchronously and returns actual import results.
     """
     from ..scheduler import import_newest_games
     
-    background_tasks.add_task(import_newest_games)
+    # Cap limit at 10 for synchronous processing safety
+    safe_limit = min(max(1, limit), 10)
+    
+    # Run synchronously so we get the actual results back
+    stats = import_newest_games(target_limit=safe_limit)
     
     return {
         "status": "success",
-        "message": "Import of newest games started in background. Please check logs for progress.",
-        "stats": {"status": "processing"}
+        "message": f"Import complete. Added {stats.get('imported', 0)} new games.",
+        "stats": {
+            "added": stats.get("imported", 0),
+            "skipped": stats.get("skipped", 0),
+            "failed": stats.get("failed", 0),
+            "imported_titles": stats.get("imported_titles", [])
+        }
     }
 
 

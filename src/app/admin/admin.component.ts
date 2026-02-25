@@ -69,13 +69,15 @@ export class AdminComponent implements OnInit, OnDestroy {
     displayResultDialog = false;
     resultDialogTitle = '';
     resultDialogData: any = null;
+    importedGameTitles: string[] = []; // List of game titles from newest import
 
     pendingReportId: number | null = null;
     pendingCommentId: number | null = null;
 
-    showResultDialog(title: string, data: any) {
+    showResultDialog(title: string, data: any, importedTitles: string[] = []) {
         this.resultDialogTitle = title;
         this.resultDialogData = data;
+        this.importedGameTitles = importedTitles;
         this.displayResultDialog = true;
     }
 
@@ -623,11 +625,11 @@ export class AdminComponent implements OnInit, OnDestroy {
                 } else {
                     // Batch import
                     const stats = result.stats || result;
+                    const importedTitles: string[] = stats.imported_titles || [];
                     this.showResultDialog('นำเข้าเกมสำเร็จ', {
                         'เพิ่มแล้ว': stats.added || stats.imported || 0,
-                        'อัปเดต': stats.updated || 0,
                         'ล้มเหลว': stats.failed || stats.errors || 0
-                    });
+                    }, importedTitles);
                 }
 
                 // Reset form

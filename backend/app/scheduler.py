@@ -273,7 +273,7 @@ def update_review_tags(update_existing: bool = True):
     finally:
         db.close()
 
-def import_newest_games():
+def import_newest_games(target_limit: int = 10):
     """Import newest games from Steam (daily task)
     
     Strategy:
@@ -290,7 +290,8 @@ def import_newest_games():
         'imported': 0,
         'skipped': 0,
         'failed': 0,
-        'errors': 0
+        'errors': 0,
+        'imported_titles': []  # Track names of imported games
     }
 
     DATE_FORMATS = [
@@ -470,12 +471,12 @@ def import_newest_games():
 
         db.commit()
         print(f"[Newest Games] Imported: {new_game.title} (release: {release_date_str})")
-        return 'imported'
+        return ('imported', new_game.title)
 
     try:
         print("[Newest Games Scheduler] Starting import of newest games...")
 
-        target_new_games = 20
+        target_new_games = target_limit
         imported_count = 0
         skipped_count = 0
         failed_count = 0
@@ -524,13 +525,18 @@ def import_newest_games():
 
                 try:
                     result = import_single_game(app_id, imported_count, target_new_games, cutoff_date)
-                    if result == 'imported':
+                    # result is now a tuple ('imported', title) or a plain string
+                    status = result[0] if isinstance(result, tuple) else result
+                    if status == 'imported':
                         imported_count += 1
+                        game_title = result[1] if isinstance(result, tuple) else None
+                        if game_title:
+                            stats['imported_titles'].append(game_title)
                         print(f"[Newest Games] Progress: {imported_count}/{target_new_games}")
-                        time.sleep(10)
-                    elif result == 'skipped':
+                        time.sleep(1)
+                    elif status == 'skipped':
                         skipped_count += 1
-                    elif result == 'failed':
+                    elif status == 'failed':
                         failed_count += 1
                 except Exception as e:
                     print(f"[Newest Games] Error importing {app_id}: {e}")
