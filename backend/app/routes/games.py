@@ -509,6 +509,7 @@ def batch_translate_games(
     """
     from ..utils.translator import translator
     import re
+    import time
     
     # Find ALL games (we'll check language in the loop)
     all_games = db.query(models.Game).limit(limit).all()
@@ -579,6 +580,9 @@ def batch_translate_games(
                 failed_count += 1
                 failed_games.append({"id": game.id, "title": game.title, "reason": "Translation returned empty or same as original"})
                 print(f"  ✗ Translation failed or returned same text")
+            
+            # Respect Gemini free tier: 15 requests/min → wait 4s between each game
+            time.sleep(4)
                 
         except Exception as e:
             failed_count += 1
