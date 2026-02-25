@@ -166,7 +166,7 @@ class AITranslator:
 ให้แปลเป็นภาษาไทยที่อ่านง่าย เป็นธรรมชาติ และเหมาะสมกับบริบทของเกม ไม่ต้องใส่คำอธิบายเพิ่มเติม แค่ข้อความที่แปลแล้วเท่านั้น"""
                 
                 response = self.client.models.generate_content(
-                    model='gemini-2.0-flash-exp',
+                    model='gemini-2.0-flash',
                     contents=prompt
                 )
                 
