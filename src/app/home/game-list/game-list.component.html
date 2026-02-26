@@ -14,95 +14,87 @@
         style="padding-top: calc(var(--header-height) + 20px);">
 
         <!-- Left Sidebar -->
-        <div class="sidebar-wrapper" [class.collapsed]="!isFilterOpen">
-            <!-- Always-visible toggle tab -->
-            <button class="sidebar-toggle-tab" (click)="isFilterOpen = !isFilterOpen"
-                [title]="isFilterOpen ? 'ซ่อนตัวกรอง' : 'แสดงตัวกรอง'">
-                <i class="pi" [ngClass]="isFilterOpen ? 'pi-chevron-left' : 'pi-chevron-right'"></i>
-            </button>
-            <aside class="sidebar w-64 flex-shrink-0" [class.hidden]="!isFilterOpen">
-                <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                    <!-- Sidebar Header -->
-                    <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 flex items-center justify-between cursor-pointer select-none"
-                        (click)="isFilterOpen = !isFilterOpen">
-                        <h3 class="font-bold text-gray-800">เกมทั้งหมด</h3>
-                        <i class="pi text-gray-400 text-xs"
-                            [ngClass]="isFilterOpen ? 'pi-chevron-left' : 'pi-chevron-right'"></i>
-                    </div>
-
-                    <!-- Filter Categories -->
-                    <div class="p-4 space-y-1">
-
-                        <!-- Platform Section -->
-                        <div class="filter-section">
-                            <div (click)="toggleSection('platform')"
-                                class="filter-item py-2 px-3 bg-purple-50 border-l-2 border-purple-500 rounded cursor-pointer">
-                                <div class="flex items-center justify-between">
-                                    <span class="text-sm text-gray-900 font-semibold">แพลตฟอร์ม</span>
-                                    <i class="pi text-purple-500 text-xs"
-                                        [ngClass]="expandedSections.platform ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
-                                </div>
-                            </div>
-                            <div *ngIf="expandedSections.platform" class="pl-4 mt-1 space-y-1">
-                                <div *ngFor="let platform of platforms" (click)="togglePlatform(platform.id)"
-                                    class="filter-item py-2 px-3 rounded cursor-pointer transition-colors"
-                                    [ngClass]="isPlatformSelected(platform.id) ? 'bg-purple-100 text-purple-700 font-semibold' : 'hover:bg-gray-50'">
-                                    <div class="flex items-center justify-between">
-                                        <span class="text-xs text-gray-600">{{ platform.name_th }}</span>
-                                        <span class="text-xs text-gray-400">({{ platform.game_count }})</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Player Mode Section -->
-                        <div class="filter-section">
-                            <div (click)="toggleSection('player')"
-                                class="filter-item py-2 px-3 bg-purple-50 border-l-2 border-purple-500 rounded cursor-pointer">
-                                <div class="flex items-center justify-between">
-                                    <span class="text-sm text-gray-900 font-semibold">ผู้เล่น</span>
-                                    <i class="pi text-purple-500 text-xs"
-                                        [ngClass]="expandedSections.player ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
-                                </div>
-                            </div>
-                            <div *ngIf="expandedSections.player" class="pl-4 mt-1 space-y-1">
-                                <div *ngFor="let playerMode of playerModes" (click)="togglePlayerMode(playerMode.id)"
-                                    class="filter-item py-2 px-3 rounded cursor-pointer transition-colors"
-                                    [ngClass]="isPlayerModeSelected(playerMode.id) ? 'bg-purple-100 text-purple-700 font-semibold' : 'hover:bg-gray-50'">
-                                    <div class="flex items-center justify-between">
-                                        <span class="text-xs text-gray-600">{{ playerMode.name_th }}</span>
-                                        <span class="text-xs text-gray-400">({{ playerMode.game_count }})</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Genre Section -->
-                        <div class="filter-section">
-                            <div (click)="toggleSection('genre')"
-                                class="filter-item py-2 px-3 bg-purple-50 border-l-2 border-purple-500 rounded cursor-pointer">
-                                <div class="flex items-center justify-between">
-                                    <span class="text-sm text-gray-900 font-semibold">ประเภท</span>
-                                    <i class="pi text-purple-500 text-xs"
-                                        [ngClass]="expandedSections.genre ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
-                                </div>
-                            </div>
-                            <div *ngIf="expandedSections.genre" class="pl-4 mt-1 space-y-1">
-                                <div *ngFor="let genre of genres" (click)="toggleGenre(genre.id)"
-                                    class="filter-item py-2 px-3 rounded cursor-pointer transition-colors"
-                                    [ngClass]="isGenreSelected(genre.id) ? 'bg-purple-100 text-purple-700 font-semibold' : 'hover:bg-gray-50'">
-                                    <div class="flex items-center justify-between">
-                                        <span class="text-xs text-gray-600">{{ genre.name_th }}</span>
-                                        <span class="text-xs text-gray-400">({{ genre.game_count }})</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                    </div>
+        <aside class="sidebar flex-shrink-0" [class.collapsed]="!isFilterOpen">
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                <!-- Sidebar Header -->
+                <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 flex items-center justify-between cursor-pointer select-none"
+                    (click)="isFilterOpen = !isFilterOpen">
+                    <h3 class="font-bold text-gray-800">เกมทั้งหมด</h3>
+                    <i class="pi text-gray-400 text-xs"
+                        [ngClass]="isFilterOpen ? 'pi-chevron-left' : 'pi-chevron-right'"></i>
                 </div>
-            </aside>
-        </div>
+
+                <!-- Filter Categories - hidden when collapsed -->
+                <div class="p-4 space-y-1" *ngIf="isFilterOpen">
+
+                    <!-- Platform Section -->
+                    <div class="filter-section">
+                        <div (click)="toggleSection('platform')"
+                            class="filter-item py-2 px-3 bg-purple-50 border-l-2 border-purple-500 rounded cursor-pointer">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-900 font-semibold">แพลตฟอร์ม</span>
+                                <i class="pi text-purple-500 text-xs"
+                                    [ngClass]="expandedSections.platform ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
+                            </div>
+                        </div>
+                        <div *ngIf="expandedSections.platform" class="pl-4 mt-1 space-y-1">
+                            <div *ngFor="let platform of platforms" (click)="togglePlatform(platform.id)"
+                                class="filter-item py-2 px-3 rounded cursor-pointer transition-colors"
+                                [ngClass]="isPlatformSelected(platform.id) ? 'bg-purple-100 text-purple-700 font-semibold' : 'hover:bg-gray-50'">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs text-gray-600">{{ platform.name_th }}</span>
+                                    <span class="text-xs text-gray-400">({{ platform.game_count }})</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Player Mode Section -->
+                    <div class="filter-section">
+                        <div (click)="toggleSection('player')"
+                            class="filter-item py-2 px-3 bg-purple-50 border-l-2 border-purple-500 rounded cursor-pointer">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-900 font-semibold">ผู้เล่น</span>
+                                <i class="pi text-purple-500 text-xs"
+                                    [ngClass]="expandedSections.player ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
+                            </div>
+                        </div>
+                        <div *ngIf="expandedSections.player" class="pl-4 mt-1 space-y-1">
+                            <div *ngFor="let playerMode of playerModes" (click)="togglePlayerMode(playerMode.id)"
+                                class="filter-item py-2 px-3 rounded cursor-pointer transition-colors"
+                                [ngClass]="isPlayerModeSelected(playerMode.id) ? 'bg-purple-100 text-purple-700 font-semibold' : 'hover:bg-gray-50'">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs text-gray-600">{{ playerMode.name_th }}</span>
+                                    <span class="text-xs text-gray-400">({{ playerMode.game_count }})</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Genre Section -->
+                    <div class="filter-section">
+                        <div (click)="toggleSection('genre')"
+                            class="filter-item py-2 px-3 bg-purple-50 border-l-2 border-purple-500 rounded cursor-pointer">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-900 font-semibold">ประเภท</span>
+                                <i class="pi text-purple-500 text-xs"
+                                    [ngClass]="expandedSections.genre ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
+                            </div>
+                        </div>
+                        <div *ngIf="expandedSections.genre" class="pl-4 mt-1 space-y-1">
+                            <div *ngFor="let genre of genres" (click)="toggleGenre(genre.id)"
+                                class="filter-item py-2 px-3 rounded cursor-pointer transition-colors"
+                                [ngClass]="isGenreSelected(genre.id) ? 'bg-purple-100 text-purple-700 font-semibold' : 'hover:bg-gray-50'">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs text-gray-600">{{ genre.name_th }}</span>
+                                    <span class="text-xs text-gray-400">({{ genre.game_count }})</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+        </aside>
 
         <!-- Main Content Area -->
         <main class="flex-1">
