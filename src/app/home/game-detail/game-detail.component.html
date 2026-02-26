@@ -3,6 +3,12 @@
 <div class="min-h-screen bg-gray-50">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12" style="padding-top: calc(var(--header-height) + 20px);">
         <!-- Back Button -->
+        <button (click)="goBack()"
+            class="inline-flex items-center gap-2 text-gray-600 hover:text-purple-600 transition-colors mb-4 group"
+            style="background:none; border:none; cursor:pointer; padding:0;">
+            <i class="pi pi-arrow-left text-sm"></i>
+            <span class="text-sm font-medium">ย้อนกลับ</span>
+        </button>
 
         <!-- Loading State -->
         <div *ngIf="isLoading" class="flex items-center justify-center py-20">
