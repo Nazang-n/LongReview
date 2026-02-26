@@ -3,6 +3,13 @@
     min-height: calc(100vh - var(--header-height));
 }
 
+/* Desktop: hide sidebar entirely when .hidden so grid expands */
+@media (min-width: 769px) {
+    .sidebar.hidden {
+        display: none;
+    }
+}
+
 /* Sidebar responsive behavior */
 @media (max-width: 768px) {
     .sidebar {

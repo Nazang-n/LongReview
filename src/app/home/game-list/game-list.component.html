@@ -17,8 +17,11 @@
         <aside class="sidebar w-64 flex-shrink-0" [class.hidden]="!isFilterOpen">
             <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                 <!-- Sidebar Header -->
-                <div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 flex items-center justify-between cursor-pointer select-none"
+                    (click)="isFilterOpen = !isFilterOpen">
                     <h3 class="font-bold text-gray-800">เกมทั้งหมด</h3>
+                    <i class="pi text-gray-400 text-xs"
+                        [ngClass]="isFilterOpen ? 'pi-chevron-left' : 'pi-chevron-right'"></i>
                 </div>
 
                 <!-- Filter Categories -->
