@@ -103,11 +103,11 @@
   </section>
 
   <section class="section mt-10">
-    <div class="relative mb-6">
+    <div class="flex flex-wrap items-center justify-between gap-y-3 mb-6">
       <h2 class="section-title mb-0">เกมเด็ดประจำปี</h2>
 
       <!-- Year Selector -->
-      <div class="absolute right-0 bottom-2 flex gap-2" style="bottom: 12px;">
+      <div class="flex flex-wrap gap-2">
         <button *ngFor="let year of years" (click)="selectYear(year)"
           class="px-3 py-1 rounded-full text-sm font-medium transition-colors"
           [ngClass]="selectedYear === year ? 'bg-purple-600 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'">
