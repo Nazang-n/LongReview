@@ -19,7 +19,7 @@
 }
 
 
-/* Sidebar responsive behavior */
+/* Sidebar responsive behavior — mobile overlay */
 @media (max-width: 768px) {
     .sidebar {
         position: fixed;
@@ -31,18 +31,17 @@
         box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15);
         transition: transform 0.3s ease;
         transform: translateX(-100%);
-        /* hidden by default */
+        /* hidden by default on mobile */
         overflow-y: auto;
         width: 280px !important;
     }
 
-    /* When isFilterOpen=true, [class.hidden]="!isFilterOpen" removes .hidden
-       But we need the OPPOSITE: show when NOT hidden. So we use no .hidden = visible */
-    .sidebar:not(.hidden) {
+    /* Sidebar visible when isFilterOpen=true (no .collapsed class) */
+    .sidebar:not(.collapsed) {
         transform: translateX(0);
-        /* visible */
     }
 }
+
 
 /* Mobile filter toggle button - only visible on mobile */
 .mobile-filter-btn {
