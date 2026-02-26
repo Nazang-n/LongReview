@@ -531,11 +531,12 @@ async def get_daily_update_status(db: Session = Depends(get_db)) -> Dict:
     """
     Get today's update status for all data types (news, games, sentiment, tags, reviews)
     """
-    from datetime import datetime
+    from datetime import datetime, timedelta
     from ..models import DailyUpdateLog
     
     try:
-        now = datetime.now()
+        # Shift datetime by 7 hours so that UTC + 7 rolls over exactly at midnight TH
+        now = datetime.utcnow() + timedelta(hours=7)
         today = now.date()
         
         # Get all update logs for today
@@ -583,11 +584,11 @@ async def get_incomplete_games(db: Session = Depends(get_db)) -> Dict:
     from ..models import Game, GameSentiment, GameReviewTag
     from sqlalchemy.orm import joinedload
     from sqlalchemy import func
-    from datetime import date
+    from datetime import datetime, timedelta
     
     try:
         not_updated_games = []
-        today = date.today()
+        today = (datetime.utcnow() + timedelta(hours=7)).date()
         
         # OPTIMIZED: Use a single query with joins instead of N+1 queries
         # This fetches all games with their sentiment and tags in ONE database hit

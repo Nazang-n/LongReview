@@ -17,7 +17,8 @@ import json
 def log_daily_update(db: Session, update_type: str, stats: dict, game_id: int = None):
     """Helper function to log daily update operations"""
     try:
-        today = date.today()
+        from datetime import datetime, timedelta
+        today = (datetime.utcnow() + timedelta(hours=7)).date()
         
         # Determine status based on stats
         status = 'success'
@@ -56,7 +57,8 @@ def cleanup_old_daily_logs():
     """
     db = SessionLocal()
     try:
-        today = datetime.now().date()
+        from datetime import datetime, timedelta
+        today = (datetime.utcnow() + timedelta(hours=7)).date()
         
         # Delete all logs that are not from today
         deleted = db.query(models.DailyUpdateLog).filter(
@@ -767,7 +769,8 @@ def check_missed_daily_tasks():
     print("[Scheduler] Checking for missed daily tasks...")
     db = SessionLocal()
     try:
-        today = date.today()
+        from datetime import datetime, timedelta
+        today = (datetime.utcnow() + timedelta(hours=7)).date()
         
         # Check 'games' import
         games_log = db.query(models.DailyUpdateLog).filter(

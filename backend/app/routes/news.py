@@ -91,7 +91,8 @@ async def sync_news(db: Session = Depends(get_db)):
     
     # Log the update
     try:
-        today = date.today()
+        from datetime import datetime, timedelta
+        today = (datetime.utcnow() + timedelta(hours=7)).date()
         status = 'success' if result.get('added', 0) > 0 or result.get('updated', 0) > 0 else 'success'
         
         log_entry = DailyUpdateLog(
