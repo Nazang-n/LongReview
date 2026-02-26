@@ -1,11 +1,20 @@
 <app-header></app-header>
 <div class="page-container bg-gray-50 min-h-screen">
+    <!-- Mobile Filter Toggle Button -->
+    <button class="mobile-filter-btn" (click)="isFilterOpen = !isFilterOpen">
+        <i class="pi pi-filter"></i>
+        <span>กรองเกม</span>
+    </button>
+
+    <!-- Backdrop overlay (mobile only) -->
+    <div class="sidebar-backdrop" [class.show]="isFilterOpen" (click)="isFilterOpen = false"></div>
+
     <!-- Main Layout with Sidebar and Content -->
     <div class="flex gap-6 px-4 md:px-8 max-w-7xl mx-auto pb-12"
         style="padding-top: calc(var(--header-height) + 20px);">
 
-        <!-- Left Sidebar (Always Open) -->
-        <aside class="sidebar w-64 flex-shrink-0">
+        <!-- Left Sidebar -->
+        <aside class="sidebar w-64 flex-shrink-0" [class.hidden]="!isFilterOpen">
             <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                 <!-- Sidebar Header -->
                 <div class="bg-gray-50 px-4 py-3 border-b border-gray-200">

@@ -39,7 +39,7 @@ interface Game {
     styleUrls: ['./game-list.component.css']
 })
 export class GameListComponent implements OnInit {
-    isFilterOpen = true;
+    isFilterOpen = typeof window !== 'undefined' ? window.innerWidth > 768 : true;
     allGames: Game[] = [];  // Store all games
     games: Game[] = [];  // Filtered games (after search)
     paginatedGames: Game[] = []; // Games to display on current page
