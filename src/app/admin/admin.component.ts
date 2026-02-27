@@ -2,7 +2,6 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
-import { HeaderComponent } from '../shared/header.component';
 import { FooterComponent } from '../shared/footer.component';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
@@ -29,7 +28,6 @@ import { AnalyticsService, DailyUpdateStatus, IncompleteGame } from '../services
     imports: [
         CommonModule,
         FormsModule,
-        HeaderComponent,
         FooterComponent,
         ButtonModule,
         CardModule,

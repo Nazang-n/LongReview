@@ -14,6 +14,7 @@ export interface Comment {
     upvotes: number;
     downvotes: number;
     user_vote: string | null;
+    avatar_url: string | null;
     user_voted?: boolean;
 }
 

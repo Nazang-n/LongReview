@@ -1,7 +1,6 @@
 import { Component, ElementRef, ViewChild, OnInit, OnDestroy, Inject, PLATFORM_ID } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { HeaderComponent } from '../shared/header.component';
 import { FooterComponent } from '../shared/footer.component';
 import { GameService } from '../services/game.service';
 import { TagService } from '../services/tag.service';

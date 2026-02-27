@@ -409,12 +409,12 @@
                         <div class="flex items-start justify-between mb-3">
                             <div class="flex items-center gap-3">
                                 <!-- User Avatar Image -->
-                                <div class="relative">
+                                <div
+                                    class="flex-shrink-0 w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden border border-gray-200">
                                     <img *ngIf="comment.avatar_url" [src]="comment.avatar_url"
-                                        class="w-10 h-10 rounded-full object-cover border border-gray-200"
-                                        [alt]="comment.username"
+                                        class="w-full h-full object-cover" [alt]="comment.username"
                                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
-                                    <i class="pi pi-user-circle text-4xl text-gray-400"
+                                    <i class="pi pi-user text-2xl text-gray-400"
                                         [style.display]="comment.avatar_url ? 'none' : 'block'"></i>
                                 </div>
                                 <div>
