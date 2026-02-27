@@ -704,6 +704,30 @@ scheduler.add_job(
     misfire_grace_time=86400
 )
 
+def cleanup_old_news_daily():
+    """Daily job to cleanup old news articles"""
+    print("[News Cleanup Scheduler] Starting daily cleanup...")
+    from .services.news_service import NewsService
+    db = SessionLocal()
+    try:
+        # Mark articles not seen for 7 days as inactive
+        count = NewsService.cleanup_deleted_news(db, days=7)
+        print(f"[News Cleanup Scheduler] Cleanup complete. Marked {count} articles as inactive.")
+    except Exception as e:
+        print(f"[News Cleanup Scheduler] Fatal error: {e}")
+    finally:
+        db.close()
+
+# News cleanup job (01:30 TH = 18:30 UTC)
+scheduler.add_job(
+    func=cleanup_old_news_daily,
+    trigger=CronTrigger(hour=18, minute=30),
+    id='cleanup_news',
+    name='Clean up old news articles',
+    replace_existing=True,
+    misfire_grace_time=86400
+)
+
 # Sentiment update job (03:00 TH = 20:00 UTC)
 scheduler.add_job(
     func=update_all_sentiments,

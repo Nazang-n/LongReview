@@ -24,19 +24,18 @@ app = FastAPI(
 )
 
 # Start background tasks
-from app.services.news_sync import NewsSyncService
 from app.services.game_sync import GameSyncService
 from app.scheduler import start_scheduler, stop_scheduler
 
 @app.on_event("startup")
 async def startup_event():
-    NewsSyncService.start_scheduler()
+    # NewsSyncService.start_scheduler()
     # GameSyncService.start_scheduler()
     start_scheduler()  # Main scheduler: games, news, sentiment, tags, reviews, cleanup
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    NewsSyncService.stop_scheduler()
+    # NewsSyncService.stop_scheduler()
     GameSyncService.stop_scheduler()
     stop_scheduler()  # Stop main scheduler
 
