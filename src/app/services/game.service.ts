@@ -14,6 +14,8 @@ export interface Game {
     release_date?: string;
     developer?: string;
     publisher?: string;
+    price?: string;
+    price_thb?: string;
     created_at?: string;
     updated_at?: string;
 }

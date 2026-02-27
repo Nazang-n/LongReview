@@ -27,7 +27,8 @@ interface Game {
     appId?: string;
     isFavorite?: boolean;
     platform?: string;
-    price?: number;
+    price?: string;
+    priceThb?: string;
     playerModes?: string[];
 }
 
@@ -152,6 +153,7 @@ export class GameListComponent implements OnInit {
                             isNew: false,
                             platform: game.platform,
                             price: game.price,
+                            priceThb: game.price_thb,
                             playerModes: game.player_modes || []
                         };
                     });

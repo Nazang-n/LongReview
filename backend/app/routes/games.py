@@ -5,6 +5,7 @@ from typing import List, Optional
 from .. import models, schemas
 from ..database import get_db
 from ..utils.tag_translator import translate_tag
+from ..utils.price_converter import convert_usd_to_thb
 from datetime import date
 
 router = APIRouter(
@@ -61,6 +62,7 @@ def serialize_game(game: models.Game, sentiment: Optional[models.GameSentiment] 
         "publisher": game.publisher,
         "platform": game.platform,
         "price": game.price,
+        "price_thb": convert_usd_to_thb(game.price),
         "video": game.video,
         "screenshots": game.screenshots,
         "about_game_th": game.about_game_th,

@@ -290,7 +290,7 @@ export class GameDetailComponent implements OnInit {
                         negative: 0   // Will be loaded from API
                     },
                     reviewTags: [],  // Will be loaded from API
-                    minRequirements: gameData.price || 'N/A'
+                    priceThb: gameData.price_thb || 'N/A'
                 };
 
                 // Parse videos and screenshots JSON

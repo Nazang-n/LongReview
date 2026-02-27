@@ -127,6 +127,16 @@
                             </div>
                         </div>
 
+                        <!-- Price -->
+                        <div class="flex flex-row" *ngIf="game.priceThb">
+                            <div class="pi pi-money-bill">
+                            </div>
+                            <div class="flex flex-col ml-2">
+                                <div class="text-sm text-gray-600 mb-1 ">ราคา:</div>
+                                <div class="font-bold text-lg text-purple-700">{{ game.priceThb }}</div>
+                            </div>
+                        </div>
+
                         <!-- Genre -->
                         <div class="flex flex-row">
                             <div class="pi pi-tag">

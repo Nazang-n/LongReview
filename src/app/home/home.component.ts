@@ -27,6 +27,7 @@ interface Game {
   genresTh?: string[];
   sentimentPercent?: number;
   reviewScoreDesc?: string;
+  priceThb?: string;
 }
 
 @Component({
@@ -197,7 +198,8 @@ export class HomeComponent implements OnInit, OnDestroy {
         rating: game.rating,
         tags: [],
         reviewType: undefined, // Will be updated by loadGameSentiments
-        isNew: false
+        isNew: false,
+        priceThb: game.price_thb
       };
     });
   }
