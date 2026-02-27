@@ -266,17 +266,24 @@
     height: 180px;
 }
 
-/* Review text: allow touch scroll on mobile */
+/* Review text: allow touch scroll on desktop */
 .review-text-scroll {
+    overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    touch-action: pan-y;
+    overscroll-behavior-y: contain;
 }
 
 @media (max-width: 768px) {
     .review-card-mobile {
         height: auto;
         min-height: 120px;
-        max-height: 260px;
+        /* Let the card stretch vertically to fit text naturally on mobile */
+    }
+
+    .review-text-scroll {
+        /* Remove inner scrolling on mobile to prevent conflict with carousel swipe */
+        overflow-y: visible;
+        max-height: none;
     }
 
     /* Give review cards a bit more breathing room on small screens */
