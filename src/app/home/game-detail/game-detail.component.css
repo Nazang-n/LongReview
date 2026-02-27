@@ -260,3 +260,27 @@
         font-size: 16px;
     }
 }
+
+/* Review card: fixed height on desktop, auto on mobile */
+.review-card-mobile {
+    height: 180px;
+}
+
+/* Review text: allow touch scroll on mobile */
+.review-text-scroll {
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+}
+
+@media (max-width: 768px) {
+    .review-card-mobile {
+        height: auto;
+        min-height: 120px;
+        max-height: 260px;
+    }
+
+    /* Give review cards a bit more breathing room on small screens */
+    ::ng-deep .p-carousel-item {
+        padding: 4px !important;
+    }
+}

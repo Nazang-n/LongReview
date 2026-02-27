@@ -326,8 +326,7 @@
                             <ng-template let-chunk pTemplate="item">
                                 <div class="p-2 h-full flex flex-col space-y-2">
                                     <div *ngFor="let review of chunk"
-                                        class="bg-gray-200 rounded-lg p-3 flex flex-col relative"
-                                        style="height: 180px;">
+                                        class="bg-gray-200 rounded-lg p-3 flex flex-col relative review-card-mobile">
                                         <!-- Header: ID & Status -->
                                         <div class="flex justify-between items-start mb-2">
                                             <div class="flex flex-col">
@@ -344,7 +343,7 @@
 
                                         <!-- Content -->
                                         <div
-                                            class="text-gray-900 text-sm overflow-y-auto pr-2 custom-scrollbar flex-grow leading-relaxed whitespace-pre-line mb-1 font-medium">
+                                            class="text-gray-900 text-sm overflow-y-auto pr-2 custom-scrollbar flex-grow leading-relaxed whitespace-pre-line mb-1 font-medium review-text-scroll">
                                             {{ review.content }}
                                         </div>
 
@@ -355,8 +354,6 @@
                                             <span>เล่นมา {{ formatPlaytime(review.playtime_hours) }}</span>
                                         </div>
                                     </div>
-                                    <!-- Spacer if chunk has only 1 item to maintain alignment -->
-                                    <div *ngIf="chunk.length === 1" class="h-[180px]"></div>
                                 </div>
                             </ng-template>
                         </p-carousel>
