@@ -23,8 +23,14 @@
 
         <!-- Game Content -->
         <div *ngIf="!isLoading && !error">
-            <!-- Game Title -->
-            <h1 class="text-3xl font-bold text-gray-900 mb-6">{{ game.title }}</h1>
+            <!-- Game Title with Back Button -->
+            <div class="flex items-center gap-4 mb-6">
+                <button (click)="goBack()"
+                    class="flex items-center justify-center w-10 h-10 rounded-full bg-white border border-gray-200 shadow-sm text-purple-600 hover:bg-purple-50 transition-all">
+                    <i class="pi pi-arrow-left"></i>
+                </button>
+                <h1 class="text-3xl font-bold text-gray-900">{{ game.title }}</h1>
+            </div>
 
             <!-- Main Content: Image + Info Sidebar -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 ">
@@ -717,12 +723,5 @@
         </button>
     </ng-template>
 </p-dialog>
-<!-- Floating Back Button -->
-<!-- Floating Back Button -->
-<a (click)="goBack()"
-    class="fixed top-24 left-8 z-50 inline-flex items-center gap-2 bg-purple-500 hover:bg-purple-600 text-white px-4 py-3 rounded-full shadow-lg transition-all cursor-pointer font-medium hover:scale-105 hover:shadow-xl">
-    <i class="pi pi-arrow-left"></i>
-    <span>กลับ</span>
-</a>
 
 <app-footer></app-footer>
