@@ -35,7 +35,7 @@ interface Game {
 @Component({
     selector: 'app-game-list',
     standalone: true,
-    imports: [CommonModule, RouterModule, HeaderComponent, FooterComponent, FormsModule, RemoveFavoriteDialogComponent],
+    imports: [CommonModule, RouterModule, FooterComponent, FormsModule, RemoveFavoriteDialogComponent],
     templateUrl: './game-list.component.html',
     styleUrls: ['./game-list.component.css']
 })

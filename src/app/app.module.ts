@@ -45,6 +45,7 @@ const MyPreset = definePreset(Aura, {
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { HomeComponent } from './home/home.component';
+import { HeaderComponent } from './shared/header.component';
 
 @NgModule({
   declarations: [
@@ -53,7 +54,8 @@ import { HomeComponent } from './home/home.component';
   imports: [
     BrowserModule,
     AppRoutingModule,
-    HttpClientModule
+    HttpClientModule,
+    HeaderComponent
   ],
   providers: [
     provideClientHydration(withEventReplay()),

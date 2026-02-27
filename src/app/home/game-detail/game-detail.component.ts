@@ -39,7 +39,6 @@ interface RelatedGame {
     standalone: true,
     imports: [
         CommonModule,
-        HeaderComponent,
         FooterComponent,
         RouterModule,
         TagModule,

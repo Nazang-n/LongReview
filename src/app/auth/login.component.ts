@@ -9,9 +9,8 @@ import { AuthService } from '../services/auth.service';
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, HeaderComponent, FooterComponent],
+  imports: [CommonModule, RouterModule, FormsModule, FooterComponent],
   template: `
-    <app-header></app-header>
     <main class="auth-page">
       <div class="auth-card">
         <h1>ยินดีต้อนรับสู่ LongReview</h1>

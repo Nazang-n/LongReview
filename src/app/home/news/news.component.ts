@@ -12,7 +12,7 @@ import { NewsService, NewsItem } from '../../services/news.service';
 @Component({
     selector: 'app-news',
     standalone: true,
-    imports: [CommonModule, RouterModule, HeaderComponent, FooterComponent, ButtonModule, CardModule, TagModule, DividerModule],
+    imports: [CommonModule, RouterModule, FooterComponent, ButtonModule, CardModule, TagModule, DividerModule],
     templateUrl: './news.component.html',
     styleUrls: ['./news.component.css']
 })

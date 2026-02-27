@@ -82,6 +82,7 @@ class UserUpdate(BaseModel):
 class User(UserBase):
     id: int
     user_role: str
+    avatar_url: Optional[str] = None
     created_at: Optional[datetime] = None
 
     class Config:

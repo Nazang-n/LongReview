@@ -10,9 +10,8 @@ import { AuthService } from '../services/auth.service';
 @Component({
   selector: 'app-register',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, HeaderComponent, FooterComponent],
+  imports: [CommonModule, RouterModule, FormsModule, FooterComponent],
   template: `
-    <app-header></app-header>
     <main class="auth-page">
       <div class="auth-card">
         <h1>สมัครสมาชิก</h1>

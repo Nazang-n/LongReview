@@ -35,7 +35,6 @@ interface Game {
   standalone: true,
   imports: [CommonModule,
     RouterLink,
-    HeaderComponent,
     FooterComponent,
     ButtonModule,
     SkeletonModule,

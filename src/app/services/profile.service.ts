@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { tap } from 'rxjs/operators';
 
 export interface UserProfile {
     id: number;
@@ -33,14 +34,34 @@ export interface UserComment {
 })
 export class ProfileService {
     private apiUrl = 'https://longreview.onrender.com/api/profile';
+    private profileCache = new Map<number, UserProfile>();
 
     constructor(private http: HttpClient) { }
 
     /**
-     * Get user profile
+     * Get user profile with basic caching
      */
     getProfile(userId: number): Observable<UserProfile> {
-        return this.http.get<UserProfile>(`${this.apiUrl}/${userId}`);
+        if (this.profileCache.has(userId)) {
+            return new Observable(observer => {
+                observer.next(this.profileCache.get(userId) as UserProfile);
+                observer.complete();
+            });
+        }
+        return this.http.get<UserProfile>(`${this.apiUrl}/${userId}`).pipe(
+            tap(profile => this.profileCache.set(userId, profile))
+        );
+    }
+
+    /**
+     * Clear profile cache (call after updates)
+     */
+    clearCache(userId?: number): void {
+        if (userId) {
+            this.profileCache.delete(userId);
+        } else {
+            this.profileCache.clear();
+        }
     }
 
     /**
@@ -59,7 +80,7 @@ export class ProfileService {
     updateAvatar(userId: number, avatarUrl: string): Observable<any> {
         return this.http.post(`${this.apiUrl}/${userId}/avatar`, {
             avatar_url: avatarUrl
-        });
+        }).pipe(tap(() => this.clearCache(userId)));
     }
 
     /**
@@ -90,6 +111,6 @@ export class ProfileService {
      * Delete avatar
      */
     deleteAvatar(userId: number): Observable<any> {
-        return this.http.delete(`${this.apiUrl}/${userId}/avatar`);
+        return this.http.delete(`${this.apiUrl}/${userId}/avatar`).pipe(tap(() => this.clearCache(userId)));
     }
 }

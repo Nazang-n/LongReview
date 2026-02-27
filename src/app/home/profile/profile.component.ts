@@ -18,7 +18,7 @@ interface PasswordData {
 @Component({
     selector: 'app-profile',
     standalone: true,
-    imports: [CommonModule, HeaderComponent, FooterComponent, FormsModule, DialogModule, RouterModule],
+    imports: [CommonModule, FooterComponent, FormsModule, DialogModule, RouterModule],
     templateUrl: './profile.component.html',
     styleUrls: ['./profile.component.css']
 })

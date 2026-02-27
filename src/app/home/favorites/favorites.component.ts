@@ -25,7 +25,7 @@ interface Game {
 @Component({
     selector: 'app-favorites',
     standalone: true,
-    imports: [CommonModule, RouterModule, HeaderComponent, FooterComponent, RemoveFavoriteDialogComponent, FormsModule],
+    imports: [CommonModule, RouterModule, FooterComponent, RemoveFavoriteDialogComponent, FormsModule],
     templateUrl: './favorites.component.html',
     styleUrls: ['./favorites.component.css']
 })
