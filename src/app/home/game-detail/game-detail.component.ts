@@ -68,7 +68,7 @@ export class GameDetailComponent implements OnInit {
         },
         {
             breakpoint: '768px',
-            numVisible: 1,
+            numVisible: 2,
             numScroll: 1
         },
         {
