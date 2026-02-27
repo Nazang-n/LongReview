@@ -211,39 +211,38 @@
                     </div>
                 </div>
             </div>
-    </div>
 
-    <!-- Pagination -->
-    <div *ngIf="!isLoading && paginatedGames.length > 0" class="mt-8 flex justify-center items-center gap-2">
-        <!-- Previous Button -->
-        <button (click)="previousPage()" [disabled]="currentPage === 1"
-            class="px-4 py-2 rounded-lg border transition-colors" [ngClass]="{
+            <!-- Pagination -->
+            <div *ngIf="!isLoading && paginatedGames.length > 0" class="mt-8 flex justify-center items-center gap-2">
+                <!-- Previous Button -->
+                <button (click)="previousPage()" [disabled]="currentPage === 1"
+                    class="px-4 py-2 rounded-lg border transition-colors" [ngClass]="{
                         'bg-gray-100 text-gray-400 cursor-not-allowed': currentPage === 1,
                         'bg-white text-gray-700 hover:bg-purple-50 hover:border-purple-500': currentPage !== 1
                     }">
-            <i class="pi pi-chevron-left"></i>
-        </button>
+                    <i class="pi pi-chevron-left"></i>
+                </button>
 
-        <!-- Page Numbers -->
-        <button *ngFor="let page of pageNumbers" (click)="goToPage(page)"
-            class="px-4 py-2 rounded-lg border transition-colors min-w-[40px]" [ngClass]="{
+                <!-- Page Numbers -->
+                <button *ngFor="let page of pageNumbers" (click)="goToPage(page)"
+                    class="px-4 py-2 rounded-lg border transition-colors min-w-[40px]" [ngClass]="{
                         'bg-purple-500 text-white border-purple-500': page === currentPage,
                         'bg-white text-gray-700 hover:bg-purple-50 hover:border-purple-500': page !== currentPage
                     }">
-            {{ page }}
-        </button>
+                    {{ page }}
+                </button>
 
-        <!-- Next Button -->
-        <button (click)="nextPage()" [disabled]="currentPage === totalPages"
-            class="px-4 py-2 rounded-lg border transition-colors" [ngClass]="{
+                <!-- Next Button -->
+                <button (click)="nextPage()" [disabled]="currentPage === totalPages"
+                    class="px-4 py-2 rounded-lg border transition-colors" [ngClass]="{
                         'bg-gray-100 text-gray-400 cursor-not-allowed': currentPage === totalPages,
                         'bg-white text-gray-700 hover:bg-purple-50 hover:border-purple-500': currentPage !== totalPages
                     }">
-            <i class="pi pi-chevron-right"></i>
-        </button>
+                    <i class="pi pi-chevron-right"></i>
+                </button>
+            </div>
+        </main>
     </div>
-    </main>
-</div>
 </div>
 <!-- Remove Favorite Dialog -->
 <app-remove-favorite-dialog [(visible)]="showRemoveDialog" [gameTitle]="pendingRemoveGameTitle"
