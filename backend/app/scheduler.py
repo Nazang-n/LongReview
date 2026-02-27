@@ -364,6 +364,19 @@ def import_newest_games(target_limit: int = 10):
 
         # ดึง TH details
         steam_details_th = SteamAPIClient.get_app_details(int(app_id), language="thai", country_code="th")
+        
+        # Get price - prioritize THB from steam_details_th
+        price_str = None
+        if steam_details_th:
+            price_overview_th = steam_details_th.get('price_overview', {})
+            if price_overview_th:
+                price_str = price_overview_th.get('final_formatted')
+        
+        # Fallback to USD if THB not found
+        if not price_str:
+            price_overview_en = steam_details_en.get('price_overview', {})
+            if price_overview_en:
+                price_str = price_overview_en.get('final_formatted')
 
         from .utils.translator import translator
         from .utils.text_cleaner import clean_html_text
@@ -393,9 +406,6 @@ def import_newest_games(target_limit: int = 10):
         if platforms.get('mac'): platform_list.append('Mac')
         if platforms.get('linux'): platform_list.append('Linux')
         platform_str = ', '.join(platform_list) if platform_list else None
-
-        price_overview = steam_details_en.get('price_overview', {})
-        price_str = price_overview.get('final_formatted') if price_overview else None
 
         movies = steam_details_en.get('movies', [])
         videos_list = []

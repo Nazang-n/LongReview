@@ -19,17 +19,26 @@ def convert_usd_to_thb(price_str: str, exchange_rate: float = 35.0) -> str:
     if any(free_word in lower_price for free_word in ["free", "ฟรี"]):
         return "เล่นฟรี"
     
-    # Extract numbers from the string (e.g., "$1,200.00" -> 1200.00)
+    # If the price is already in THB (contains '฿', '฿', or 'บาท')
+    # Return it as is, but maybe clean it up a bit
+    if any(th_symbol in price_str for th_symbol in ["฿", "baht", "บาท"]):
+        # If it's something like "฿1,799.00", keep it as is or format slightly
+        return price_str.replace("Baht", "บาท").strip()
+
+    # Extract numbers from the string (e.g., "$59.99" -> 59.99)
     # Remove commas first to simplify regex
     clean_price = price_str.replace(',', '')
     match = re.search(r"(\d+\.?\d*)", clean_price)
     if match:
         try:
-            usd_value = float(match.group(1))
-            thb_value = usd_value * exchange_rate
+            val = float(match.group(1))
             
-            # Round and format as currency
-            # Using Thai Baht symbol or "บาท"
+            # If the value is quite large and no currency symbol was found, 
+            # it might already be THB (e.g., "1799" without symbol)
+            # But let's stick to the USD to THB conversion if no THB markers are present
+            
+            thb_value = val * exchange_rate
+            
             if thb_value == 0:
                 return "เล่นฟรี"
             
