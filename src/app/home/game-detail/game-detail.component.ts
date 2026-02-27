@@ -613,6 +613,7 @@ export class GameDetailComponent implements OnInit {
 
         this.commentService.getComments(parseInt(this.gameId), userId).subscribe({
             next: (comments) => {
+                console.log('Loaded comments with avatars:', comments);
                 this.comments = comments;
             },
             error: (err) => {

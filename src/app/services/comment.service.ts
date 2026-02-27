@@ -7,6 +7,7 @@ export interface Comment {
     game_id: number;
     user_id: number;
     username: string;
+    avatar_url: string | null;
     content: string;
     is_edited: boolean;
     created_at: string;
@@ -14,7 +15,6 @@ export interface Comment {
     upvotes: number;
     downvotes: number;
     user_vote: string | null;
-    avatar_url: string | null;
     user_voted?: boolean;
 }
 
