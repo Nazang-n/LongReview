@@ -6,6 +6,8 @@ import json
 from .. import models, schemas
 from ..database import get_db
 from ..steam_api import SteamAPIClient
+from ..utils.review_filter import ReviewFilter
+from ..utils.thai_review_helper import fetch_and_cache_thai_reviews
 
 router = APIRouter(
     prefix="/api/steam",
@@ -106,7 +108,6 @@ def import_game_from_steam(
         if existing_game_by_id:
             # Game exists - check if it needs Thai reviews fetched
             try:
-                from ..utils.thai_review_helper import fetch_and_cache_thai_reviews
                 fetch_and_cache_thai_reviews(existing_game_by_id.id, app_id, db, max_reviews=50)
             except Exception as e:
                 print(f"Error fetching Thai reviews for existing game: {e}")
@@ -133,7 +134,6 @@ def import_game_from_steam(
             
             # Check if it needs Thai reviews fetched
             try:
-                from ..utils.thai_review_helper import fetch_and_cache_thai_reviews
                 fetch_and_cache_thai_reviews(existing_game_by_title.id, app_id, db, max_reviews=50)
             except Exception as e:
                 print(f"Error fetching Thai reviews for existing game: {e}")
@@ -349,7 +349,6 @@ def import_game_from_steam(
         
         # Fetch and cache Thai reviews
         try:
-            from ..utils.thai_review_helper import fetch_and_cache_thai_reviews
             fetch_and_cache_thai_reviews(new_game.id, app_id, db, max_reviews=50)
         except Exception as e:
             print(f"Error fetching Thai reviews: {e}")
@@ -437,16 +436,24 @@ def import_reviews_from_steam(
         imported_count = 0
         
         for steam_review in steam_reviews:
+            review_content = steam_review.get("review", "")
+            
+            # Filter and Clean review
+            cleaned_content = ReviewFilter.process_review(review_content, is_thai_target=(language == "thai"))
+            if not cleaned_content:
+                continue
+                
             # Create review in database
             new_review = models.Review(
                 game_id=game_id,
                 user_id=user_id,
-                title=steam_review.get("review", "")[:255],  # Use first 255 chars as title
-                content=steam_review.get("review", ""),
+                content=cleaned_content,
                 steam_id=steam_review.get("recommendationid"),
                 is_steam_review=True,
                 steam_author=steam_review.get("author", {}).get("steamid", "Unknown"),
-                rating=10 if steam_review.get("voted_up") else 5  # Convert to 0-10 scale
+                voted_up=steam_review.get("voted_up", True),
+                helpful_count=steam_review.get("votes_up", 0),
+                created_at=datetime.fromtimestamp(steam_review.get("timestamp_created")) if steam_review.get("timestamp_created") else datetime.now()
             )
             
             db.add(new_review)

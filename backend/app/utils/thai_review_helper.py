@@ -6,21 +6,7 @@ from .. import models
 from ..steam_api import SteamAPIClient
 from datetime import datetime
 
-
-def is_thai_review(text: str, min_thai_ratio: float = 0.1) -> bool:
-    """Check if review text contains Thai language."""
-    if not text:
-        return False
-    
-    # Count Thai characters (Unicode range 0E00-0E7F)
-    thai_chars = sum(1 for c in text if '\u0E00' <= c <= '\u0E7F')
-    # Count total alphabetic characters
-    total_chars = len([c for c in text if c.isalpha()])
-    
-    if total_chars == 0:
-        return False
-    
-    return (thai_chars / total_chars) >= min_thai_ratio
+from ..utils.review_filter import ReviewFilter
 
 
 def fetch_and_cache_thai_reviews(game_id: int, steam_app_id: int, db: Session, max_reviews: int = 50) -> bool:
@@ -85,8 +71,9 @@ def fetch_and_cache_thai_reviews(game_id: int, steam_app_id: int, db: Session, m
             if rec_id_str in existing_steam_ids or rec_id_str in processed_steam_ids:
                 continue
             
-            # Filter non-Thai reviews
-            if not is_thai_review(review_content):
+            # Filter and Clean review
+            cleaned_content = ReviewFilter.process_review(review_content, is_thai_target=True)
+            if not cleaned_content:
                 continue
             
             processed_steam_ids.add(rec_id_str)
@@ -102,7 +89,7 @@ def fetch_and_cache_thai_reviews(game_id: int, steam_app_id: int, db: Session, m
             new_review = models.Review(
                 game_id=game_id,
                 owner=steam_review.get("author", {}).get("steamid", "Unknown"),
-                content=review_content,
+                content=cleaned_content,
                 steam_id=rec_id_str,
                 is_steam_review=True,
                 steam_author=steam_review.get("author", {}).get("steamid", "Unknown"),

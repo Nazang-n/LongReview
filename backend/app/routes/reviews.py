@@ -4,7 +4,7 @@ from typing import List
 from sqlalchemy import or_
 from .. import models, schemas
 from ..database import get_db
-from ..utils.thai_validator import is_valid_thai_content
+from ..utils.review_filter import ReviewFilter
 
 router = APIRouter(
     prefix="/api/reviews",
@@ -124,11 +124,17 @@ def get_steam_reviews(
     # Filter to only Thai reviews and calculate helpfulness score
     thai_reviews = []
     for r in reviews:
-        if is_valid_thai_content(r.content):
-            # Helpfulness score: (votes * 2) + content length
-            # This prioritizes upvoted reviews and longer detailed reviews
-            helpfulness_score = (r.helpful_count * 2) + len(r.content or "")
-            thai_reviews.append((r, helpfulness_score))
+        # Check if it's still good content (in case we didn't filter at import time)
+        # Note: We don't re-clean here as it should have been cleaned at import,
+        # but we use get_thai_ratio to ensure it's still relevant if requested.
+        # Actually, let's just use the existing content logic or re-apply censorship if needed.
+        censored_content = ReviewFilter.censor_profanity(r.content or "")
+        r.content = censored_content # Censor on fly for display if not already censored
+        
+        # Helpfulness score: (votes * 2) + content length
+        # This prioritizes upvoted reviews and longer detailed reviews
+        helpfulness_score = (r.helpful_count * 2) + len(r.content or "")
+        thai_reviews.append((r, helpfulness_score))
     
     # Sort by helpfulness score (highest first) and limit
     thai_reviews.sort(key=lambda x: x[1], reverse=True)
@@ -199,7 +205,8 @@ def sync_steam_reviews(
             # Filter to only Thai reviews and sort by helpfulness
             thai_reviews = []
             for r in existing_reviews:
-                if is_valid_thai_content(r.content):
+                # Basic quality check for existing reviews
+                if ReviewFilter.get_thai_ratio(r.content or "") > 0.1:
                     thai_reviews.append(r)
             
             # Sort by helpfulness (votes_up)
@@ -276,8 +283,11 @@ def sync_steam_reviews(
                 print(f"[DEBUG] Skipping review {rec_id}: already processed in this batch")
                 continue
             
-            # Note: We're using Steam's language="thai" filter, so we trust that these are Thai reviews
-            # No need for additional Thai content validation
+            # Filter and Clean review
+            cleaned_content = ReviewFilter.process_review(review_content, is_thai_target=True)
+            if not cleaned_content:
+                print(f"[DEBUG] Skipping review {rec_id}: Filtered out (low quality, spam, or not Thai)")
+                continue
                 
             processed_steam_ids.add(rec_id)
 
@@ -290,7 +300,7 @@ def sync_steam_reviews(
             new_review = models.Review(
                 game_id=game_id,
                 owner=steam_review.get("author", {}).get("steamid", "Unknown"),
-                content=review_content,
+                content=cleaned_content,
                 steam_id=rec_id,
                 is_steam_review=True,
                 steam_author=steam_review.get("author", {}).get("steamid", "Unknown"),
@@ -479,8 +489,9 @@ def update_all_thai_reviews(db: Session = Depends(get_db)):
                 steam_id = review.get("recommendationid")
                 content = review.get("review", "")
                 
-                # Check if Thai content
-                if not is_valid_thai_content(content):
+                # Filter and Clean review
+                cleaned_content = ReviewFilter.process_review(content, is_thai_target=True)
+                if not cleaned_content:
                     continue
                 
                 # Check if already exists
@@ -497,7 +508,7 @@ def update_all_thai_reviews(db: Session = Depends(get_db)):
                     game_id=game_id,
                     steam_id=steam_id,
                     steam_author=review.get("author", {}).get("steamid"),
-                    content=content,
+                    content=cleaned_content,
                     voted_up=review.get("voted_up", True),
                     helpful_count=review.get("votes_up", 0),
                     playtime_hours=review.get("author", {}).get("playtime_forever", 0) / 60,
