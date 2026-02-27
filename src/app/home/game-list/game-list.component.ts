@@ -76,6 +76,7 @@ export class GameListComponent implements OnInit {
 
     // Sorting
     currentSortBy: 'newest' | 'popular' = 'newest';
+    sortOrder: 'asc' | 'desc' = 'desc';
 
     constructor(
         private gameService: GameService,
@@ -523,21 +524,39 @@ export class GameListComponent implements OnInit {
 
     sortGames(sortBy: 'newest' | 'popular') {
         this.currentSortBy = sortBy;
+        this.applySort();
+    }
+
+    toggleSortOrder() {
+        this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc';
+        this.applySort();
+    }
+
+    private applySort() {
+        const sortBy = this.currentSortBy;
+        const isAsc = this.sortOrder === 'asc';
 
         const sortFn = (a: Game, b: Game) => {
             if (sortBy === 'newest') {
                 if (a.releaseDate === 'Unknown') return 1;
                 if (b.releaseDate === 'Unknown') return -1;
-                return new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime();
+
+                const timeA = new Date(a.releaseDate).getTime();
+                const timeB = new Date(b.releaseDate).getTime();
+
+                return isAsc ? timeA - timeB : timeB - timeA;
             } else {
-                // Popular sort: Total reviews DESC, then Percentage DESC
+                // Popular sort: Total reviews, then Percentage
                 const totalA = a.totalReviews || 0;
                 const totalB = b.totalReviews || 0;
-                if (totalB !== totalA) return totalB - totalA;
+
+                if (totalB !== totalA) {
+                    return isAsc ? totalA - totalB : totalB - totalA;
+                }
 
                 const percentA = a.sentimentPercent || 0;
                 const percentB = b.sentimentPercent || 0;
-                return percentB - percentA;
+                return isAsc ? percentA - percentB : percentB - percentA;
             }
         };
 

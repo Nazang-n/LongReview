@@ -112,16 +112,25 @@
             <div class="mb-8 flex flex-wrap items-center gap-4">
                 <div class="flex items-center gap-3">
                     <span class="text-sm text-gray-400 font-medium">เรียงตาม:</span>
-                    <div class="flex bg-white rounded-lg shadow-sm border border-gray-100 p-1">
-                        <button (click)="sortGames('newest')"
-                            class="px-5 py-1.5 rounded-md text-xs font-bold transition-all"
-                            [ngClass]="currentSortBy === 'newest' ? 'bg-purple-500 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'">
-                            วันที่ออก
-                        </button>
-                        <button (click)="sortGames('popular')"
-                            class="px-5 py-1.5 rounded-md text-xs font-bold transition-all"
-                            [ngClass]="currentSortBy === 'popular' ? 'bg-purple-500 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'">
-                            ความนิยม
+                    <div class="flex items-center gap-2">
+                        <div class="flex bg-white rounded-lg shadow-sm border border-gray-100 p-1">
+                            <button (click)="sortGames('newest')"
+                                class="px-5 py-1.5 rounded-md text-xs font-bold transition-all"
+                                [ngClass]="currentSortBy === 'newest' ? 'bg-purple-500 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'">
+                                วันที่ออก
+                            </button>
+                            <button (click)="sortGames('popular')"
+                                class="px-5 py-1.5 rounded-md text-xs font-bold transition-all"
+                                [ngClass]="currentSortBy === 'popular' ? 'bg-purple-500 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'">
+                                ความนิยม
+                            </button>
+                        </div>
+
+                        <!-- Sort Order Toggle -->
+                        <button (click)="toggleSortOrder()" title="สลับลำดับการแสดงผล"
+                            class="w-9 h-9 flex items-center justify-center bg-white border border-gray-100 rounded-lg shadow-sm text-purple-600 hover:bg-purple-50 transition-all">
+                            <i class="pi text-lg"
+                                [ngClass]="sortOrder === 'desc' ? 'pi-sort-amount-down' : 'pi-sort-amount-up-alt'"></i>
                         </button>
                     </div>
                 </div>
