@@ -367,7 +367,12 @@ def import_newest_games(target_limit: int = 10):
         
         # Get price - prioritize THB from steam_details_th
         price_str = None
-        if steam_details_th:
+        
+        # Check if game is free first
+        if steam_details_th.get('is_free') or steam_details_en.get('is_free'):
+            price_str = "Free"
+            
+        if not price_str and steam_details_th:
             price_overview_th = steam_details_th.get('price_overview', {})
             if price_overview_th:
                 price_str = price_overview_th.get('final_formatted')

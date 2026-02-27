@@ -192,7 +192,12 @@ def import_game_from_steam(
         
         # Extract price info - prioritize Thai regional pricing (cc=th)
         price_str = None
-        if app_details_th:
+        
+        # Check if game is free first
+        if app_details_th.get('is_free') or app_details_en.get('is_free'):
+            price_str = "Free"
+        
+        if not price_str and app_details_th:
             price_overview_th = app_details_th.get('price_overview', {})
             if price_overview_th:
                 price_str = price_overview_th.get('final_formatted')
@@ -693,7 +698,12 @@ def import_games_batch_from_steamspy(
                     
                     # Extract price info - prioritize Thai regional pricing (cc=th)
                     price_str = None
-                    if steam_details_th:
+                    
+                    # Check if game is free first
+                    if steam_details_th.get('is_free') or steam_details_en.get('is_free'):
+                        price_str = "Free"
+                    
+                    if not price_str and steam_details_th:
                         price_overview_th = steam_details_th.get('price_overview', {})
                         if price_overview_th:
                             price_str = price_overview_th.get('final_formatted')
@@ -703,6 +713,7 @@ def import_games_batch_from_steamspy(
                         price_overview_en = steam_details_en.get('price_overview', {})
                         if price_overview_en:
                             price_str = price_overview_en.get('final_formatted')
+                    
                     
                     # Extract video and screenshots
                     movies = steam_details_en.get('movies', [])
@@ -1101,7 +1112,12 @@ def import_newest_games_from_steamspy(
                         
                         # Extract price info - prioritize Thai regional pricing (cc=th)
                         price_str = None
-                        if steam_details_th:
+                        
+                        # Check if game is free first
+                        if steam_details_th.get('is_free') or steam_details_en.get('is_free'):
+                            price_str = "Free"
+                        
+                        if not price_str and steam_details_th:
                             price_overview_th = steam_details_th.get('price_overview', {})
                             if price_overview_th:
                                 price_str = price_overview_th.get('final_formatted')

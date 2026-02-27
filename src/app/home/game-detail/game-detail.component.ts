@@ -288,7 +288,8 @@ export class GameDetailComponent implements OnInit {
                         negative: 0   // Will be loaded from API
                     },
                     reviewTags: [],  // Will be loaded from API
-                    priceThb: gameData.price_thb || 'N/A'
+                    priceThb: (gameData.price_thb && gameData.price_thb !== '') ? gameData.price_thb :
+                        (gameData.genre?.toLowerCase().includes('free to play') ? 'เล่นฟรี' : 'N/A')
                 };
 
                 // Parse videos and screenshots JSON

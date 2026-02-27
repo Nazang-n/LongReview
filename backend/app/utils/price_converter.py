@@ -11,8 +11,8 @@ def convert_usd_to_thb(price_str: str, exchange_rate: float = 35.0) -> str:
     Returns:
         A formatted THB price string or the original if it's "Free".
     """
-    if not price_str:
-        return ""
+    if not price_str or price_str.strip() == "" or price_str.lower() == "none":
+        return "เล่นฟรี"
     
     # Handle free games
     lower_price = price_str.lower()
