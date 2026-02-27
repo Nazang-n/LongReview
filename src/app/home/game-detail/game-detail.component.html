@@ -333,14 +333,14 @@
                             <ng-template let-chunk pTemplate="item">
                                 <div class="p-2 h-full flex flex-col space-y-2">
                                     <div *ngFor="let review of chunk"
-                                        class="bg-gray-200 rounded-lg p-3 flex flex-col relative review-card-mobile h-[180px]">
+                                        class="bg-gray-200 rounded-lg p-3 flex flex-col relative review-card-mobile h-[190px]">
                                         <!-- Header: ID & Status -->
                                         <div class="flex justify-between items-start mb-2">
                                             <div class="flex flex-col">
-                                                <span class="font-bold text-xs text-gray-400 font-mono">ID: {{
-                                                    review.author }}</span>
+                                                <span class="font-bold text-xs text-gray-400 font-mono w-24 truncate"
+                                                    title="{{review.author}}">ID: {{ review.author }}</span>
                                             </div>
-                                            <div class="flex items-center gap-1 text-xs font-bold"
+                                            <div class="flex items-center gap-1 text-xs font-bold bg-white px-2 py-0.5 rounded-full shadow-sm"
                                                 [class]="review.voted_up ? 'text-green-600' : 'text-red-600'">
                                                 <i
                                                     [class]="review.voted_up ? 'pi pi-thumbs-up' : 'pi pi-thumbs-down'"></i>
@@ -350,7 +350,7 @@
 
                                         <!-- Content -->
                                         <div
-                                            class="text-gray-900 text-sm overflow-y-auto pr-2 custom-scrollbar flex-grow leading-relaxed whitespace-pre-line mb-1 font-medium review-text-scroll">
+                                            class="text-gray-900 text-sm overflow-y-auto pr-2 custom-scrollbar flex-grow leading-relaxed whitespace-pre-line mb-1 font-medium review-text-scroll bg-gray-100/50 p-2 rounded">
                                             {{ review.content }}
                                         </div>
 
