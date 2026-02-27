@@ -38,14 +38,23 @@ def serialize_game(game: models.Game, sentiment: Optional[models.GameSentiment] 
         
     # Determine review type from sentiment if available, else fallback to rating
     review_type = "mixed"
-    if sentiment and sentiment.review_score_desc:
-        desc = sentiment.review_score_desc.lower()
-        if 'positive' in desc:
-            review_type = 'positive'
-        elif 'negative' in desc:
-            review_type = 'negative'
-        else:
-            review_type = 'mixed'
+    sentiment_percent = None
+    total_reviews = None
+    
+    # Use provided sentiment OR fall back to relationship
+    game_sentiment = sentiment or getattr(game, 'sentiment', None)
+    
+    if game_sentiment:
+        sentiment_percent = game_sentiment.positive_percent
+        total_reviews = game_sentiment.total_reviews
+        if game_sentiment.review_score_desc:
+            desc = game_sentiment.review_score_desc.lower()
+            if 'positive' in desc:
+                review_type = 'positive'
+            elif 'negative' in desc:
+                review_type = 'negative'
+            else:
+                review_type = 'mixed'
     elif game.rating:
         review_type = "positive" if game.rating >= 7 else "mixed" if game.rating >= 4 else "negative"
     
@@ -68,7 +77,9 @@ def serialize_game(game: models.Game, sentiment: Optional[models.GameSentiment] 
         "about_game_th": game.about_game_th,
         "app_id": steam_app_id,
         "player_modes": [],  # Default empty list
-        "review_type": review_type
+        "review_type": review_type,
+        "sentiment_percent": sentiment_percent,
+        "total_reviews": total_reviews
     }
     print(f"DEBUG: serialize_game returning 'screenshots' field: {'screenshots' in result}")
     return result
@@ -97,13 +108,13 @@ def get_games(
     
     query = db.query(models.Game)
 
-    # Handle GameSentiment Join (Filter or Sort)
+    # Handle GameSentiment Join
     if sentiment == "positive":
         # Filter mode: INNER JOIN + Filter
         query = query.join(models.GameSentiment, models.Game.id == models.GameSentiment.game_id)
         query = query.filter(models.GameSentiment.positive_percent >= 70)
-    elif sort_by in ["popular", "popular_hero", "rating"]:
-        # Sort-only mode: OUTER JOIN (to include all games)
+    else:
+        # Sort or data mode: OUTER JOIN (to include all games)
         query = query.outerjoin(models.GameSentiment, models.Game.id == models.GameSentiment.game_id)
         
     # Apply Year Release Filter

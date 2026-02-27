@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, Text, Float, DateTime, Boolean, Date, text, ForeignKey, BigInteger
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from datetime import datetime
 from .database import Base
@@ -43,6 +44,9 @@ class Game(Base):
     about_game_th = Column(Text)  # Thai translation of game details
     steam_app_id = Column(Integer, unique=True, index=True)  # Steam App ID from SteamSpy
     last_review_fetch = Column(DateTime(timezone=True), nullable=True)  # Last time reviews were fetched
+
+    # Relationships
+    sentiment = relationship("GameSentiment", backref="game", uselist=False)
 
 
 

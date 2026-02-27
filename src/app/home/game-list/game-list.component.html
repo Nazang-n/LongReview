@@ -103,8 +103,31 @@
                 <div class="relative">
                     <i class="pi pi-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg"></i>
                     <input type="text" [ngModel]="searchQuery" (ngModelChange)="onSearchChange($event)"
-                        placeholder="ค้นหาเกม"
-                        class="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-700 placeholder-gray-400" />
+                        placeholder="ค้นหาเกมบน LongReview"
+                        class="w-full pl-12 pr-4 py-3.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 text-gray-700 placeholder-gray-400 shadow-sm transition-all" />
+                </div>
+            </div>
+
+            <!-- Sorting and Count -->
+            <div class="mb-8 flex flex-wrap items-center gap-4">
+                <div class="flex items-center gap-3">
+                    <span class="text-sm text-gray-400 font-medium">เรียงตาม:</span>
+                    <div class="flex bg-white rounded-lg shadow-sm border border-gray-100 p-1">
+                        <button (click)="sortGames('newest')"
+                            class="px-5 py-1.5 rounded-md text-xs font-bold transition-all"
+                            [ngClass]="currentSortBy === 'newest' ? 'bg-purple-500 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'">
+                            วันที่ออก
+                        </button>
+                        <button (click)="sortGames('popular')"
+                            class="px-5 py-1.5 rounded-md text-xs font-bold transition-all"
+                            [ngClass]="currentSortBy === 'popular' ? 'bg-purple-500 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'">
+                            ความนิยม
+                        </button>
+                    </div>
+                </div>
+
+                <div class="ml-auto text-sm text-gray-400 font-medium">
+                    พบทั้งหมด <span class="text-purple-600 font-bold">{{ games.length }}</span> เกม
                 </div>
             </div>
 

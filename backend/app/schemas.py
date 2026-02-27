@@ -107,6 +107,8 @@ class GameBase(BaseModel):
     genre_th: Optional[str] = None
     player_modes: Optional[list[str]] = []
     price_thb: Optional[str] = None
+    sentiment_percent: Optional[float] = None
+    total_reviews: Optional[int] = None
 
 
 class GameCreate(GameBase):

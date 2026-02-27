@@ -29,6 +29,7 @@ interface Game {
     price?: string;
     priceThb?: string;
     playerModes?: string[];
+    totalReviews?: number;
 }
 
 @Component({
@@ -72,6 +73,9 @@ export class GameListComponent implements OnInit {
     currentPage = 1;
     gamesPerPage = 24;
     totalGames = 0;
+
+    // Sorting
+    currentSortBy: 'newest' | 'popular' = 'newest';
 
     constructor(
         private gameService: GameService,
@@ -153,15 +157,16 @@ export class GameListComponent implements OnInit {
                             platform: game.platform,
                             price: game.price,
                             priceThb: game.price_thb,
-                            playerModes: game.player_modes || []
+                            playerModes: game.player_modes || [],
+                            sentimentPercent: game.sentiment_percent,
+                            totalReviews: game.total_reviews
                         };
                     });
 
-                    // Initial sort
-                    this.sortByReleaseDate();
-
-                    // Initial filter (if any tags selected)
+                    // Initial sort and filter
                     this.filterGames();
+                    this.sortGames('newest');
+
                     this.updateTagCounts(); // Calculate initial static counts
 
                     this.isLoading = false;
@@ -516,17 +521,30 @@ export class GameListComponent implements OnInit {
         this.filterGames();
     }
 
-    sortByReleaseDate() {
-        // Sort logic for Release Date
+    sortGames(sortBy: 'newest' | 'popular') {
+        this.currentSortBy = sortBy;
+
         const sortFn = (a: Game, b: Game) => {
-            if (a.releaseDate === 'Unknown') return 1;
-            if (b.releaseDate === 'Unknown') return -1;
-            return new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime();
+            if (sortBy === 'newest') {
+                if (a.releaseDate === 'Unknown') return 1;
+                if (b.releaseDate === 'Unknown') return -1;
+                return new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime();
+            } else {
+                // Popular sort: Total reviews DESC, then Percentage DESC
+                const totalA = a.totalReviews || 0;
+                const totalB = b.totalReviews || 0;
+                if (totalB !== totalA) return totalB - totalA;
+
+                const percentA = a.sentimentPercent || 0;
+                const percentB = b.sentimentPercent || 0;
+                return percentB - percentA;
+            }
         };
 
-        // Sort BOTH allGames (base) and games (filtered)
         this.allGames.sort(sortFn);
         this.games.sort(sortFn);
+        this.currentPage = 1;
+        this.getPaginatedGames();
     }
 
     getPaginatedGames() {
