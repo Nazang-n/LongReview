@@ -326,14 +326,14 @@
                     </div>
 
                     <!-- Reviews Grid -->
-                    <!-- Steam Reviews (Carousel) -->
-                    <div *ngIf="steamReviews.length > 0">
+                    <!-- Steam Reviews (Desktop: Carousel) -->
+                    <div *ngIf="steamReviews.length > 0" class="hidden md:block">
                         <p-carousel [value]="chunkedReviews" [numVisible]="2" [numScroll]="1" [circular]="false"
                             [responsiveOptions]="responsiveOptions" [showIndicators]="false">
                             <ng-template let-chunk pTemplate="item">
                                 <div class="p-2 h-full flex flex-col space-y-2">
                                     <div *ngFor="let review of chunk"
-                                        class="bg-gray-200 rounded-lg p-3 flex flex-col relative review-card-mobile">
+                                        class="bg-gray-200 rounded-lg p-3 flex flex-col relative review-card-mobile h-[180px]">
                                         <!-- Header: ID & Status -->
                                         <div class="flex justify-between items-start mb-2">
                                             <div class="flex flex-col">
@@ -364,6 +364,51 @@
                                 </div>
                             </ng-template>
                         </p-carousel>
+                    </div>
+
+                    <!-- Steam Reviews (Mobile: Native CSS Snap Scroll) -->
+                    <div *ngIf="steamReviews.length > 0" class="block md:hidden">
+                        <div class="flex overflow-x-auto snap-x snap-mandatory hide-scrollbar space-x-4 pb-4 px-1"
+                            style="-webkit-overflow-scrolling: touch;">
+                            <!-- Instead of chunks, we just lay them out side by side on mobile for pure horizontal scrolling -->
+                            <div *ngFor="let review of steamReviews" class="snap-center flex-none w-[85%]">
+                                <div class="bg-gray-200 rounded-lg p-4 flex flex-col relative shadow-sm"
+                                    style="height: 280px;">
+                                    <!-- Header: ID & Status -->
+                                    <div class="flex justify-between items-start mb-3">
+                                        <div class="flex flex-col">
+                                            <span
+                                                class="font-bold text-xs text-gray-400 font-mono text-xs w-24 truncate"
+                                                title="{{review.author}}">ID: {{ review.author }}</span>
+                                        </div>
+                                        <div class="flex items-center gap-1 text-sm font-bold bg-white px-2 py-0.5 rounded-full shadow-sm"
+                                            [class]="review.voted_up ? 'text-green-600' : 'text-red-600'">
+                                            <i [class]="review.voted_up ? 'pi pi-thumbs-up' : 'pi pi-thumbs-down'"></i>
+                                            <span>{{ review.voted_up ? 'แนะนำ' : 'ไม่แนะนำ' }}</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Content (Native Scroll) -->
+                                    <div
+                                        class="text-gray-900 text-sm overflow-y-auto custom-scrollbar flex-grow leading-loose whitespace-pre-line mb-2 font-medium bg-gray-100/50 p-2 rounded pointer-events-auto touch-pan-y">
+                                        {{ review.content }}
+                                    </div>
+
+                                    <!-- Footer: Playtime -->
+                                    <div
+                                        class="flex items-center gap-1 text-xs text-gray-500 mt-auto pt-2 border-t border-gray-300 font-medium">
+                                        <i class="pi pi-clock"></i>
+                                        <span>เล่นมา {{ formatPlaytime(review.playtime_hours) }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Swipe indicator helper -->
+                        <div class="text-center text-xs text-gray-400 mt-1 mb-2 flex items-center justify-center gap-2">
+                            <i class="pi pi-angle-left"></i> ปัดซ้าย/ขวาเพื่อดูรีวิวเพิ่มเติม <i
+                                class="pi pi-angle-right"></i>
+                        </div>
                     </div>
                 </div>
             </div>
