@@ -190,9 +190,18 @@ def import_game_from_steam(
         if platforms.get('linux'): platform_list.append('Linux')
         platform_str = ', '.join(platform_list) if platform_list else None
         
-        # Extract price info
-        price_overview = app_details_en.get('price_overview', {})
-        price_str = price_overview.get('final_formatted') if price_overview else None
+        # Extract price info - prioritize Thai regional pricing (cc=th)
+        price_str = None
+        if app_details_th:
+            price_overview_th = app_details_th.get('price_overview', {})
+            if price_overview_th:
+                price_str = price_overview_th.get('final_formatted')
+        
+        # Fallback to English/US/USD if Thai price not found
+        if not price_str:
+            price_overview_en = app_details_en.get('price_overview', {})
+            if price_overview_en:
+                price_str = price_overview_en.get('final_formatted')
         
         # Extract video URLs - store ALL videos as JSON
         import json
@@ -675,9 +684,18 @@ def import_games_batch_from_steamspy(
                     if platforms.get('linux'): platform_list.append('Linux')
                     platform_str = ', '.join(platform_list) if platform_list else None
                     
-                    # Extract price info
-                    price_overview = steam_details_en.get('price_overview', {})
-                    price_str = price_overview.get('final_formatted') if price_overview else None
+                    # Extract price info - prioritize Thai regional pricing (cc=th)
+                    price_str = None
+                    if steam_details_th:
+                        price_overview_th = steam_details_th.get('price_overview', {})
+                        if price_overview_th:
+                            price_str = price_overview_th.get('final_formatted')
+                    
+                    # Fallback to English/US/USD if Thai price not found
+                    if not price_str:
+                        price_overview_en = steam_details_en.get('price_overview', {})
+                        if price_overview_en:
+                            price_str = price_overview_en.get('final_formatted')
                     
                     # Extract video and screenshots
                     movies = steam_details_en.get('movies', [])
@@ -1074,9 +1092,18 @@ def import_newest_games_from_steamspy(
                         if platforms.get('linux'): platform_list.append('Linux')
                         platform_str = ', '.join(platform_list) if platform_list else None
                         
-                        # Extract price info
-                        price_overview = steam_details_en.get('price_overview', {})
-                        price_str = price_overview.get('final_formatted') if price_overview else None
+                        # Extract price info - prioritize Thai regional pricing (cc=th)
+                        price_str = None
+                        if steam_details_th:
+                            price_overview_th = steam_details_th.get('price_overview', {})
+                            if price_overview_th:
+                                price_str = price_overview_th.get('final_formatted')
+                        
+                        # Fallback to English/US/USD if Thai price not found
+                        if not price_str:
+                            price_overview_en = steam_details_en.get('price_overview', {})
+                            if price_overview_en:
+                                price_str = price_overview_en.get('final_formatted')
                         
                         # Extract video and screenshots
                         movies = steam_details_en.get('movies', [])
