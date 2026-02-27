@@ -653,20 +653,20 @@ def cleanup_password_reset_tokens():
 # Initialize scheduler
 scheduler = BackgroundScheduler()
 
-# Daily log cleanup job (01:00 TH = 18:00 UTC)
+# Daily log cleanup job (00:00 TH = 17:00 UTC)
 scheduler.add_job(
     func=cleanup_old_daily_logs,
-    trigger=CronTrigger(hour=18, minute=0),
+    trigger=CronTrigger(hour=17, minute=5),
     id='cleanup_daily_logs',
     name='Clean up old daily update logs',
     replace_existing=True,
     misfire_grace_time=86400 # 24 hours grace time for sleep/hibernate
 )
 
-# Import newest games job (01:05 TH = 18:05 UTC)
+# Import newest games job (00:05 TH = 17:05 UTC)
 scheduler.add_job(
     func=import_newest_games,
-    trigger=CronTrigger(hour=18, minute=5),
+    trigger=CronTrigger(hour=17, minute=10),
     id='import_newest_games',
     name='Import newest games from Steam',
     replace_existing=True,
@@ -709,10 +709,10 @@ def update_news_daily():
     finally:
         db.close()
 
-# News update job (02:00 TH = 19:00 UTC)
+# News update job (01:00 TH = 18:00 UTC)
 scheduler.add_job(
     func=update_news_daily,
-    trigger=CronTrigger(hour=19, minute=0),
+    trigger=CronTrigger(hour=18, minute=0),
     id='update_news',
     name='Update gaming news',
     replace_existing=True,
@@ -733,20 +733,20 @@ def cleanup_old_news_daily():
     finally:
         db.close()
 
-# News cleanup job (01:30 TH = 18:30 UTC)
+# News cleanup job (00:30 TH = 17:30 UTC)
 scheduler.add_job(
     func=cleanup_old_news_daily,
-    trigger=CronTrigger(hour=18, minute=30),
+    trigger=CronTrigger(hour=17, minute=30),
     id='cleanup_news',
     name='Clean up old news articles',
     replace_existing=True,
     misfire_grace_time=86400
 )
 
-# Sentiment update job (03:00 TH = 20:00 UTC)
+# Sentiment update job (02:00 TH = 19:00 UTC)
 scheduler.add_job(
     func=update_all_sentiments,
-    trigger=CronTrigger(hour=20, minute=0),
+    trigger=CronTrigger(hour=19, minute=0),
     id='update_sentiments',
     name='Update game sentiments from Steam API',
     replace_existing=True,
@@ -754,10 +754,10 @@ scheduler.add_job(
     kwargs={'force_update': True}
 )
 
-# Review tags update job (04:00 TH = 21:00 UTC)
+# Review tags update job (03:00 TH = 20:00 UTC)
 scheduler.add_job(
     func=update_review_tags,
-    trigger=CronTrigger(hour=21, minute=0),
+    trigger=CronTrigger(hour=20, minute=0),
     id='update_review_tags',
     name='Update game review tags from Steam reviews',
     replace_existing=True,
@@ -783,20 +783,20 @@ def update_thai_reviews_daily():
     except Exception as e:
         print(f"[Thai Review Scheduler] Fatal error: {e}")
 
-# Thai reviews update job (05:00 TH = 22:00 UTC)
+# Thai reviews update job (04:00 TH = 21:00 UTC)
 scheduler.add_job(
     func=update_thai_reviews_daily,
-    trigger=CronTrigger(hour=22, minute=0),
+    trigger=CronTrigger(hour=21, minute=0),
     id='update_thai_reviews',
     name='Update Thai reviews from Steam',
     replace_existing=True,
     misfire_grace_time=86400
 )
 
-# Token cleanup job (06:00 TH = 23:00 UTC)
+# Token cleanup job (05:00 TH = 22:00 UTC)
 scheduler.add_job(
     func=cleanup_password_reset_tokens,
-    trigger=CronTrigger(hour=23, minute=0),
+    trigger=CronTrigger(hour=22, minute=0),
     id='cleanup_password_tokens',
     name='Clean up expired and old password reset tokens',
     replace_existing=True,
@@ -809,90 +809,101 @@ def check_missed_daily_tasks():
     db = SessionLocal()
     try:
         from datetime import datetime, timedelta
-        today = (datetime.utcnow() + timedelta(hours=7)).date()
+        th_time = datetime.utcnow() + timedelta(hours=7)
+        today = th_time.date()
         
-        # Check 'games' import
-        games_log = db.query(models.DailyUpdateLog).filter(
-            models.DailyUpdateLog.update_type == 'games',
-            models.DailyUpdateLog.update_date == today
-        ).first()
+        # 1. Clean up logs if we are past 00:05 TH. 
+        # (It's safe to run multiple times, it only deletes logs older than today)
+        if th_time.hour > 0 or (th_time.hour == 0 and th_time.minute >= 5):
+            print("[Scheduler] Running daily log cleanup check...")
+            cleanup_old_daily_logs()
         
-        if not games_log:
-            print("[Scheduler] Missed 'games' import. Scheduling now...")
-            scheduler.add_job(
-                import_newest_games,
-                'date',
-                run_date=datetime.now() + timedelta(seconds=5),
-                id='catchup_games',
-                name='Catch-up: Import games'
-            )
-
-        # Check 'news' update
-        news_log = db.query(models.DailyUpdateLog).filter(
-            models.DailyUpdateLog.update_type == 'news',
-            models.DailyUpdateLog.update_date == today
-        ).first()
-
-        if not news_log:
-            print("[Scheduler] Missed 'news' sync. Scheduling now...")
-            scheduler.add_job(
-                update_news_daily,
-                'date',
-                run_date=datetime.now() + timedelta(seconds=5),
-                id='catchup_news',
-                name='Catch-up: News'
-            )
+        # 2. Check 'games' import (Scheduled: 00:10 TH)
+        if th_time.hour > 0 or (th_time.hour == 0 and th_time.minute >= 10):
+            games_log = db.query(models.DailyUpdateLog).filter(
+                models.DailyUpdateLog.update_type == 'games',
+                models.DailyUpdateLog.update_date == today
+            ).first()
             
-        # Check 'sentiment' update
-        sentiment_log = db.query(models.DailyUpdateLog).filter(
-            models.DailyUpdateLog.update_type == 'sentiment',
-            models.DailyUpdateLog.update_date == today
-        ).first()
-        
-        if not sentiment_log:
-            print("[Scheduler] Missed 'sentiment' update. Scheduling now (Force Update)...")
-            # Run 10s later to stagger
-            scheduler.add_job(
-                update_all_sentiments, 
-                'date', 
-                run_date=datetime.now() + timedelta(seconds=10),
-                kwargs={'force_update': True},  # Force update — update ALL games
-                id='catchup_sentiment', 
-                name='Catch-up: Sentiment'
-            )
+            if not games_log:
+                print("[Scheduler] Missed 'games' import. Scheduling now...")
+                scheduler.add_job(
+                    import_newest_games,
+                    'date',
+                    run_date=datetime.now() + timedelta(seconds=5),
+                    id='catchup_games',
+                    name='Catch-up: Import games'
+                )
 
-        # Check 'reviews' (Thai reviews)
-        reviews_log = db.query(models.DailyUpdateLog).filter(
-            models.DailyUpdateLog.update_type == 'reviews',
-            models.DailyUpdateLog.update_date == today
-        ).first()
-        
-        if not reviews_log:
-            print("[Scheduler] Missed 'reviews' update. Scheduling now (Force Update)...")
-            scheduler.add_job(
-                update_thai_reviews_daily, 
-                'date', 
-                run_date=datetime.now() + timedelta(seconds=20),
-                id='catchup_reviews', 
-                name='Catch-up: Thai Reviews'
-            )
+        # 3. Check 'news' update (Scheduled: 01:00 TH)
+        if th_time.hour >= 1:
+            news_log = db.query(models.DailyUpdateLog).filter(
+                models.DailyUpdateLog.update_type == 'news',
+                models.DailyUpdateLog.update_date == today
+            ).first()
+
+            if not news_log:
+                print("[Scheduler] Missed 'news' sync. Scheduling now...")
+                scheduler.add_job(
+                    update_news_daily,
+                    'date',
+                    run_date=datetime.now() + timedelta(seconds=5),
+                    id='catchup_news',
+                    name='Catch-up: News'
+                )
+                
+        # 4. Check 'sentiment' update (Scheduled: 02:00 TH)
+        if th_time.hour >= 2:
+            sentiment_log = db.query(models.DailyUpdateLog).filter(
+                models.DailyUpdateLog.update_type == 'sentiment',
+                models.DailyUpdateLog.update_date == today
+            ).first()
             
-        # Check 'tags' update
-        tags_log = db.query(models.DailyUpdateLog).filter(
-            models.DailyUpdateLog.update_type == 'tags',
-            models.DailyUpdateLog.update_date == today
-        ).first()
-        
-        if not tags_log:
-            print("[Scheduler] Missed 'tags' update. Scheduling now...")
-            scheduler.add_job(
-                update_review_tags, 
-                'date', 
-                run_date=datetime.now() + timedelta(seconds=30),
-                kwargs={'update_existing': True}, 
-                id='catchup_tags', 
-                name='Catch-up: Review Tags'
-            )
+            if not sentiment_log:
+                print("[Scheduler] Missed 'sentiment' update. Scheduling now (Force Update)...")
+                scheduler.add_job(
+                    update_all_sentiments, 
+                    'date', 
+                    run_date=datetime.now() + timedelta(seconds=10),
+                    kwargs={'force_update': True}, 
+                    id='catchup_sentiment', 
+                    name='Catch-up: Sentiment'
+                )
+
+        # 5. Check 'tags' update (Scheduled: 03:00 TH)
+        if th_time.hour >= 3:
+            tags_log = db.query(models.DailyUpdateLog).filter(
+                models.DailyUpdateLog.update_type == 'tags',
+                models.DailyUpdateLog.update_date == today
+            ).first()
+            
+            if not tags_log:
+                print("[Scheduler] Missed 'tags' update. Scheduling now...")
+                scheduler.add_job(
+                    update_review_tags, 
+                    'date', 
+                    run_date=datetime.now() + timedelta(seconds=15),
+                    kwargs={'update_existing': True}, 
+                    id='catchup_tags', 
+                    name='Catch-up: Review Tags'
+                )
+
+        # 6. Check 'reviews' (Thai reviews) (Scheduled: 04:00 TH)
+        if th_time.hour >= 4:
+            reviews_log = db.query(models.DailyUpdateLog).filter(
+                models.DailyUpdateLog.update_type == 'reviews',
+                models.DailyUpdateLog.update_date == today
+            ).first()
+            
+            if not reviews_log:
+                print("[Scheduler] Missed 'reviews' update. Scheduling now (Smart Update)...")
+                scheduler.add_job(
+                    update_thai_reviews_daily, 
+                    'date', 
+                    run_date=datetime.now() + timedelta(seconds=20),
+                    id='catchup_reviews', 
+                    name='Catch-up: Thai Reviews'
+                )
             
     except Exception as e:
         print(f"[Scheduler] Error checking missed tasks: {e}")
@@ -904,7 +915,7 @@ def start_scheduler():
     from datetime import timedelta # Ensure timedelta is available
     if not scheduler.running:
         scheduler.start()
-        print("[Scheduler] Started - Thailand night schedule: Cleanup (01:00TH/18UTC), Games (01:05TH/18:05UTC), News (02:00TH/19UTC), Sentiment (03:00TH/20UTC), Tags (04:00TH/21UTC), Reviews (05:00TH/22UTC), Tokens (06:00TH/23UTC)")
+        print("[Scheduler] Started - Thailand night schedule: Cleanup (00:05TH/17:05UTC), Games (00:10TH/17:10UTC), News (01:00TH/18UTC), Sentiment (02:00TH/19UTC), Tags (03:00TH/20UTC), Reviews (04:00TH/21UTC), Tokens (05:00TH/22UTC)")
         
         # Run catch-up check after 5 seconds
         scheduler.add_job(
