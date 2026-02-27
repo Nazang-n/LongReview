@@ -275,15 +275,16 @@
 
 @media (max-width: 768px) {
     .review-card-mobile {
-        height: auto;
-        min-height: 120px;
-        /* Let the card stretch vertically to fit text naturally on mobile */
+        height: 240px;
+        /* Give mobile cards a fixed height rather than auto, to prevent huge tall slides */
     }
 
     .review-text-scroll {
-        /* Remove inner scrolling on mobile to prevent conflict with carousel swipe */
-        overflow-y: visible;
-        max-height: none;
+        /* Restore inner scrolling, overriding carousel touch capture */
+        overflow-y: auto;
+        touch-action: pan-y !important;
+        /* Forces browser to handle vertical scroll */
+        -webkit-overflow-scrolling: touch;
     }
 
     /* Give review cards a bit more breathing room on small screens */
