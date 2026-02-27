@@ -43,6 +43,7 @@ class CommentResponse(BaseModel):
     game_id: int
     user_id: int
     username: str
+    avatar_url: Optional[str] = None
     content: str
     is_edited: bool
     created_at: str
@@ -150,6 +151,7 @@ def get_comments(
             "game_id": comment.game_id,
             "user_id": comment.user_id,
             "username": username,
+            "avatar_url": user.avatar_url if user else None,
             "content": comment.content,
             "is_edited": comment.is_edited,
             "created_at": comment.created_at.isoformat() if comment.created_at else None,
