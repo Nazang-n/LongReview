@@ -63,7 +63,7 @@ export class GameDetailComponent implements OnInit {
     responsiveOptions = [
         {
             breakpoint: '1024px',
-            numVisible: 2,
+            numVisible: 1,
             numScroll: 1
         },
         {
