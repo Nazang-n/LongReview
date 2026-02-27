@@ -235,3 +235,23 @@ p {
 	margin-top: 10px;
 	font-size: 0.8rem;
 }
+
+/* Responsive: hide desktop nav on mobile */
+@media (max-width: 768px) {
+	.nav-links {
+		display: none;
+	}
+
+	.container-nav {
+		width: 95%;
+	}
+
+	.brand-name {
+		font-size: 1.1rem;
+	}
+
+	.logo-icon, .logo-icon-sm {
+		width: 44px;
+		height: 44px;
+	}
+}

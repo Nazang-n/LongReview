@@ -22,6 +22,7 @@ import { isPlatformBrowser } from '@angular/common';
         <span class="brand-name">LongReview</span>
       </div>
 
+      <!-- Desktop nav -->
       <nav class="nav-links">
         <a routerLink="/news" routerLinkActive="active">ข่าวสาร</a>
         <a routerLink="/games" routerLinkActive="active">เกม</a>
@@ -61,8 +62,20 @@ import { isPlatformBrowser } from '@angular/common';
              <i class="pi pi-user"></i>
            </a>
         </ng-template>
-        
+
+        <!-- Hamburger button (mobile only) -->
+        <button class="hamburger" (click)="toggleMobileMenu()" [class.open]="isMobileMenuOpen" aria-label="Menu">
+          <span></span><span></span><span></span>
+        </button>
       </div>
+    </div>
+
+    <!-- Mobile nav drawer -->
+    <div class="mobile-nav" [class.open]="isMobileMenuOpen">
+      <a routerLink="/news" routerLinkActive="active" (click)="closeMobileMenu()">ข่าวสาร</a>
+      <a routerLink="/games" routerLinkActive="active" (click)="closeMobileMenu()">เกม</a>
+      <a routerLink="/favorites" routerLinkActive="active" (click)="closeMobileMenu()">รายการโปรด</a>
+      <a *ngIf="isAdmin()" routerLink="/admin" routerLinkActive="active" (click)="closeMobileMenu()">ผู้ดูแลระบบ</a>
     </div>
   </header>
 
@@ -190,12 +203,80 @@ import { isPlatformBrowser } from '@angular/common';
       background-color: #e5e7eb;
       margin: 2px 0;
     }
+
+    /* Hamburger button */
+    .hamburger {
+      display: none;
+      flex-direction: column;
+      justify-content: space-between;
+      width: 24px;
+      height: 18px;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      margin-left: 8px;
+    }
+    .hamburger span {
+      display: block;
+      height: 2px;
+      width: 100%;
+      background: white;
+      border-radius: 2px;
+      transition: all 0.3s ease;
+      transform-origin: center;
+    }
+    /* Animate to X when open */
+    .hamburger.open span:nth-child(1) { transform: translateY(8px) rotate(45deg); }
+    .hamburger.open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+    .hamburger.open span:nth-child(3) { transform: translateY(-8px) rotate(-45deg); }
+
+    /* Mobile nav drawer */
+    .mobile-nav {
+      display: none;
+      flex-direction: column;
+      background: #2b2b2b;
+      position: absolute;
+      top: var(--header-height, 70px);
+      left: 0;
+      width: 100%;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.35s ease, padding 0.3s ease;
+      z-index: 999;
+      border-top: 1px solid #3a3a3a;
+    }
+    .mobile-nav.open {
+      max-height: 400px;
+      padding: 8px 0 16px;
+    }
+    .mobile-nav a {
+      color: #ccc;
+      text-decoration: none;
+      padding: 14px 24px;
+      font-size: 1.05rem;
+      border-bottom: 1px solid #3a3a3a;
+      transition: background 0.2s, color 0.2s;
+    }
+    .mobile-nav a:last-child { border-bottom: none; }
+    .mobile-nav a:hover, .mobile-nav a.active {
+      color: #fff;
+      background: #383838;
+    }
+
+    /* Responsive breakpoint */
+    @media (max-width: 768px) {
+      .hamburger { display: flex; }
+      .mobile-nav { display: flex; }
+      .username { display: none; }
+    }
   `]
 })
 export class HeaderComponent implements OnInit, OnDestroy {
   currentUser$: Observable<User | null>;
   isBrowser: boolean;
   isDropdownOpen = false;
+  isMobileMenuOpen = false;
   showLogoutDialog = false;
   showLogoutSuccessDialog = false;
   userProfile: UserProfile | null = null;
@@ -269,6 +350,14 @@ export class HeaderComponent implements OnInit, OnDestroy {
   toggleDropdown(event: Event) {
     event.stopPropagation();
     this.isDropdownOpen = !this.isDropdownOpen;
+  }
+
+  toggleMobileMenu() {
+    this.isMobileMenuOpen = !this.isMobileMenuOpen;
+  }
+
+  closeMobileMenu() {
+    this.isMobileMenuOpen = false;
   }
 
   isAdmin(): boolean {
