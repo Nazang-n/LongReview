@@ -4,10 +4,10 @@ from typing import List, Optional
 
 # Comprehensive list of Thai profanities and common variations
 THAI_PROFANITY_LIST = [
-    "เหี้ย", "ควย", "เย็ด", "มึง", "กู", "สัส", "อีดอก", "จัญไร", "ระยำ", "ควาย", "สตอ", "หน้าม้า", 
+    "เหี้ย", "ควย", "เย็ด", "มึง", "กู", "สัส", "อีดอก", "จัญไร", "ระยำ", "ควาย", "สตอ", "หน้าหมา", 
     "กระหรี่", "โสเภณี", "สถุน", "ระยำ", "ชิบหาย", "แม่ง", "พ่อง", "แม่ม", "กาก", "สัด", "ไอ้", "อิดอก",
     "ห่า", "ส้นตีน", "ส้นเท้า", "หัวดอ", "กระดอ", "เงี่ยน", "หี", "แตด", "เยส", "คาดอ", "ชักว่าว",
-    "หำ", "ตูด", "เยี่ยว", "ขี้", "ฉิบหาย", "ตอแหล", "หน้าด้าน", "ถ่อย", "เลว", "ทราม", "บ้า", "สาด", "แดก"
+    "หำ", "ตูด", "เยี่ยว", "ขี้", "ฉิบหาย", "ตอแหล", "หน้าด้าน", "ถ่อย", "ควย", "สาด", "แดก"
 ]
 
 class ReviewFilter:
@@ -69,9 +69,9 @@ class ReviewFilter:
         if re.search(r'(.)\1{9,}', text):
             return True
             
-        # Check for very short reviews (less than 5 meaningful characters)
+        # Check for very short reviews (less than 10 meaningful characters)
         meaningful_chars = re.sub(r'[\s\.\!\?\(\)\[\]\{\}\-\=\+\_\*\&\^\%\$\#\@\~\/\\\|]', '', text)
-        if len(meaningful_chars) < 5:
+        if len(meaningful_chars) < 10:
             return True
             
         return False
