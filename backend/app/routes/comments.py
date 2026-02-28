@@ -292,6 +292,13 @@ def like_comment(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Comment not found"
         )
+        
+    # Prevent user from liking their own comment
+    if comment.user_id == request.user_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You cannot like your own comment"
+        )
     
     # Parse voted user IDs
     try:

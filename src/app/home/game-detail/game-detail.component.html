@@ -520,6 +520,15 @@
                             <!-- Content -->
                             <p class="text-gray-800 leading-relaxed whitespace-pre-line text-sm mt-3 ml-1">{{
                                 userComment.content }}</p>
+
+                            <!-- Upvotes (Read-only for own comment) -->
+                            <div class="flex items-center gap-4 text-sm mt-4 ml-1">
+                                <div class="flex items-center gap-2 text-gray-500 cursor-default"
+                                    title="คุณไม่สามารถถูกใจความคิดเห็นของตัวเองได้">
+                                    <i class="pi pi-thumbs-up"></i>
+                                    <span class="font-semibold">{{ userComment.upvotes || 0 }}</span>
+                                </div>
+                            </div>
                         </div>
                     </ng-container>
                 </div>
