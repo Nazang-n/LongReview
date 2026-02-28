@@ -426,21 +426,102 @@
                 </a> -->
                 </div>
 
-                <!-- Write Review Form -->
-                <div class=" rounded-lg p-4 mb-6 border border-gray-200 mb-2">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-4">เขียนความคิดเห็นของคุณ</h3>
+                <!-- Write Review Form or Existing Comment -->
+                <div class="rounded-lg p-4 mb-6 border border-gray-200 mb-2">
 
-                    <textarea [(ngModel)]="newComment"
-                        class="w-full border border-gray-200  p-4 bg-gray-50 mt-5 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
-                        rows="2" placeholder="แสดงความคิดเห็นเกี่ยวกับเกมนี้..."
-                        [disabled]="isSubmittingComment"></textarea>
-                    <div class="flex items-center justify-end gap-3 mt-4">
-                        <button (click)="submitComment()" [disabled]="isSubmittingComment || !newComment.trim()"
-                            class="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed">
-                            <i class="pi" [ngClass]="isSubmittingComment ? 'pi-spin pi-spinner' : 'pi-send'"></i>
-                            <span>{{ isSubmittingComment ? 'กำลังโพสต์...' : 'โพสต์ความคิดเห็น' }}</span>
-                        </button>
-                    </div>
+                    <!-- If user hasn't commented yet -->
+                    <ng-container *ngIf="!userComment">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">เขียนความคิดเห็นของคุณ</h3>
+
+                        <textarea [(ngModel)]="newComment"
+                            class="w-full border border-gray-200  p-4 bg-gray-50 mt-5 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
+                            rows="2" placeholder="แสดงความคิดเห็นเกี่ยวกับเกมนี้..."
+                            [disabled]="isSubmittingComment"></textarea>
+                        <div class="flex items-center justify-end gap-3 mt-4">
+                            <button (click)="submitComment()" [disabled]="isSubmittingComment || !newComment.trim()"
+                                class="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i class="pi" [ngClass]="isSubmittingComment ? 'pi-spin pi-spinner' : 'pi-send'"></i>
+                                <span>{{ isSubmittingComment ? 'กำลังโพสต์...' : 'โพสต์ความคิดเห็น' }}</span>
+                            </button>
+                        </div>
+                    </ng-container>
+
+                    <!-- If user has already commented -->
+                    <ng-container *ngIf="userComment">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-semibold text-gray-900">ความคิดเห็นของคุณ</h3>
+                            <span
+                                class="text-xs font-medium text-green-700 bg-green-100 px-3 py-1 rounded-full flex items-center gap-1">
+                                <i class="pi pi-check-circle"></i> คุณได้แสดงความคิดเห็นแล้ว
+                            </span>
+                        </div>
+                        <!-- If editing -->
+                        <div *ngIf="editingCommentId === userComment.id" class="mt-2">
+                            <textarea [(ngModel)]="editingContent"
+                                class="w-full border border-purple-300 p-4 bg-white mt-2 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                                rows="3" placeholder="ระบุความคิดเห็นของคุณ..."></textarea>
+                            <div class="flex justify-end gap-2 mt-3 block md:hidden">
+                                <button (click)="cancelEdit()"
+                                    class="w-full px-4 py-2 text-gray-600 border border-gray-300 hover:bg-gray-100 rounded-lg transition-colors text-sm font-medium">
+                                    ยกเลิก
+                                </button>
+                                <button (click)="saveEdit()" [disabled]="!editingContent.trim()"
+                                    class="w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors text-sm font-medium disabled:opacity-50">
+                                    บันทึก
+                                </button>
+                            </div>
+                            <div class="hidden md:flex justify-end gap-2 mt-3">
+                                <button (click)="cancelEdit()"
+                                    class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors text-sm font-medium">
+                                    ยกเลิก
+                                </button>
+                                <button (click)="saveEdit()" [disabled]="!editingContent.trim()"
+                                    class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors text-sm font-medium disabled:opacity-50">
+                                    บันทึกการแก้ไข
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- If not editing (just reading) -->
+                        <div *ngIf="editingCommentId !== userComment.id"
+                            class="bg-gray-50 rounded-lg p-5 border border-gray-100 relative">
+                            <!-- Header with avatar, name and action buttons -->
+                            <div class="flex items-start justify-between mb-3">
+                                <div class="flex items-center gap-3">
+                                    <div
+                                        class="flex-shrink-0 w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden border border-gray-200">
+                                        <img *ngIf="userComment.avatar_url" [src]="userComment.avatar_url"
+                                            class="w-full h-full object-cover">
+                                        <i *ngIf="!userComment.avatar_url" class="pi pi-user text-xl text-gray-500"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-bold text-gray-900">{{ userComment.username }}</div>
+                                        <div class="text-xs text-gray-500 flex items-center gap-2">
+                                            <span>{{ formatCommentDate(userComment.created_at) }}</span>
+                                            <span *ngIf="userComment.is_edited"
+                                                class="italic text-[10px]">(แก้ไขแล้ว)</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button (click)="startEdit(userComment)"
+                                        class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                        title="แก้ไข">
+                                        <i class="pi pi-pencil"></i>
+                                    </button>
+                                    <button (click)="deleteComment(userComment.id)"
+                                        class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                        title="ลบ">
+                                        <i class="pi pi-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Content -->
+                            <p class="text-gray-800 leading-relaxed whitespace-pre-line text-sm mt-3 ml-1">{{
+                                userComment.content }}</p>
+                        </div>
+                    </ng-container>
                 </div>
 
                 <!-- Comments List -->
@@ -452,79 +533,82 @@
                     </div>
 
                     <!-- Comment Item -->
-                    <div *ngFor="let comment of comments"
-                        class="border border-gray-200 rounded-lg p-5 hover:bg-gray-50 transition-colors">
-                        <!-- Comment Header -->
-                        <div class="flex items-start justify-between mb-3">
-                            <div class="flex items-center gap-3">
-                                <!-- User Avatar Image -->
-                                <div
-                                    class="flex-shrink-0 w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden border border-gray-200">
-                                    <img *ngIf="comment.avatar_url" [src]="comment.avatar_url"
-                                        class="w-full h-full object-cover" [alt]="comment.username"
-                                        (error)="comment.avatar_url = null">
-                                    <i *ngIf="!comment.avatar_url" class="pi pi-user text-2xl text-gray-500"></i>
-                                </div>
-                                <div>
-                                    <div class="font-bold text-gray-900">
-                                        {{ comment.username }}
-                                        <span *ngIf="comment.is_edited"
-                                            class="text-xs text-gray-500 font-normal ml-2">(แก้ไขแล้ว)</span>
+                    <ng-container *ngFor="let comment of comments">
+                        <div *ngIf="!userComment || comment.id !== userComment.id"
+                            class="border border-gray-200 rounded-lg p-5 hover:bg-gray-50 transition-colors">
+                            <!-- Comment Header -->
+                            <div class="flex items-start justify-between mb-3">
+                                <div class="flex items-center gap-3">
+                                    <!-- User Avatar Image -->
+                                    <div
+                                        class="flex-shrink-0 w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden border border-gray-200">
+                                        <img *ngIf="comment.avatar_url" [src]="comment.avatar_url"
+                                            class="w-full h-full object-cover" [alt]="comment.username"
+                                            (error)="comment.avatar_url = null">
+                                        <i *ngIf="!comment.avatar_url" class="pi pi-user text-2xl text-gray-500"></i>
                                     </div>
-                                    <div class="text-sm text-gray-500">{{ formatCommentDate(comment.created_at) }}</div>
+                                    <div>
+                                        <div class="font-bold text-gray-900">
+                                            {{ comment.username }}
+                                            <span *ngIf="comment.is_edited"
+                                                class="text-xs text-gray-500 font-normal ml-2">(แก้ไขแล้ว)</span>
+                                        </div>
+                                        <div class="text-sm text-gray-500">{{ formatCommentDate(comment.created_at) }}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Action Buttons -->
+                                <div class="flex items-center gap-2">
+                                    <button *ngIf="isOwnComment(comment)" (click)="startEdit(comment)"
+                                        class="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                                        <i class="pi pi-pencil"></i>
+                                    </button>
+                                    <button *ngIf="canDeleteComment(comment)" (click)="deleteComment(comment.id)"
+                                        class="text-red-600 hover:text-red-700 text-sm font-medium">
+                                        <i class="pi pi-trash"></i>
+                                    </button>
+                                    <button *ngIf="!isOwnComment(comment)" (click)="reportComment(comment.id)"
+                                        class="text-orange-600 hover:text-orange-700 text-sm font-medium"
+                                        title="รายงานความคิดเห็น">
+                                        <i class="pi pi-flag"></i>
+                                    </button>
                                 </div>
                             </div>
 
-                            <!-- Action Buttons -->
-                            <div class="flex items-center gap-2">
-                                <button *ngIf="isOwnComment(comment)" (click)="startEdit(comment)"
-                                    class="text-blue-600 hover:text-blue-700 text-sm font-medium">
-                                    <i class="pi pi-pencil"></i>
-                                </button>
-                                <button *ngIf="canDeleteComment(comment)" (click)="deleteComment(comment.id)"
-                                    class="text-red-600 hover:text-red-700 text-sm font-medium">
-                                    <i class="pi pi-trash"></i>
-                                </button>
-                                <button *ngIf="!isOwnComment(comment)" (click)="reportComment(comment.id)"
-                                    class="text-orange-600 hover:text-orange-700 text-sm font-medium"
-                                    title="รายงานความคิดเห็น">
-                                    <i class="pi pi-flag"></i>
+                            <!-- Comment Content (Normal View) -->
+                            <div *ngIf="editingCommentId !== comment.id">
+                                <p class="text-gray-700 leading-relaxed mb-4">{{ comment.content }}</p>
+                            </div>
+
+                            <!-- Comment Content (Edit Mode) -->
+                            <div *ngIf="editingCommentId === comment.id" class="mb-4">
+                                <textarea [(ngModel)]="editingContent"
+                                    class="w-full border border-gray-200 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
+                                    rows="3"></textarea>
+                                <div class="flex gap-2 mt-2">
+                                    <button (click)="saveEdit()"
+                                        class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm">
+                                        บันทึก
+                                    </button>
+                                    <button (click)="cancelEdit()"
+                                        class="px-3 py-1 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded text-sm">
+                                        ยกเลิก
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Comment Footer (Voting) -->
+                            <div class="flex items-center gap-4 text-sm">
+                                <button (click)="voteComment(comment.id, 'up')"
+                                    [ngClass]="comment.user_voted ? 'text-green-600' : 'text-gray-600 hover:text-green-600'"
+                                    class="flex items-center gap-2 transition-colors">
+                                    <i class="pi"
+                                        [ngClass]="comment.user_voted ? 'pi-thumbs-up-fill' : 'pi-thumbs-up'"></i>
+                                    <span class="font-semibold">{{ comment.upvotes }}</span>
                                 </button>
                             </div>
                         </div>
-
-                        <!-- Comment Content (Normal View) -->
-                        <div *ngIf="editingCommentId !== comment.id">
-                            <p class="text-gray-700 leading-relaxed mb-4">{{ comment.content }}</p>
-                        </div>
-
-                        <!-- Comment Content (Edit Mode) -->
-                        <div *ngIf="editingCommentId === comment.id" class="mb-4">
-                            <textarea [(ngModel)]="editingContent"
-                                class="w-full border border-gray-200 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
-                                rows="3"></textarea>
-                            <div class="flex gap-2 mt-2">
-                                <button (click)="saveEdit()"
-                                    class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm">
-                                    บันทึก
-                                </button>
-                                <button (click)="cancelEdit()"
-                                    class="px-3 py-1 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded text-sm">
-                                    ยกเลิก
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Comment Footer (Voting) -->
-                        <div class="flex items-center gap-4 text-sm">
-                            <button (click)="voteComment(comment.id, 'up')"
-                                [ngClass]="comment.user_voted ? 'text-green-600' : 'text-gray-600 hover:text-green-600'"
-                                class="flex items-center gap-2 transition-colors">
-                                <i class="pi" [ngClass]="comment.user_voted ? 'pi-thumbs-up-fill' : 'pi-thumbs-up'"></i>
-                                <span class="font-semibold">{{ comment.upvotes }}</span>
-                            </button>
-                        </div>
-                    </div>
                 </div>
             </div>
 

@@ -94,6 +94,20 @@ def add_comment(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"User with id {request.user_id} not found"
         )
+        
+    # Check if user has already commented on this game
+    existing_comment = db.query(models.Comment).filter(
+        and_(
+            models.Comment.game_id == game_id,
+            models.Comment.user_id == request.user_id
+        )
+    ).first()
+    
+    if existing_comment:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You have already commented on this game"
+        )
     
     # Create comment
     new_comment = models.Comment(

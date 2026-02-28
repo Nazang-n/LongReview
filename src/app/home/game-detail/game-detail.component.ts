@@ -125,9 +125,11 @@ export class GameDetailComponent implements OnInit {
     isTogglingFavorite = false;
 
     // Comments
-    comments: Comment[] = [];
-    newComment = '';
+    comments: any[] = [];
+    userComment: any = null;
+    newComment: string = '';
     isSubmittingComment = false;
+    isSubmittingReport = false;
     editingCommentId: number | null = null;
     editingContent = '';
 
@@ -616,6 +618,13 @@ export class GameDetailComponent implements OnInit {
             next: (comments) => {
                 console.log('Loaded comments with avatars:', comments);
                 this.comments = comments;
+
+                // Check if current user has already commented
+                if (userId) {
+                    this.userComment = this.comments.find(c => c.user_id === userId) || null;
+                } else {
+                    this.userComment = null;
+                }
             },
             error: (err) => {
                 console.error('Error loading comments:', err);
