@@ -621,7 +621,7 @@ export class GameDetailComponent implements OnInit {
 
                 // Check if current user has already commented
                 if (userId) {
-                    this.userComment = this.comments.find(c => c.user_id === userId) || null;
+                    this.userComment = this.comments.find(c => c.user_id === Number(userId)) || null;
                 } else {
                     this.userComment = null;
                 }
