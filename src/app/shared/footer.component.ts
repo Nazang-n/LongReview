@@ -13,8 +13,7 @@ import { CommonModule } from '@angular/common';
           <span class="brand-name">LongReview</span>
         </div>
         <div class="footer-links">
-          <p>About us | Privacy Policy | Terms of Service</p>
-          <p class="copyright">© 2024 LongReview. All rights reserved.</p>
+          <p class="copyright">© 2025 LongReview. All rights reserved.</p>
         </div>
       </div>
     </footer>
