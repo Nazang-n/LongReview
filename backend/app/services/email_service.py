@@ -1,19 +1,18 @@
 """
 Email service for sending password reset emails
-Uses Gmail SMTP with async support
+Uses SendGrid Web API to bypass SMTP port blocking
 """
-import aiosmtplib
+import os
 import secrets
 import string
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
 from typing import Optional
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
 from app.config.settings import settings
 
-
 class EmailService:
-    """Service for sending emails via Gmail SMTP"""
+    """Service for sending emails via SendGrid API"""
     
     @staticmethod
     def generate_reset_code() -> str:
@@ -28,23 +27,9 @@ class EmailService:
     @staticmethod
     async def send_password_reset_email(to_email: str, reset_code: str, username: str) -> bool:
         """
-        Send password reset email with verification code
-        
-        Args:
-            to_email: Recipient email address
-            reset_code: 6-digit verification code
-            username: User's username
-            
-        Returns:
-            True if email sent successfully, False otherwise
+        Send password reset email with verification code via SendGrid
         """
         try:
-            # Create message
-            message = MIMEMultipart("alternative")
-            message["From"] = f"{settings.EMAIL_FROM_NAME} <{settings.GMAIL_USER}>"
-            message["To"] = to_email
-            message["Subject"] = "รหัสยืนยันการรีเซ็ตรหัสผ่าน - LongReview"
-            
             # HTML email body
             html_body = f"""
             <!DOCTYPE html>
@@ -95,30 +80,31 @@ class EmailService:
             </html>
             """
             
-            # Attach HTML body
-            html_part = MIMEText(html_body, "html", "utf-8")
-            message.attach(html_part)
+            # Use EMAIL_SENDER from environment, fallback to GMAIL_USER if not set
+            sender_email = os.getenv("EMAIL_SENDER", settings.GMAIL_USER)
+            sg_api_key = os.getenv("SENDGRID_API_KEY")
             
-            # Remove spaces from app password
-            app_password = settings.GMAIL_APP_PASSWORD.replace(" ", "") if settings.GMAIL_APP_PASSWORD else ""
-            
-            # Send email via Gmail SMTP
-            await aiosmtplib.send(
-                message,
-                hostname="smtp.gmail.com",
-                port=465,
-                use_tls=True,
-                username=settings.GMAIL_USER,
-                password=app_password,
+            if not sg_api_key:
+                print("ERROR: SENDGRID_API_KEY is not set in environment.")
+                return False
+                
+            if not sender_email:
+                print("ERROR: EMAIL_SENDER is not set in environment.")
+                return False
+
+            message = Mail(
+                from_email=sender_email,
+                to_emails=to_email,
+                subject="รหัสยืนยันการรีเซ็ตรหัสผ่าน - LongReview",
+                html_content=html_body
             )
             
-            return True
+            sg = SendGridAPIClient(sg_api_key)
+            response = sg.send(message)
+            
+            print(f"SendGrid status code: {response.status_code}")
+            return response.status_code in [200, 202]
             
         except Exception as e:
-            print(f"Error sending email: {str(e)}")
+            print(f"Error sending email via SendGrid: {str(e)}")
             return False
-    
-    @staticmethod
-    def get_expiry_time() -> datetime:
-        """Get expiry time for reset code"""
-        return datetime.utcnow() + timedelta(minutes=settings.RESET_CODE_EXPIRY_MINUTES)
