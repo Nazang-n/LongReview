@@ -287,8 +287,11 @@ export class GameListComponent implements OnInit {
 
         // 1. Text Search
         if (this.searchQuery.trim()) {
-            const query = this.searchQuery.toLowerCase();
-            filtered = filtered.filter(game => game.title.toLowerCase().includes(query));
+            const queryWords = this.searchQuery.toLowerCase().trim().split(/\s+/);
+            filtered = filtered.filter(game => {
+                const title = game.title.toLowerCase();
+                return queryWords.every(word => title.includes(word));
+            });
         }
 
         // 2. Genre Filter (AND Logic: Game must have ALL selected genres)
@@ -364,8 +367,11 @@ export class GameListComponent implements OnInit {
 
         // Apply search filter
         if (this.searchQuery.trim()) {
-            const query = this.searchQuery.toLowerCase();
-            filtered = filtered.filter(game => game.title.toLowerCase().includes(query));
+            const queryWords = this.searchQuery.toLowerCase().trim().split(/\s+/);
+            filtered = filtered.filter(game => {
+                const title = game.title.toLowerCase();
+                return queryWords.every(word => title.includes(word));
+            });
         }
 
         // Apply genre filter (including this genre)
@@ -416,8 +422,11 @@ export class GameListComponent implements OnInit {
 
         // Apply search filter
         if (this.searchQuery.trim()) {
-            const query = this.searchQuery.toLowerCase();
-            filtered = filtered.filter(game => game.title.toLowerCase().includes(query));
+            const queryWords = this.searchQuery.toLowerCase().trim().split(/\s+/);
+            filtered = filtered.filter(game => {
+                const title = game.title.toLowerCase();
+                return queryWords.every(word => title.includes(word));
+            });
         }
 
         // Apply genre filter
@@ -469,8 +478,11 @@ export class GameListComponent implements OnInit {
 
         // Apply search filter
         if (this.searchQuery.trim()) {
-            const query = this.searchQuery.toLowerCase();
-            filtered = filtered.filter(game => game.title.toLowerCase().includes(query));
+            const queryWords = this.searchQuery.toLowerCase().trim().split(/\s+/);
+            filtered = filtered.filter(game => {
+                const title = game.title.toLowerCase();
+                return queryWords.every(word => title.includes(word));
+            });
         }
 
         // Apply genre filter

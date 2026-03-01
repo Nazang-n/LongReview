@@ -106,8 +106,8 @@ class EmailService:
             await aiosmtplib.send(
                 message,
                 hostname="smtp.gmail.com",
-                port=587,
-                start_tls=True,
+                port=465,
+                use_tls=True,
                 username=settings.GMAIL_USER,
                 password=app_password,
             )

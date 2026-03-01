@@ -223,10 +223,11 @@ export class FavoritesComponent implements OnInit {
             return;
         }
 
-        // Filter favorites by title (case-insensitive, partial match)
-        const query = this.searchQuery.toLowerCase();
-        this.favoriteGames = this.allFavorites.filter(game =>
-            game.title.toLowerCase().includes(query)
-        );
+        // Filter favorites by title (case-insensitive, partial match split by space)
+        const queryWords = this.searchQuery.toLowerCase().trim().split(/\s+/);
+        this.favoriteGames = this.allFavorites.filter(game => {
+            const title = game.title.toLowerCase();
+            return queryWords.every(word => title.includes(word));
+        });
     }
 }
