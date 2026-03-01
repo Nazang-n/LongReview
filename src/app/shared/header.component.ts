@@ -17,6 +17,11 @@ import { isPlatformBrowser } from '@angular/common';
   template: `
   <header class="navbar">
     <div class="container-nav">
+      <!-- Hamburger button (mobile only) -->
+      <button class="hamburger" (click)="toggleMobileMenu()" [class.open]="isMobileMenuOpen" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+
       <div class="logo-section" routerLink="/" style="cursor: pointer;">
         <div class="logo-icon"><img src="/Logo.png" alt="Logo"></div>
         <span class="brand-name">LongReview</span>
@@ -62,11 +67,6 @@ import { isPlatformBrowser } from '@angular/common';
              <i class="pi pi-user"></i>
            </a>
         </ng-template>
-
-        <!-- Hamburger button (mobile only) -->
-        <button class="hamburger" (click)="toggleMobileMenu()" [class.open]="isMobileMenuOpen" aria-label="Menu">
-          <span></span><span></span><span></span>
-        </button>
       </div>
     </div>
 
@@ -215,7 +215,7 @@ import { isPlatformBrowser } from '@angular/common';
       border: none;
       cursor: pointer;
       padding: 0;
-      margin-left: 8px;
+      margin-right: 15px;
     }
     .hamburger span {
       display: block;
