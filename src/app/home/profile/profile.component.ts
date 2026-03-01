@@ -45,6 +45,27 @@ export class ProfileComponent implements OnInit {
 
     userComments: UserComment[] = [];
 
+    // Pagination
+    currentPage = 1;
+    itemsPerPage = 5;
+
+    get paginatedComments(): UserComment[] {
+        const startIndex = (this.currentPage - 1) * this.itemsPerPage;
+        return this.userComments.slice(startIndex, startIndex + this.itemsPerPage);
+    }
+
+    get totalPages(): number {
+        return Math.ceil(this.userComments.length / this.itemsPerPage) || 1;
+    }
+
+    nextPage(): void {
+        if (this.currentPage < this.totalPages) this.currentPage++;
+    }
+
+    prevPage(): void {
+        if (this.currentPage > 1) this.currentPage--;
+    }
+
     passwordData: PasswordData = {
         currentPassword: '',
         newPassword: '',
@@ -132,6 +153,9 @@ export class ProfileComponent implements OnInit {
         this.profileService.getUserComments(userId).subscribe({
             next: (comments) => {
                 this.userComments = comments;
+                if (this.currentPage > this.totalPages) {
+                    this.currentPage = this.totalPages;
+                }
                 this.isLoadingComments = false;
             },
             error: (err) => {

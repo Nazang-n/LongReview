@@ -76,7 +76,7 @@
                 </div>
 
                 <!-- Comment Cards -->
-                <div *ngFor="let comment of userComments" class="comment-card">
+                <div *ngFor="let comment of paginatedComments" class="comment-card">
                     <div class="comment-game-cover">
                         <img [src]="comment.game_image || 'https://via.placeholder.com/200x300/6366f1/ffffff?text=Game'"
                             [alt]="comment.game_title">
@@ -107,6 +107,22 @@
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <!-- Pagination Controls -->
+                <div *ngIf="userComments.length > itemsPerPage"
+                    class="pagination-container flex justify-center items-center gap-4 mt-8 mb-4">
+                    <button (click)="prevPage()" [disabled]="currentPage === 1"
+                        class="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-300 transition-colors">
+                        <i class="pi pi-chevron-left mr-2"></i>ก่อนหน้า
+                    </button>
+                    <span class="text-gray-600 font-medium">
+                        หน้า {{ currentPage }} จาก {{ totalPages }}
+                    </span>
+                    <button (click)="nextPage()" [disabled]="currentPage === totalPages"
+                        class="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-300 transition-colors">
+                        ถัดไป<i class="pi pi-chevron-right ml-2"></i>
+                    </button>
                 </div>
             </div>
 
