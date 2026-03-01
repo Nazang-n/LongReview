@@ -135,7 +135,7 @@ def get_user_favorites(
     # Get all favorites for the user
     favorites = db.query(models.Favorite).filter(
         models.Favorite.user_id == user_id
-    ).all()
+    ).order_by(models.Favorite.created_at.desc()).all()
     
     # Get full game details for each favorite
     favorite_games = []
