@@ -199,9 +199,9 @@ async def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(
     from email_validator import validate_email, EmailNotValidError
     
     try:
-        # Validate email format and domain
+        # Validate email format
         try:
-            validation = validate_email(request.email, check_deliverability=True)
+            validation = validate_email(request.email, check_deliverability=False)
             email = validation.normalized
         except EmailNotValidError as e:
             raise HTTPException(

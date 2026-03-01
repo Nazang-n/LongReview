@@ -487,9 +487,20 @@ def search_games(
     - **skip**: Number of records to skip (default: 0)
     - **limit**: Maximum number of records to return (default: 100)
     """
-    games = db.query(models.Game).filter(
-        models.Game.title.ilike(f"%{query}%")
-    ).order_by(models.Game.release_date.desc()).offset(skip).limit(limit).all()
+    from sqlalchemy import and_
+    
+    # Handle multiple spaces by splitting into words
+    words = query.strip().split()
+    
+    # Create an ILIKE condition for each word
+    filters = [models.Game.title.ilike(f"%{word}%") for word in words]
+    
+    if filters:
+        games = db.query(models.Game).filter(
+            and_(*filters)
+        ).order_by(models.Game.release_date.desc()).offset(skip).limit(limit).all()
+    else:
+        games = []
     
     results = []
     if games:
