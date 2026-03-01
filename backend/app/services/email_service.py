@@ -23,6 +23,11 @@ class EmailService:
     def generate_reset_token() -> str:
         """Generate a secure random token for password reset"""
         return secrets.token_urlsafe(32)
+        
+    @staticmethod
+    def get_expiry_time() -> datetime:
+        """Calculate expiry time for reset code"""
+        return datetime.utcnow() + timedelta(minutes=settings.RESET_CODE_EXPIRY_MINUTES)
     
     @staticmethod
     async def send_password_reset_email(to_email: str, reset_code: str, username: str) -> bool:
