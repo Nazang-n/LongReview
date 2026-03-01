@@ -35,6 +35,33 @@ export class FavoritesComponent implements OnInit {
     error: string | null = null;
     searchQuery: string = '';  // Search input
 
+    // Pagination
+    currentPage = 1;
+    itemsPerPage = 24;
+
+    get paginatedFavorites(): Game[] {
+        const startIndex = (this.currentPage - 1) * this.itemsPerPage;
+        return this.favoriteGames.slice(startIndex, startIndex + this.itemsPerPage);
+    }
+
+    get totalPages(): number {
+        return Math.ceil(this.favoriteGames.length / this.itemsPerPage) || 1;
+    }
+
+    nextPage(): void {
+        if (this.currentPage < this.totalPages) {
+            this.currentPage++;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    }
+
+    prevPage(): void {
+        if (this.currentPage > 1) {
+            this.currentPage--;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    }
+
     // Dialog state
     showRemoveDialog = false;
     pendingRemoveGameId: number | null = null;
@@ -135,6 +162,10 @@ export class FavoritesComponent implements OnInit {
             next: () => {
                 // Remove from local array
                 this.favoriteGames = this.favoriteGames.filter(game => game.id !== this.pendingRemoveGameId);
+                // Adjust current page if necessary
+                if (this.currentPage > this.totalPages) {
+                    this.currentPage = this.totalPages;
+                }
                 this.showRemoveDialog = false;
                 this.pendingRemoveGameId = null;
                 this.pendingRemoveGameTitle = '';
@@ -220,6 +251,7 @@ export class FavoritesComponent implements OnInit {
         if (!this.searchQuery.trim()) {
             // No search query - show all favorites
             this.favoriteGames = [...this.allFavorites];
+            this.currentPage = 1;
             return;
         }
 
@@ -229,5 +261,6 @@ export class FavoritesComponent implements OnInit {
             const title = game.title.toLowerCase();
             return queryWords.every(word => title.includes(word));
         });
+        this.currentPage = 1;
     }
 }

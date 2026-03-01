@@ -50,7 +50,7 @@
         <!-- Game Grid (3 columns, full width) -->
         <div *ngIf="!isLoading && !error && favoriteGames.length > 0"
             class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div *ngFor="let game of favoriteGames" [routerLink]="['/game', game.id]"
+            <div *ngFor="let game of paginatedFavorites" [routerLink]="['/game', game.id]"
                 class="game-card bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group border border-gray-100">
 
                 <!-- Game Image with Title Overlay -->
@@ -119,6 +119,22 @@
                     </div>
                 </div>
             </div>
+        </div>
+
+        <!-- Pagination Controls -->
+        <div *ngIf="!isLoading && !error && favoriteGames.length > itemsPerPage"
+            class="flex justify-center items-center gap-4 mt-8 mb-4">
+            <button (click)="prevPage()" [disabled]="currentPage === 1"
+                class="px-5 py-2.5 rounded-xl bg-white border border-gray-200 text-gray-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-all shadow-sm">
+                <i class="pi pi-chevron-left mr-2"></i> ก่อนหน้า
+            </button>
+            <span class="text-gray-600 font-medium px-4">
+                หน้า {{ currentPage }} จาก {{ totalPages }}
+            </span>
+            <button (click)="nextPage()" [disabled]="currentPage === totalPages"
+                class="px-5 py-2.5 rounded-xl bg-white border border-gray-200 text-gray-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-all shadow-sm">
+                ถัดไป <i class="pi pi-chevron-right ml-2"></i>
+            </button>
         </div>
 
         <!-- Empty State - Only show when truly no favorites, not when search returns empty -->
