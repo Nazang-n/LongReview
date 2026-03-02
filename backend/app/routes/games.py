@@ -518,108 +518,79 @@ def search_games(
     return results
 
 
+def run_batch_translation_bg(limit: int):
+    from ..database import SessionLocal
+    from ..utils.translator import translator
+    from .. import models
+    import re
+    import time
+    
+    print(f"[BG Translater] Starting batch translation process for up to {limit} games.")
+    db = SessionLocal()
+    try:
+        all_games = db.query(models.Game).limit(limit).all()
+        games_to_translate = []
+        for game in all_games:
+            needs_translation = False
+            if not game.about_game_th or game.about_game_th.strip() == "":
+                needs_translation = True
+            else:
+                has_thai = bool(re.search(r'[\u0E00-\u0E7F]', game.about_game_th))
+                if not has_thai:
+                    needs_translation = True
+            
+            if needs_translation:
+                games_to_translate.append(game)
+        
+        print(f"[BG Translater] Found {len(games_to_translate)} games needing translation.")
+        
+        for game in games_to_translate:
+            try:
+                source_text = None
+                if game.about_game_th and game.about_game_th.strip():
+                    source_text = game.about_game_th
+                elif game.description and game.description.strip():
+                    source_text = game.description
+                else:
+                    continue
+                
+                print(f"[BG Translater] Translating game {game.id}: {game.title}")
+                thai_translation = translator.translate_to_thai(source_text)
+                
+                if thai_translation and thai_translation != source_text:
+                    game.about_game_th = thai_translation
+                    db.commit()
+                    print(f"  ✓ Processed game {game.id}")
+                
+                # Respect Gemini free tier: wait 4s between requests
+                time.sleep(4)
+                
+            except Exception as e:
+                db.rollback()
+                print(f"[BG Translater] Error on game {game.id}: {e}")
+                
+    except Exception as e:
+        print(f"[BG Translater] Critical Error: {e}")
+    finally:
+        db.close()
+        print(f"[BG Translater] Finished batch translation run.")
+
+
 @router.post("/translate/batch")
 def batch_translate_games(
+    background_tasks: BackgroundTasks,
     limit: int = Query(10000, description="Number of games to translate", ge=1, le=10000),
     db: Session = Depends(get_db)
 ):
     """
-    Batch translate all games that don't have Thai descriptions.
-    
-    This will:
-    1. Find all games where about_game_th is NULL or empty
-    2. Translate their English description to Thai
-    3. Save the Thai translation to the database
+    Trigger a background task to batch translate all games that don't have Thai descriptions.
     """
-    from ..utils.translator import translator
-    import re
-    import time
-    
-    # Find ALL games (we'll check language in the loop)
-    all_games = db.query(models.Game).limit(limit).all()
-    
-    games_to_translate = []
-    
-    # Check each game to see if about_game_th needs translation
-    for game in all_games:
-        needs_translation = False
-        
-        # Case 1: about_game_th is NULL or empty
-        if not game.about_game_th or game.about_game_th.strip() == "":
-            needs_translation = True
-        else:
-            # Case 2: Check if it already has Thai characters
-            # If it has Thai characters, assume it is translated (skip it)
-            has_thai = bool(re.search(r'[\u0E00-\u0E7F]', game.about_game_th))
-            
-            if has_thai:
-                needs_translation = False
-            else:
-                # No Thai characters, assume it needs translation
-                needs_translation = True
-        
-        if needs_translation:
-            games_to_translate.append(game)
-    
-    if not games_to_translate:
-        return {
-            "message": "No games need translation",
-            "translated": 0,
-            "failed": 0
-        }
-    
-    print(f"Found {len(games_to_translate)} games to translate")
-    
-    translated_count = 0
-    failed_count = 0
-    failed_games = []
-    
-    for game in games_to_translate:
-        try:
-            # Determine source text for translation
-            source_text = None
-            
-            # Priority 1: Use about_game_th if it has English text
-            if game.about_game_th and game.about_game_th.strip():
-                source_text = game.about_game_th
-                print(f"Translating game {game.id}: {game.title} (from about_game_th)")
-            # Priority 2: Use description if about_game_th is empty
-            elif game.description and game.description.strip():
-                source_text = game.description
-                print(f"Translating game {game.id}: {game.title} (from description)")
-            else:
-                print(f"Skipping game {game.id}: {game.title} - No text to translate")
-                continue
-            
-            # Translate to Thai
-            thai_translation = translator.translate_to_thai(source_text)
-            
-            # Save to database
-            if thai_translation and thai_translation != source_text:
-                game.about_game_th = thai_translation
-                db.commit()
-                translated_count += 1
-                print(f"  ✓ Translated and saved")
-            else:
-                failed_count += 1
-                failed_games.append({"id": game.id, "title": game.title, "reason": "Translation returned empty or same as original"})
-                print(f"  ✗ Translation failed or returned same text")
-            
-            # Respect Gemini free tier: 15 requests/min → wait 4s between each game
-            time.sleep(4)
-                
-        except Exception as e:
-            failed_count += 1
-            failed_games.append({"id": game.id, "title": game.title, "reason": str(e)})
-            print(f"  ✗ Error: {e}")
-            db.rollback()
+    background_tasks.add_task(run_batch_translation_bg, limit)
     
     return {
-        "message": f"Batch translation completed",
-        "total_found": len(games_to_translate),
-        "translated": translated_count,
-        "failed": failed_count,
-        "failed_games": failed_games[:10]  # Return first 10 failed games
+        "message": "Batch translation started in the background",
+        "total_queued_limit": limit,
+        "status": "processing"
     }
 
 

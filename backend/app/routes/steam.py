@@ -601,8 +601,8 @@ def import_games_batch_from_steamspy(
     and import them into your database
     """
     try:
-        # Fetch more games than `limit` so we can skip duplicates and still hit the target
-        fetch_limit = min(limit * 3, 500)
+        # Fetch a significantly larger buffer of games so we can skip duplicates/failures and still hit the target
+        fetch_limit = min(limit * 30, 2000)
         top_games = SteamAPIClient.get_top_games_from_steamspy(limit=fetch_limit)
         
         if not top_games:

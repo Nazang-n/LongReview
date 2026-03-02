@@ -323,10 +323,10 @@ def trigger_manual_update(force_update: bool = False, limit: int = 0):
         
         # Log the update to daily_update_log
         try:
-            from datetime import date
+            from datetime import datetime, timedelta
             from ..models import DailyUpdateLog
             
-            today = date.today()
+            today = (datetime.utcnow() + timedelta(hours=7)).date()
             status = 'success'
             if stats['failed'] > 0 and stats['successful'] == 0:
                 status = 'failed'

@@ -230,16 +230,17 @@ async def update_single_game_reviews(game_id: int, db: Session = Depends(get_db)
 async def trigger_sentiment_update(background_tasks: BackgroundTasks) -> Dict:
     """
     Manually trigger sentiment update for all games (Background Task)
-    Uses Force Update (updates ALL games, ignoring 24h skip)
+    Uses Normal Update (only processes games not updated in the last 24h)
     """
     from ..scheduler import update_all_sentiments
     
-    # Force update — admin manual trigger should always re-update all games
-    background_tasks.add_task(update_all_sentiments, force_update=True)
+    # Use normal update (force_update=False) to only process games not updated in the last 24h
+    # This acts as a catch-up for today instead of rebuilding 5000+ games
+    background_tasks.add_task(update_all_sentiments, force_update=False)
     
     return {
         "status": "success",
-        "message": "Sentiment update started in background (Force Update — all games).",
+        "message": "Sentiment update started in background.",
         "stats": {"status": "processing"}
     }
 
@@ -248,16 +249,16 @@ async def trigger_sentiment_update(background_tasks: BackgroundTasks) -> Dict:
 async def trigger_thai_reviews_update(background_tasks: BackgroundTasks) -> Dict:
     """
     Manually trigger Thai review fetching for all games (Background Task)
-    Uses Force Update (updates ALL games, ignoring 24h skip)
+    Uses Normal Update (only processes games not fetched in the last 24h)
     """
     from ..services.review_scheduler import trigger_manual_update
     
-    # Force update — admin manual trigger should always re-fetch for all games
-    background_tasks.add_task(trigger_manual_update, force_update=True)
+    # Use normal update (force_update=False) to only process games not fetched in the last 24h
+    background_tasks.add_task(trigger_manual_update, force_update=False)
     
     return {
         "status": "success",
-        "message": "Thai reviews update started in background (Force Update — all games).",
+        "message": "Thai reviews update started in background.",
         "stats": {"status": "processing"}
     }
 
