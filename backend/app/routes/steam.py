@@ -376,12 +376,15 @@ def import_game_from_steam(
         
         # Log this import to daily_update_log so it counts in "New Games Today"
         try:
-            from datetime import date
+            from datetime import datetime, timedelta
             from ..models import DailyUpdateLog
             
+            # Align with Thailand time (UTC+7)
+            th_today = (datetime.utcnow() + timedelta(hours=7)).date()
+            
             log_entry = DailyUpdateLog(
-                update_type='games',
-                update_date=date.today(),
+                update_type='manual_game_import',
+                update_date=th_today,
                 status='success',
                 items_processed=1,
                 items_successful=1,

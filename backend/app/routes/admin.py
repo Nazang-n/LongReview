@@ -273,7 +273,7 @@ async def get_comment_analytics(db: Session = Depends(get_db)) -> Dict:
     from ..models import Comment
     
     try:
-        now = datetime.now()
+        now = datetime.utcnow() + timedelta(hours=7)
         first_day_of_month = datetime(now.year, now.month, 1)
         
         # Get daily counts for current month
@@ -315,11 +315,11 @@ async def get_news_analytics(db: Session = Depends(get_db)) -> Dict:
     Returns daily counts, today's count, and monthly total
     """
     from sqlalchemy import func
-    from datetime import datetime
+    from datetime import datetime, timedelta
     from ..models import News
     
     try:
-        now = datetime.now()
+        now = datetime.utcnow() + timedelta(hours=7)
         first_day_of_month = datetime(now.year, now.month, 1)
         
         # Get daily counts for current month
@@ -361,11 +361,11 @@ async def get_report_analytics(db: Session = Depends(get_db)) -> Dict:
     Returns daily counts, today's count, and monthly total of pending reports
     """
     from sqlalchemy import func
-    from datetime import datetime
+    from datetime import datetime, timedelta
     from ..models import CommentReport
     
     try:
-        now = datetime.now()
+        now = datetime.utcnow() + timedelta(hours=7)
         first_day_of_month = datetime(now.year, now.month, 1)
         
         # Get daily counts for current month (pending only)
@@ -493,11 +493,11 @@ async def get_new_games_today(db: Session = Depends(get_db)) -> Dict:
     Get count of ALL new games added today (from any source: scheduler, manual import, etc.)
     """
     from sqlalchemy import func
-    from datetime import datetime
+    from datetime import datetime, timedelta
     from ..models import Game
     
     try:
-        now = datetime.now()
+        now = datetime.utcnow() + timedelta(hours=7)
         today_start = datetime(now.year, now.month, now.day)
         
         # Count ALL games imported today via DailyUpdateLog
@@ -506,7 +506,7 @@ async def get_new_games_today(db: Session = Depends(get_db)) -> Dict:
         
         # Get all game import logs for today (not just scheduler)
         today_logs = db.query(DailyUpdateLog).filter(
-            DailyUpdateLog.update_type == 'games',
+            DailyUpdateLog.update_type.in_(['games', 'manual_game_import']),
             DailyUpdateLog.update_date == today_start.date()
         ).all()
         
