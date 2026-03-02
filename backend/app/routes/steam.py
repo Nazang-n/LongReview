@@ -614,6 +614,7 @@ def import_games_batch_from_steamspy(
         imported_count = 0
         skipped_count = 0
         failed_count = 0
+        imported_titles = []
         
         for game in top_games:
             # Stop as soon as we have enough new games
@@ -901,6 +902,7 @@ def import_games_batch_from_steamspy(
                         db.add(game_tag)
                         print(f"   [OK] Auto-linked Genre: {genre_name}")
                 
+                imported_titles.append(new_game.title)
                 imported_count += 1
                 
                 # Stop as soon as we have enough new games
@@ -972,7 +974,8 @@ def import_games_batch_from_steamspy(
             "imported": imported_count,
             "skipped": skipped_count,
             "failed": failed_count,
-            "total_processed": imported_count + skipped_count + failed_count
+            "total_processed": imported_count + skipped_count + failed_count,
+            "imported_titles": imported_titles
         }
         
     except HTTPException:
@@ -1006,6 +1009,7 @@ def import_newest_games_from_steamspy(
         imported_count = 0
         skipped_count = 0
         failed_count = 0
+        imported_titles = []
         
         batch_size = 20
         batch_offset = 0
@@ -1285,6 +1289,7 @@ def import_newest_games_from_steamspy(
                             db.add(game_tag)
                             print(f"   [OK] Auto-linked Massively Multiplayer game to Multi-player tag")
                     
+                    imported_titles.append(new_game.title)
                     imported_count += 1
                     print(f"[Manual Import] ✓ Imported from batch {batch_num}: {new_game.title} ({imported_count}/{limit})")
                     
@@ -1359,7 +1364,8 @@ def import_newest_games_from_steamspy(
             "imported": imported_count,
             "skipped": skipped_count,
             "failed": failed_count,
-            "total_processed": imported_count + skipped_count + failed_count
+            "total_processed": imported_count + skipped_count + failed_count,
+            "imported_titles": imported_titles
         }
         
     except HTTPException:
