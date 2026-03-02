@@ -137,6 +137,8 @@ export class AdminComponent implements OnInit, OnDestroy {
 
     // Auto-refresh interval for dashboard
     private dashboardRefreshInterval: any;
+    private taskPollingInterval: any;
+    activeTasks: any[] = [];
 
     // Polling intervals
     private pollingIntervals: Map<string, any> = new Map();
@@ -170,6 +172,7 @@ export class AdminComponent implements OnInit, OnDestroy {
         this.loadDashboardAnalytics();
         this.loadDailyUpdateStatus();
         this.loadGames();
+        this.startTaskPolling();
     }
 
     ngOnDestroy() {
@@ -177,6 +180,50 @@ export class AdminComponent implements OnInit, OnDestroy {
         if (this.dashboardRefreshInterval) {
             clearInterval(this.dashboardRefreshInterval);
         }
+        if (this.taskPollingInterval) {
+            clearInterval(this.taskPollingInterval);
+        }
+    }
+
+    startTaskPolling() {
+        this.taskPollingInterval = setInterval(() => {
+            this.http.get<any>('http://localhost:8000/api/admin/tasks', { withCredentials: true }).subscribe({
+                next: (res) => {
+                    if (res && res.status === 'success' && res.tasks) {
+                        this.activeTasks = res.tasks;
+
+                        // Sync UI loading states (only processing tasks)
+                        const processingTasks = this.activeTasks.filter(t => t.status === 'processing');
+                        if (processingTasks.length > 0) {
+                            this.isAnyProcessing = true;
+                            this.isTranslating = processingTasks.some(t => t.name.includes('แปลภาษาเกม'));
+                            this.isUpdatingReviews = processingTasks.some(t => t.name.includes('ดึงรีวิวภาษาไทย'));
+                            this.isUpdatingSentiment = processingTasks.some(t => t.name.includes('วิเคราะห์เปอร์เซ็นรีวิว'));
+                        } else if (this.isAnyProcessing) {
+                            this.isAnyProcessing = false;
+                            this.isTranslating = false;
+                            this.isUpdatingReviews = false;
+                            this.isUpdatingSentiment = false;
+                        }
+
+                        // Check for completed tasks
+                        this.activeTasks.forEach(task => {
+                            if (task.status === 'success') {
+                                this.showResultDialog(task.name + ' สำเร็จ', task.result || {});
+                                this.acknowledgeTask(task.id);
+                            } else if (task.status === 'error') {
+                                this.messageService.add({ severity: 'error', summary: 'เกิดข้อผิดพลาด', detail: task.name + ': ' + (task.error || 'Unknown error'), life: 5000 });
+                                this.acknowledgeTask(task.id);
+                            }
+                        });
+                    }
+                }
+            });
+        }, 3000);
+    }
+
+    acknowledgeTask(taskId: string) {
+        this.http.delete(`http://localhost:8000/api/admin/tasks/${taskId}`, { withCredentials: true }).subscribe();
     }
 
     // Check if any operation is currently processing
@@ -243,13 +290,7 @@ export class AdminComponent implements OnInit, OnDestroy {
 
         this.gameService.batchTranslateGames().subscribe({
             next: (result: any) => {
-                this.isTranslating = false;
-                this.isAnyProcessing = false;
-                this.showResultDialog('การแปลภาษาเสร็จสิ้น', {
-                    'เกมที่ต้องแปล': result.total_found || 0,
-                    'แปลสำเร็จ': result.translated || 0,
-                    'ล้มเหลว': result.failed || 0
-                });
+                // Task is now queued in background. Polling will handle success dialog.
             },
             error: (err: any) => {
                 this.isTranslating = false;
@@ -358,20 +399,7 @@ export class AdminComponent implements OnInit, OnDestroy {
 
         this.gameService.triggerReviewUpdate().subscribe({
             next: (result) => {
-                this.reviewUpdateResult = result;
-                this.isUpdatingReviews = false;
-                this.isAnyProcessing = false;
-
-                // Build detailed message from stats
-                const stats = result.stats || {};
-
-                // Show result dialog
-                this.showResultDialog('อัปเดตรีวิวภาษาไทยสำเร็จ', {
-                    'เกมที่ประมวลผล': stats.games_processed || 0,
-                    'สำเร็จ': stats.games_successful || 0,
-                    'ล้มเหลว': stats.games_failed || 0,
-                    'รีวิวใหม่': stats.new_reviews_fetched || 0
-                });
+                // Task is now queued in background. Polling will handle success dialog.
             },
             error: (err) => {
                 this.reviewUpdateError = err.message || 'Failed to trigger review update';
@@ -406,19 +434,7 @@ export class AdminComponent implements OnInit, OnDestroy {
 
         this.gameService.triggerSentimentUpdate().subscribe({
             next: (result: any) => {
-                this.sentimentUpdateResult = result;
-                this.isUpdatingSentiment = false;
-                this.isAnyProcessing = false;
-
-                // Backend now runs synchronously, show completion results
-                const stats = result.stats || {};
-
-                // Show result dialog with statistics
-                this.showResultDialog('อัปเดต Sentiment สำเร็จ', {
-                    'เกมที่ประมวลผล': stats.games_processed || 0,
-                    'อัปเดต': stats.updated || 0,
-                    'ข้อผิดพลาด': stats.errors || 0
-                });
+                // Task is now queued in background. Polling will handle success dialog.
             },
             error: (err: any) => {
                 this.sentimentUpdateError = err.message || 'Failed to trigger sentiment update';

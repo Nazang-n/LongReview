@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, BackgroundTasks
 from sqlalchemy.orm import Session, aliased
 from sqlalchemy import text, and_, case, or_
 from typing import List, Optional
@@ -518,14 +518,14 @@ def search_games(
     return results
 
 
-def run_batch_translation_bg(limit: int):
+def run_batch_translation_bg(limit: int, task_id: str = None):
     from ..database import SessionLocal
     from ..utils.translator import translator
     from .. import models
     import re
     import time
     
-    print(f"[BG Translater] Starting batch translation process for up to {limit} games.")
+    print(f"[BG Translater] Starting batch translation process for up to {limit} games. Task ID: {task_id}")
     db = SessionLocal()
     try:
         all_games = db.query(models.Game).limit(limit).all()
@@ -544,6 +544,9 @@ def run_batch_translation_bg(limit: int):
         
         print(f"[BG Translater] Found {len(games_to_translate)} games needing translation.")
         
+        translated_count = 0
+        failed_count = 0
+        
         for game in games_to_translate:
             try:
                 source_text = None
@@ -560,17 +563,32 @@ def run_batch_translation_bg(limit: int):
                 if thai_translation and thai_translation != source_text:
                     game.about_game_th = thai_translation
                     db.commit()
+                    translated_count += 1
                     print(f"  ✓ Processed game {game.id}")
+                else:
+                    failed_count += 1
                 
                 # Respect Gemini free tier: wait 4s between requests
                 time.sleep(4)
                 
             except Exception as e:
                 db.rollback()
+                failed_count += 1
                 print(f"[BG Translater] Error on game {game.id}: {e}")
+                
+        if task_id:
+            from ..services.task_manager import TaskManager
+            TaskManager.update_task_success(task_id, {
+                "total_found": len(games_to_translate),
+                "translated": translated_count,
+                "failed": failed_count
+            })
                 
     except Exception as e:
         print(f"[BG Translater] Critical Error: {e}")
+        if task_id:
+            from ..services.task_manager import TaskManager
+            TaskManager.update_task_error(task_id, str(e))
     finally:
         db.close()
         print(f"[BG Translater] Finished batch translation run.")
@@ -585,12 +603,15 @@ def batch_translate_games(
     """
     Trigger a background task to batch translate all games that don't have Thai descriptions.
     """
-    background_tasks.add_task(run_batch_translation_bg, limit)
+    from ..services.task_manager import TaskManager
+    task_id = TaskManager.create_task("แปลภาษาเกม")
+    background_tasks.add_task(run_batch_translation_bg, limit, task_id)
     
     return {
         "message": "Batch translation started in the background",
         "total_queued_limit": limit,
-        "status": "processing"
+        "status": "processing",
+        "task_id": task_id
     }
 
 

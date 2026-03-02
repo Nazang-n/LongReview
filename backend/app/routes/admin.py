@@ -10,6 +10,21 @@ from ..scheduler import update_all_sentiments, update_review_tags
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
+@router.get("/tasks")
+async def get_active_tasks() -> Dict:
+    """Get all background tasks and their current status"""
+    from ..services.task_manager import TaskManager
+    return {"status": "success", "tasks": TaskManager.get_all_tasks()}
+
+@router.delete("/tasks/{task_id}")
+async def acknowledge_task(task_id: str) -> Dict:
+    """Acknowledge a task to remove it from the active list"""
+    from ..services.task_manager import TaskManager
+    if TaskManager.remove_task(task_id):
+        return {"status": "success", "message": "Task acknowledged and removed"}
+    return {"status": "warning", "message": "Task not found"}
+
+
 
 @router.post("/review-tags/generate/{game_id}")
 async def generate_review_tags_for_game(game_id: int, db: Session = Depends(get_db)) -> Dict:
@@ -233,15 +248,24 @@ async def trigger_sentiment_update(background_tasks: BackgroundTasks) -> Dict:
     Uses Normal Update (only processes games not updated in the last 24h)
     """
     from ..scheduler import update_all_sentiments
+    from ..services.task_manager import TaskManager
     
-    # Use normal update (force_update=False) to only process games not updated in the last 24h
-    # This acts as a catch-up for today instead of rebuilding 5000+ games
-    background_tasks.add_task(update_all_sentiments, force_update=False)
+    task_id = TaskManager.create_task("วิเคราะห์เปอร์เซ็นรีวิว")
+    
+    def run_sentiment_with_task(tid: str):
+        try:
+            # Use normal update (force_update=False) to only process games not updated in the last 24h
+            update_all_sentiments(force_update=False)
+            TaskManager.update_task_success(tid, {"message": "วิเคราะห์เปอร์เซ็นต์รีวิวเสร็จสิ้น"})
+        except Exception as e:
+            TaskManager.update_task_error(tid, str(e))
+            
+    background_tasks.add_task(run_sentiment_with_task, task_id)
     
     return {
         "status": "success",
         "message": "Sentiment update started in background.",
-        "stats": {"status": "processing"}
+        "stats": {"status": "processing", "task_id": task_id}
     }
 
 
@@ -252,14 +276,24 @@ async def trigger_thai_reviews_update(background_tasks: BackgroundTasks) -> Dict
     Uses Normal Update (only processes games not fetched in the last 24h)
     """
     from ..services.review_scheduler import trigger_manual_update
+    from ..services.task_manager import TaskManager
     
-    # Use normal update (force_update=False) to only process games not fetched in the last 24h
-    background_tasks.add_task(trigger_manual_update, force_update=False)
+    task_id = TaskManager.create_task("ดึงรีวิวภาษาไทย")
+    
+    def run_reviews_with_task(tid: str):
+        try:
+            # Use normal update (force_update=False) to only process games not fetched in the last 24h
+            trigger_manual_update(force_update=False)
+            TaskManager.update_task_success(tid, {"message": "ดึงรีวิวภาษาไทยเสร็จสิ้น"})
+        except Exception as e:
+            TaskManager.update_task_error(tid, str(e))
+            
+    background_tasks.add_task(run_reviews_with_task, task_id)
     
     return {
         "status": "success",
         "message": "Thai reviews update started in background.",
-        "stats": {"status": "processing"}
+        "stats": {"status": "processing", "task_id": task_id}
     }
 
 
