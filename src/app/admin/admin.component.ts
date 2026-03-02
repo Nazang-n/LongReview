@@ -844,52 +844,30 @@ export class AdminComponent implements OnInit, OnDestroy {
         this.messageService.add({
             severity: 'info',
             summary: 'เริ่มแก้ไขข้อมูลทั้งหมด',
-            detail: `กำลังอัปเดตข้อมูลสำหรับ ${this.incompleteGames.length} เกม...`,
+            detail: `กำลังจัดคิวอัปเดตข้อมูลสำหรับ ${this.incompleteGames.length} เกม...`,
             life: 3000
         });
 
-        // Build one request per game, per data type that's missing
-        const allUpdates: any[] = [];
-
-        for (const game of this.incompleteGames) {
-            if (game.not_updated.includes('sentiment')) {
-                allUpdates.push(
-                    this.http.post(`https://longreview.onrender.com/api/admin/sentiment/update/${game.id}`, {})
-                );
-            }
-            if (game.not_updated.includes('tags')) {
-                allUpdates.push(
-                    this.http.post(`https://longreview.onrender.com/api/admin/review-tags/generate/${game.id}`, {})
-                );
-            }
-            if (game.not_updated.includes('reviews')) {
-                allUpdates.push(
-                    this.http.post(`https://longreview.onrender.com/api/admin/reviews/update/${game.id}`, {})
-                );
-            }
-        }
-
-        if (allUpdates.length === 0) {
-            this.isFixingAll = false;
-            this.isAnyProcessing = false;
-            return;
-        }
-
-        import('rxjs').then(({ forkJoin }) => {
-            forkJoin(allUpdates).subscribe({
-                next: () => {
-                    this.isFixingAll = false;
-                    this.isAnyProcessing = false;
-
-                    this.messageService.add({
-                        severity: 'success',
-                        summary: 'อัปเดตเสร็จสิ้น',
-                        detail: `อัปเดตข้อมูลสำหรับ ${this.incompleteGames.length} เกม เรียบร้อยแล้ว`,
-                        life: 5000
-                    });
-
-                    // Reload incomplete games to see updated status
-                    this.loadDailyUpdateStatus();
+        this.http.post('https://longreview.onrender.com/api/admin/incomplete-games/fix-all', this.incompleteGames)
+            .subscribe({
+                next: (response: any) => {
+                    this.isFixingAll = false; // Initial request complete
+                    if (response.task_id) {
+                        this.messageService.add({
+                            severity: 'success',
+                            summary: 'กำลังดำเนินการพื้นหลัง',
+                            detail: `กำลังแก้ไขข้อมูลเกม ${this.incompleteGames.length} เกม. คุณสามารถใช้งานระบบต่อได้.`,
+                            life: 5000
+                        });
+                        // Polling will pick up the task_id
+                        if (this.activeTasks.length === 0) {
+                            this.startTaskPolling();
+                        }
+                    } else {
+                        // Fallback
+                        this.isAnyProcessing = false;
+                        this.loadDailyUpdateStatus();
+                    }
                 },
                 error: (error) => {
                     this.isFixingAll = false;
@@ -898,15 +876,11 @@ export class AdminComponent implements OnInit, OnDestroy {
                     this.messageService.add({
                         severity: 'error',
                         summary: 'เกิดข้อผิดพลาด',
-                        detail: 'ไม่สามารถอัปเดตข้อมูลได้บางส่วน',
+                        detail: 'ไม่สามารถเริ่มอัปเดตข้อมูลทั้งหมดได้',
                         life: 5000
                     });
-
-                    // Still reload to see which ones succeeded
-                    this.loadDailyUpdateStatus();
                 }
             });
-        });
     }
 
     showAllIncomplete() {

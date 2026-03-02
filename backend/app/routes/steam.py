@@ -651,7 +651,8 @@ def import_games_batch_from_steamspy(
                         publisher=game.get('publisher', ''),
                         platform=None,
                         price=None,
-                        video=None
+                        video=None,
+                        steam_app_id=int(app_id)
                     )
                 else:
                     # Also fetch Thai version for Thai description (if available)
@@ -807,7 +808,7 @@ def import_games_batch_from_steamspy(
                 db.flush()  # Get the game ID
                 
                 # Extract and create player mode tags from categories
-                categories = steam_details_en.get('categories', [])
+                categories = steam_details_en.get('categories', []) if steam_details_en else []
                 player_mode_tags = []
                 
                 for category in categories:
@@ -847,7 +848,7 @@ def import_games_batch_from_steamspy(
                         db.add(game_tag)
                 
                 # Auto-link Massively Multiplayer games to Multi-player tag
-                genres = steam_details_en.get('genres', [])
+                genres = steam_details_en.get('genres', []) if steam_details_en else []
                 is_massively_multiplayer = any(g.get('description') == 'Massively Multiplayer' for g in genres)
                 
                 if is_massively_multiplayer and 'Multi-player' not in player_mode_tags:
@@ -874,7 +875,7 @@ def import_games_batch_from_steamspy(
                         print(f"   [OK] Auto-linked Massively Multiplayer game to Multi-player tag")
                 
                 # Auto-tag Genres (NEW logic)
-                genres = steam_details_en.get('genres', [])
+                genres = steam_details_en.get('genres', []) if steam_details_en else []
                 for genre_data in genres:
                     genre_name = genre_data.get('description')
                     if not genre_name:
@@ -1068,7 +1069,8 @@ def import_newest_games_from_steamspy(
                             publisher=game.get('publisher', ''),
                             platform=None,
                             price=None,
-                            video=None
+                            video=None,
+                            steam_app_id=int(app_id)
                         )
                     else:
                         # Also fetch Thai version for Thai description (if available)
@@ -1223,7 +1225,7 @@ def import_newest_games_from_steamspy(
                     db.flush()  # Get the game ID
                     
                     # Extract and create player mode tags from categories
-                    categories = steam_details_en.get('categories', [])
+                    categories = steam_details_en.get('categories', []) if steam_details_en else []
                     player_mode_tags = []
                     
                     for category in categories:
@@ -1263,7 +1265,7 @@ def import_newest_games_from_steamspy(
                             db.add(game_tag)
                     
                     # Auto-link Massively Multiplayer games to Multi-player tag
-                    genres = steam_details_en.get('genres', [])
+                    genres = steam_details_en.get('genres', []) if steam_details_en else []
                     is_massively_multiplayer = any(g.get('description') == 'Massively Multiplayer' for g in genres)
                     
                     if is_massively_multiplayer and 'Multi-player' not in player_mode_tags:

@@ -711,4 +711,69 @@ async def get_incomplete_games(db: Session = Depends(get_db)) -> Dict:
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch not updated games: {str(e)}")
 
+def run_fix_incomplete_games_bg(task_id: str, games_data: List[dict]):
+    TaskManager.update_task(task_id, status="processing")
+    from ..database import SessionLocal
+    from ..utils.sentiment_helper import fetch_and_cache_sentiment
+    from ..utils.thai_review_helper import fetch_and_cache_thai_reviews
+    from ..services.review_tags_service import ReviewTagsService
+    import time
+    
+    db = SessionLocal()
+    success_count = 0
+    error_count = 0
+    try:
+        tags_service = ReviewTagsService(db)
+        
+        for game in games_data:
+            game_id = game.get('id')
+            app_id = game.get('steam_app_id')
+            missing = game.get('not_updated', [])
+            
+            if not game_id or not app_id:
+                error_count += 1
+                continue
+                
+            try:
+                # 1. Update Thai Reviews if needed
+                if 'reviews' in missing:
+                    fetch_and_cache_thai_reviews(game_id, app_id, db, max_reviews=50)
+                
+                # 2. Update Sentiment if needed
+                if 'sentiment' in missing:
+                    fetch_and_cache_sentiment(game_id, app_id, db)
+                
+                # 3. Generate Tags if needed
+                if 'tags' in missing:
+                    tags_service.generate_tags_for_game(game_id, top_n=10, max_reviews=1500)
+                
+                success_count += 1
+            except Exception as e:
+                print(f"Error fixing incomplete game {game_id}: {e}")
+                error_count += 1
+            
+            # Sleep to prevent rate limits / OOM
+            time.sleep(2)
+            
+        TaskManager.update_task(
+            task_id,
+            status="success",
+            result={"Message": "Incomplete games fixed", "Success": success_count, "Errors": error_count}
+        )
+    except Exception as e:
+        TaskManager.update_task(task_id, status="error", error=str(e))
+    finally:
+        db.close()
 
+@router.post("/incomplete-games/fix-all")
+def fix_all_incomplete_games(
+    games_data: List[dict],
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)  # Just for auth/dependency resolution
+):
+    try:
+        task_id = TaskManager.create_task("Fixing Incomplete Games")
+        background_tasks.add_task(run_fix_incomplete_games_bg, task_id, games_data)
+        return {"success": True, "task_id": task_id, "message": f"Started fixing {len(games_data)} incomplete games"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
