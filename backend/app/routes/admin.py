@@ -712,6 +712,7 @@ async def get_incomplete_games(db: Session = Depends(get_db)) -> Dict:
         raise HTTPException(status_code=500, detail=f"Failed to fetch not updated games: {str(e)}")
 
 def run_fix_incomplete_games_bg(task_id: str, games_data: List[dict]):
+    from ..services.task_manager import TaskManager
     TaskManager.update_task(task_id, status="processing")
     from ..database import SessionLocal
     from ..utils.sentiment_helper import fetch_and_cache_sentiment
@@ -771,6 +772,7 @@ def fix_all_incomplete_games(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)  # Just for auth/dependency resolution
 ):
+    from ..services.task_manager import TaskManager
     try:
         task_id = TaskManager.create_task("Fixing Incomplete Games")
         background_tasks.add_task(run_fix_incomplete_games_bg, task_id, games_data)
