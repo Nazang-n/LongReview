@@ -4,7 +4,7 @@ Handles administrative functions like manual updates
 """
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
-from typing import Dict
+from typing import Dict, List
 from ..database import get_db
 from ..scheduler import update_all_sentiments, update_review_tags
 
