@@ -713,7 +713,6 @@ async def get_incomplete_games(db: Session = Depends(get_db)) -> Dict:
 
 def run_fix_incomplete_games_bg(task_id: str, games_data: List[dict]):
     from ..services.task_manager import TaskManager
-    TaskManager.update_task(task_id, status="processing")
     from ..database import SessionLocal
     from ..utils.sentiment_helper import fetch_and_cache_sentiment
     from ..utils.thai_review_helper import fetch_and_cache_thai_reviews
@@ -756,13 +755,12 @@ def run_fix_incomplete_games_bg(task_id: str, games_data: List[dict]):
             # Sleep to prevent rate limits / OOM
             time.sleep(2)
             
-        TaskManager.update_task(
+        TaskManager.update_task_success(
             task_id,
-            status="success",
             result={"Message": "Incomplete games fixed", "Success": success_count, "Errors": error_count}
         )
     except Exception as e:
-        TaskManager.update_task(task_id, status="error", error=str(e))
+        TaskManager.update_task_error(task_id, error_message=str(e))
     finally:
         db.close()
 
