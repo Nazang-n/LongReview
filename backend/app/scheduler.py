@@ -24,7 +24,7 @@ def log_daily_update(db: Session, update_type: str, stats: dict, game_id: int = 
         status = 'success'
         items_processed = stats.get('games_processed', 0) or stats.get('total_processed', 0) or stats.get('imported', 0) or stats.get('skipped', 0)
         # Prioritize 'added' over 'updated' so news updates show new articles count
-        items_successful = stats.get('added', 0) or stats.get('games_successful', 0) or stats.get('updated', 0) or stats.get('imported', 0) or stats.get('skipped', 0)
+        items_successful = stats.get('added', 0) or stats.get('games_successful', 0) or stats.get('updated', 0) or stats.get('imported', 0)
         items_failed = stats.get('errors', 0) or stats.get('failed', 0) or stats.get('games_failed', 0)
         
         if items_failed > 0 and items_successful == 0 and items_processed > 0:
